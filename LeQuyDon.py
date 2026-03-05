@@ -351,7 +351,7 @@ def main():
             st.session_state.clear()
             st.rerun()
 
-    # ==========================
+   # ==========================
     # GIAO DIỆN HỌC SINH
     # ==========================
     if st.session_state.role == 'student':
@@ -383,7 +383,7 @@ def main():
                 
                 disabled = st.session_state.is_submitted
                 selected = st.radio(
-                    f"Chọn đáp án:",
+                    "Chọn đáp án:",
                     options=q['options'],
                     index=q['options'].index(st.session_state.user_answers[q['id']]) if st.session_state.user_answers[q['id']] else None,
                     key=f"q_{q['id']}",
@@ -423,7 +423,7 @@ def main():
                 score = (correct / 40) * 10
                 st.info(f"🏆 **ĐIỂM CỦA BẠN: {score:.2f} / 10** (Đúng {correct}/40 câu)")
 
-   # ==========================
+    # ==========================
     # GIAO DIỆN ADMIN (ĐÃ NÂNG CẤP)
     # ==========================
     elif st.session_state.role == 'admin':
@@ -485,4 +485,7 @@ def main():
             df_users = pd.read_sql_query("SELECT username as 'Tài khoản', role as 'Phân quyền' FROM users", conn)
             conn.close()
             st.dataframe(df_users, use_container_width=True)
+
+# Lệnh thực thi App (Lùi ra sát lề trái nhất)
+if __name__ == "__main__":
     main()
