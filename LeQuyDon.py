@@ -24,7 +24,6 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT, role TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS results (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, score REAL, correct_count INTEGER, wrong_count INTEGER, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     
-    # BẢO MẬT: TÀI KHOẢN ADMIN GỐC 
     c.execute("INSERT OR IGNORE INTO users VALUES ('maducnghi6789@gmail.com', 'admin123', 'admin')")
     c.execute("INSERT OR IGNORE INTO users VALUES ('hs1', '123', 'student')")
     conn.commit()
@@ -67,7 +66,7 @@ def draw_tower_shadow():
     arc = patches.Arc((3, 0), 1, 1, angle=0, theta1=120, theta2=180, color='blue', lw=2)
     ax.add_patch(arc)
     
-    ax.text(-0.8, 2, 'Tháp', rotation=90, fontweight='bold', color='#34495e')
+    ax.text(-0.8, 2, 'Vật thể', rotation=90, fontweight='bold', color='#34495e')
     ax.text(1.2, -0.5, 'Bóng trên mặt đất', fontsize=9)
     ax.text(2.2, 0.2, r'$\alpha$', fontsize=12, color='blue')
     
@@ -92,8 +91,18 @@ def draw_vivid_histogram(freqs):
     ax.set_ylim(0, max(percents) + 15)
     return fig_to_base64(fig)
 
+def draw_intersecting_circles():
+    fig, ax = plt.subplots(figsize=(4, 2.5))
+    c1 = plt.Circle((-0.8, 0), 1.5, color='blue', fill=False, lw=1.5)
+    c2 = plt.Circle((0.8, 0), 1.2, color='green', fill=False, lw=1.5)
+    ax.add_patch(c1); ax.add_patch(c2)
+    ax.plot(0, 1.15, 'ko'); ax.plot(0, -1.15, 'ko') 
+    ax.set_xlim(-2.5, 2.5); ax.set_ylim(-1.6, 1.6)
+    ax.axis('off')
+    return fig_to_base64(fig)
+
 # ==========================================
-# 3. AI TẠO ĐỀ: 40 CÂU HỎI BÁM SÁT MA TRẬN
+# 3. AI TẠO ĐỀ: 40 CÂU HỎI ĐA DẠNG NGỮ CẢNH
 # ==========================================
 class ExamGenerator:
     def __init__(self):
@@ -110,258 +119,61 @@ class ExamGenerator:
         self.q_count += 1
 
     def generate_all(self):
-        # --- CHỦ ĐỀ 1: CĂN THỨC (6 CÂU) ---
-        for _ in range(2): 
-            a = random.randint(2, 9)
-            self.build_q(rf"Điều kiện để $\sqrt{{x-{a}}}$ có nghĩa là", rf"$x \ge {a}$", [rf"$x > {a}$", rf"$x \le {a}$", rf"$x < {a}$"], "Biểu thức dưới dấu căn $\ge 0$.")
-        for _ in range(2): 
-            sq = random.choice([16, 25, 36, 49, 64, 81])
-            rt = int(math.sqrt(sq))
-            self.build_q(rf"Căn bậc hai số học của ${sq}$ là", rf"${rt}$", [rf"-${rt}$", rf"${rt}$ và -${rt}$", rf"${sq**2}$"], "Căn bậc hai số học chỉ lấy giá trị dương.")
-        for _ in range(2): 
-            a = random.randint(2, 5); b = random.randint(1, 4)
-            self.build_q(rf"Với $x < {a}$, rút gọn $\sqrt{{({a}-x)^2}} + x - {b}$ ta được", rf"${a-b}$", [rf"${b-a}$", rf"$2x - {a+b}$", rf"${a+b}$"], r"Do $x<a$ nên $|a-x| = a-x$.")
-
-        # --- CHỦ ĐỀ 2: HÀM SỐ & PARABOL THỰC TẾ (3 CÂU) ---
-        self.build_q(r"Một chiếc cổng hình parabol có phương trình $y=-ax^2$ (như hình minh họa). Cổng nhận đường thẳng nào làm trục đối xứng?", 
-                     "Trục tung (Oy)", ["Trục hoành (Ox)", "Đường thẳng y=x", "Không có trục đối xứng"], 
-                     "Parabol $y=ax^2$ luôn nhận trục tung làm trục đối xứng.", draw_real_parabola())
-        for _ in range(2):
-            x0 = random.choice([2, 3]); y0 = random.choice([4, 9, 12, 18])
-            self.build_q(rf"Đồ thị hàm số $y=ax^2$ đi qua điểm $M({x0}; {y0})$. Giá trị của $a$ là", rf"${y0}/{x0**2}$" if y0%(x0**2)!=0 else rf"${y0//(x0**2)}$", 
-                         [rf"${y0*x0}$", rf"${x0**2}/{y0}$", rf"${y0}$"], "Thay tọa độ x, y vào phương trình để tìm a.")
-
-        # --- CHỦ ĐỀ 3: PHƯƠNG TRÌNH & BÀI TOÁN KINH TẾ (8 CÂU) ---
-        for _ in range(3): 
-            self.build_q(r"Hệ phương trình nào sau đây KHÔNG phải là hệ bậc nhất hai ẩn?", r"$\begin{cases} \sqrt{x} + y = 1 \\ x - y = 0 \end{cases}$", 
-                         [r"$\begin{cases} x + 2y = 1 \\ x - y = 0 \end{cases}$", r"$\begin{cases} 2x = 1 \\ y = 0 \end{cases}$", r"$\begin{cases} 3x - y = 1 \\ x + y = 2 \end{cases}$"], "Hệ bậc nhất không chứa căn của ẩn.")
-        for _ in range(4): 
-            m = random.randint(2, 5); n = random.randint(1, 4)
-            self.build_q(rf"Tổng các nghiệm của phương trình $(x-{m})(2x-{2*n}) = 0$ là", rf"${m+n}$", [rf"${abs(m-n)}$", rf"${m*n}$", rf"${m+2*n}$"], "Giải từng nhân tử bằng 0 rồi cộng lại.")
+        # Bộ tên và bối cảnh ngẫu nhiên để chống lặp
+        names = random.sample(["An", "Bình", "Châu", "Dương", "Hải", "Linh", "Minh", "Nam"], 5)
         
-        price = random.choice([5, 6, 7]); drop = random.choice([1, 2])
-        self.build_q(rf"Một cửa hàng bán {price*100} áo/tháng với giá {price} trăm nghìn/áo. Giảm giá {drop} trăm nghìn thì bán thêm 50 áo. Để doanh thu cực đại, hàm số doanh thu lập được là hàm bậc mấy?", 
-                     "Bậc 2", ["Bậc 1", "Bậc 3", "Bậc 4"], "Doanh thu tạo ra hàm bậc 2 (Parabol).")
-
-        # --- CHỦ ĐỀ 4: BẤT PHƯƠNG TRÌNH (3 CÂU) ---
-        for _ in range(3):
-            c = random.randint(2, 5)
-            self.build_q(rf"Nghiệm của bất phương trình $2x - {2*c} \ge 0$ là", rf"$x \ge {c}$", [rf"$x \le {c}$", rf"$x > {c}$", rf"$x < {c}$"], "Chuyển vế và chia cho số dương.")
-
-        # --- CHỦ ĐỀ 5: HỆ THỨC LƯỢNG THỰC TẾ (5 CÂU) ---
-        self.build_q(r"Một bóng tháp in trên mặt đất dài 15m. Tia nắng mặt trời tạo với mặt đất một góc $\alpha$ (như hình minh họa). Công thức tính chiều cao tháp là:", 
-                     r"$15 \times \tan \alpha$", [r"$15 \times \sin \alpha$", r"$15 \times \cos \alpha$", r"$15 \times \cot \alpha$"], 
-                     r"Sử dụng Tỉ số lượng giác: $\tan = \text{Đối} / \text{Kề}$. Chiều cao = Bóng $\times \tan \alpha$.", draw_tower_shadow())
-        for _ in range(4):
-            c1, c2, huyen = random.choice([(3, 4, 5), (6, 8, 10), (5, 12, 13), (9, 12, 15), (8, 15, 17)])
-            self.build_q(rf"Tam giác ABC vuông tại A, hai cạnh góc vuông là {c1} và {c2}. Cạnh huyền bằng", rf"${huyen}$", [rf"${c1+c2}$", rf"${abs(c1-c2)}$", rf"${huyen+1}$"], "Áp dụng định lý Pytago.")
-
-        # --- CHỦ ĐỀ 6: ĐƯỜNG TRÒN (6 CÂU) ---
-        for _ in range(6):
-            r = random.choice([3, 4, 5]); d = r*2
-            self.build_q(rf"Bán kính đường tròn ngoại tiếp hình chữ nhật có đường chéo dài {d} cm là", rf"${r}$ cm", [rf"${d}$ cm", rf"${d*2}$ cm", rf"${r*2}$ cm"], "Bán kính bằng một nửa đường chéo.")
-
-        # --- CHỦ ĐỀ 7: HÌNH KHỐI THỰC TẾ (3 CÂU) ---
-        for _ in range(3):
-            bk = random.choice([2, 3]); cao = random.choice([5, 10])
-            self.build_q(rf"Một bồn nước hình trụ có bán kính đáy {bk}m, chiều cao {cao}m. Thể tích bồn nước là", rf"${bk**2 * cao}\pi$ $m^3$", [rf"${bk * cao}\pi$ $m^3$", rf"${2*bk * cao}\pi$ $m^3$", rf"${bk**2 * cao}$ $m^3$"], r"Công thức: $V = \pi r^2 h$.")
-
-        # --- CHỦ ĐỀ 8: THỐNG KÊ XÁC SUẤT (6 CÂU) ---
-        freqs = [random.randint(10, 40) for _ in range(5)]
-        max_idx = freqs.index(max(freqs))
-        bins = ['[140;150)', '[150;160)', '[160;170)', '[170;180)', '[180;190)']
-        self.build_q(rf"Dựa vào biểu đồ khảo sát thực tế, nhóm chiều cao nào có tỉ lệ học sinh đông nhất?", 
-                     rf"Nhóm {bins[max_idx]}", [rf"Nhóm {bins[(max_idx+1)%5]}", rf"Nhóm {bins[(max_idx+2)%5]}", rf"Nhóm {bins[(max_idx+3)%5]}"], 
-                     "Quan sát biểu đồ, cột nào cao nhất tương ứng với tỉ lệ lớn nhất.", draw_vivid_histogram(freqs))
-        for _ in range(5):
-            name = random.choice(["An", "Bình", "Châu", "Dương"])
-            self.build_q(rf"Bạn {name} gieo một con xúc xắc cân đối. Xác suất để xuất hiện mặt chẵn (2, 4, 6) là", r"$\frac{1}{2}$", [r"$\frac{1}{6}$", r"$\frac{1}{3}$", r"$\frac{2}{3}$"], "Có 3 mặt chẵn trên tổng 6 mặt.")
-
-        return self.exam[:40]
-
-# ==========================================
-# 4. GIAO DIỆN HỆ THỐNG
-# ==========================================
-def main():
-    st.set_page_config(page_title="Hệ Thống Thi Thử THPT Tuyên Quang", layout="wide", page_icon="🏫")
-    init_db()
-    
-    if 'current_user' not in st.session_state: st.session_state.current_user = None
-    if 'role' not in st.session_state: st.session_state.role = None
-    if 'exam_data' not in st.session_state: st.session_state.exam_data = None
-    if 'user_answers' not in st.session_state: st.session_state.user_answers = {}
-    if 'is_submitted' not in st.session_state: st.session_state.is_submitted = False
-
-    if st.session_state.current_user is None:
-        st.markdown("""
-        <div style='text-align: center; padding: 20px;'>
-            <h1 style='color: #2E3B55;'>🎓 HỆ THỐNG KIỂM TRA ĐÁNH GIÁ NĂNG LỰC</h1>
-            <p style='color: #777; font-size: 18px;'>Kỳ thi tuyển sinh vào lớp 10 THPT (Toán Thực Tế)</p>
-        </div>
-        """, unsafe_allow_html=True)
+        # --- CHỦ ĐỀ 1: CĂN THỨC (6 CÂU HOÀN TOÀN KHÁC NHAU) ---
+        a1 = random.randint(2, 9)
+        self.build_q(rf"Điều kiện để $\sqrt{{x - {a1}}}$ có nghĩa là", rf"$x \ge {a1}$", [rf"$x > {a1}$", rf"$x \le {a1}$", rf"$x < {a1}$"], "Biểu thức dưới dấu căn phải không âm.")
         
-        col1, col2, col3 = st.columns([1, 1.5, 1])
-        with col2:
-            with st.form("login_form"):
-                st.markdown("### 🔒 Cổng Đăng Nhập")
-                user = st.text_input("👤 Tài khoản (Email / ID)")
-                pwd = st.text_input("🔑 Mật khẩu", type="password")
-                submitted = st.form_submit_button("🚀 Đăng nhập hệ thống", use_container_width=True)
-                
-                if submitted:
-                    conn = sqlite3.connect('exam_db.sqlite')
-                    c = conn.cursor()
-                    c.execute("SELECT role FROM users WHERE username=? AND password=?", (user.strip(), pwd.strip()))
-                    res = c.fetchone()
-                    conn.close()
-                    if res:
-                        st.session_state.current_user = user.strip()
-                        st.session_state.role = res[0]
-                        st.rerun()
-                    else:
-                        st.error("❌ Tài khoản hoặc mật khẩu không chính xác!")
-        return
-
-    with st.sidebar:
-        st.markdown(f"### 👤 Xin chào, **{st.session_state.current_user}**")
-        st.markdown(f"**Vai trò:** {'👑 Quản trị viên' if st.session_state.role == 'admin' else '🎓 Học sinh'}")
-        if st.button("🚪 Đăng xuất", use_container_width=True, type="primary"):
-            st.session_state.clear()
-            st.rerun()
-
-    # --- GIAO DIỆN HỌC SINH ---
-    if st.session_state.role == 'student':
-        st.title("📝 Đề Thi Thử Vào 10 THPT (Toán Thực Tế)")
-        st.warning("⏱ Thời gian: 90 phút. Đề thi gồm 40 câu trắc nghiệm AI sinh tự động.")
+        a2 = random.randint(2, 7)
+        self.build_q(rf"Tập hợp các giá trị của $x$ để căn thức $\sqrt{{{a2} - 2x}}$ xác định là", r"$x \le " + str(a2/2) + r"$", [r"$x \ge " + str(a2/2) + r"$", r"$x < " + str(a2/2) + r"$", r"$x > " + str(a2/2) + r"$"], "Giải bất phương trình.")
         
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            if st.button("🔄 LÀM ĐỀ MỚI (Trộn AI)", use_container_width=True):
-                gen = ExamGenerator()
-                st.session_state.exam_data = gen.generate_all()
-                st.session_state.user_answers = {q['id']: None for q in st.session_state.exam_data}
-                st.session_state.is_submitted = False
-                st.rerun()
-        with c2:
-            if st.session_state.is_submitted and st.button("🔁 Làm lại toàn bộ", use_container_width=True):
-                st.session_state.user_answers = {q['id']: None for q in st.session_state.exam_data}
-                st.session_state.is_submitted = False
-                st.rerun()
-        with c3:
-            if st.session_state.is_submitted and st.button("🛠 Làm lại câu sai", use_container_width=True):
-                for q in st.session_state.exam_data:
-                    if st.session_state.user_answers[q['id']] != q['answer']:
-                        st.session_state.user_answers[q['id']] = None
-                st.session_state.is_submitted = False
-                st.rerun()
-
-        if st.session_state.exam_data:
-            if st.session_state.is_submitted:
-                correct = sum(1 for q in st.session_state.exam_data if st.session_state.user_answers[q['id']] == q['answer'])
-                score = (correct / 40) * 10
-                st.markdown(f"""
-                <div style="background-color: #e8f5e9; padding: 20px; border-radius: 10px; border: 2px solid #4CAF50; text-align: center; margin-bottom: 20px;">
-                    <h2 style="color: #2E7D32; margin: 0;">🏆 ĐIỂM CỦA BẠN: {score:.2f} / 10</h2>
-                    <h4 style="color: #2E7D32;">Đúng {correct} / 40 câu hỏi.</h4>
-                </div>
-                """, unsafe_allow_html=True)
-
-            st.markdown("---")
-            for q in st.session_state.exam_data:
-                st.markdown(f"**Câu {q['id']}:** {q['question']}", unsafe_allow_html=True)
-                if q['image']:
-                    st.markdown(f'<img src="data:image/png;base64,{q["image"]}" style="max-width:400px; border-radius: 8px; box-shadow: 2px 4px 10px rgba(0,0,0,0.15); margin-bottom: 15px;">', unsafe_allow_html=True)
-                
-                disabled = st.session_state.is_submitted
-                selected = st.radio("Chọn đáp án:", options=q['options'], 
-                                    index=q['options'].index(st.session_state.user_answers[q['id']]) if st.session_state.user_answers[q['id']] else None,
-                                    key=f"q_{q['id']}", disabled=disabled, label_visibility="collapsed")
-                
-                if not disabled: st.session_state.user_answers[q['id']] = selected
-
-                if st.session_state.is_submitted:
-                    if selected == q['answer']:
-                        st.markdown("✅ **<span style='color:#4CAF50;'>Chính xác</span>**", unsafe_allow_html=True)
-                    else:
-                        st.markdown(f"❌ **<span style='color:#F44336;'>Sai. Đáp án đúng: {q['answer']}</span>**", unsafe_allow_html=True)
-                    with st.expander("📖 Xem hướng dẫn tư duy"):
-                        st.markdown(q['hint'], unsafe_allow_html=True)
-                st.markdown("---")
-
-            if not st.session_state.is_submitted:
-                if st.button("📤 NỘP BÀI KIỂM TRA", type="primary", use_container_width=True):
-                    correct = sum(1 for q in st.session_state.exam_data if st.session_state.user_answers[q['id']] == q['answer'])
-                    score = (correct / 40) * 10
-                    conn = sqlite3.connect('exam_db.sqlite')
-                    c = conn.cursor()
-                    c.execute("INSERT INTO results (username, score, correct_count, wrong_count) VALUES (?, ?, ?, ?)", 
-                              (st.session_state.current_user, score, correct, 40 - correct))
-                    conn.commit()
-                    conn.close()
-                    st.session_state.is_submitted = True
-                    st.rerun()
-
-    # --- GIAO DIỆN ADMIN ---
-    elif st.session_state.role == 'admin':
-        st.title("⚙ Hệ Thống Quản Trị")
-        tab1, tab2 = st.tabs(["📊 Thống kê Kết quả", "👤 Quản lý Tài khoản"])
+        sq = random.choice([16, 25, 36, 49, 64, 81])
+        rt = int(math.sqrt(sq))
+        self.build_q(f"Căn bậc hai số học của {sq} là", f"{rt}", [f"-{rt}", f"{rt} và -{rt}", f"{sq**2}"], "Căn bậc hai số học chỉ lấy giá trị dương.")
         
-        with tab1:
-            conn = sqlite3.connect('exam_db.sqlite')
-            df = pd.read_sql_query("SELECT username as 'Học sinh', score as 'Điểm', correct_count as 'Số câu đúng', wrong_count as 'Số câu sai', timestamp as 'Thời gian' FROM results ORDER BY timestamp DESC", conn)
-            conn.close()
-            if not df.empty:
-                st.dataframe(df, use_container_width=True)
-                c1, c2 = st.columns(2)
-                c1.metric("Tổng lượt làm bài", len(df))
-                c2.metric("Điểm trung bình toàn trường", f"{df['Điểm'].mean():.2f}")
-            else:
-                st.info("Chưa có dữ liệu bài thi.")
+        a4 = random.randint(2, 5); b4 = random.randint(6, 10)
+        self.build_q(rf"Với $x < {a4}$, kết quả rút gọn của biểu thức $\sqrt{{({a4} - x)^2}} + x - {b4}$ là", f"{a4 - b4}", [f"{b4 - a4}", rf"$2x - {a4 + b4}$", f"{a4 + b4}"], r"Do $x < a$ nên $|a - x| = a - x$.")
+        
+        c5 = random.choice([2, 3, 5])
+        self.build_q(rf"Trục căn thức ở mẫu của biểu thức $\frac{{{c5}}}{{\sqrt{{{c5}}}}}$ ta được kết quả là", rf"$\sqrt{{{c5}}}$", [f"{c5}", f"1", rf"${c5}\sqrt{{{c5}}}$"], "Nhân cả tử và mẫu với căn thức ở mẫu.")
+        
+        self.build_q(r"Với $a > 0, b > 0$, biểu thức $\sqrt{16a^2b}$ được rút gọn thành", r"$4a\sqrt{b}$", [r"$-4a\sqrt{b}$", r"$16a\sqrt{b}$", r"$4a^2\sqrt{b}$"], "Đưa thừa số ra ngoài dấu căn.")
 
-        with tab2:
-            st.subheader("➕ Thêm tài khoản mới")
-            with st.form("add_user"):
-                c1, c2, c3 = st.columns(3)
-                new_user = c1.text_input("Tên đăng nhập")
-                new_pwd = c2.text_input("Mật khẩu")
-                new_role = c3.selectbox("Quyền", ["student", "admin"])
-                if st.form_submit_button("Tạo tài khoản"):
-                    if new_user and new_pwd:
-                        try:
-                            conn = sqlite3.connect('exam_db.sqlite')
-                            c = conn.cursor()
-                            c.execute("INSERT INTO users VALUES (?, ?, ?)", (new_user.strip(), new_pwd.strip(), new_role))
-                            conn.commit()
-                            conn.close()
-                            st.success(f"Đã tạo: {new_user}")
-                            st.rerun()
-                        except: st.error("Tên đăng nhập đã tồn tại!")
-            
-            st.markdown("---")
-            st.subheader("🗑 Xóa tài khoản")
-            conn = sqlite3.connect('exam_db.sqlite')
-            df_users = pd.read_sql_query("SELECT username as 'Tài khoản', role as 'Quyền' FROM users", conn)
-            st.dataframe(df_users, use_container_width=True)
-            
-            safe_users = [u for u in df_users['Tài khoản'] if u != 'maducnghi6789@gmail.com' and u != st.session_state.current_user]
-            with st.form("del_user"):
-                del_u = st.selectbox("Chọn tài khoản", ["-- Chọn --"] + safe_users)
-                if st.form_submit_button("Xóa vĩnh viễn"):
-                    if del_u != "-- Chọn --":
-                        c = conn.cursor()
-                        c.execute("DELETE FROM users WHERE username=?", (del_u,))
-                        c.execute("DELETE FROM results WHERE username=?", (del_u,))
-                        conn.commit()
-                        conn.close()
-                        st.success(f"Đã xóa {del_u}")
-                        st.rerun()
+        # --- CHỦ ĐỀ 2: HÀM SỐ & ĐỒ THỊ (3 CÂU) ---
+        self.build_q(r"Quan sát hình minh họa, một chiếc cổng hình parabol có phương trình $y = -ax^2$. Cổng này nhận đường thẳng nào làm trục đối xứng?", 
+                     "Trục tung (Oy)", ["Trục hoành (Ox)", "Đường thẳng y = x", "Không có trục đối xứng"], 
+                     "Parabol luôn nhận trục tung làm trục đối xứng.", draw_real_parabola())
+        
+        x0 = random.choice([-2, -3, 2, 3]); y0 = random.choice([4, 9, 12, 18])
+        a_val = y0 // (x0**2) if y0 % (x0**2) == 0 else f"{y0}/{x0**2}"
+        self.build_q(rf"Biết đồ thị hàm số $y = ax^2$ đi qua điểm $M({x0}; {y0})$. Giá trị của hệ số $a$ là", f"{a_val}", [f"{y0 * abs(x0)}", f"{abs(x0)**2}/{y0}", f"{y0}"], "Thay tọa độ x, y vào phương trình để tìm a.")
+        
+        self.build_q(r"Cho hàm số $y = -3x^2$. Kết luận nào sau đây là ĐÚNG?", "Hàm số đồng biến khi $x < 0$ và nghịch biến khi $x > 0$.", ["Hàm số luôn đồng biến.", "Hàm số luôn nghịch biến.", "Hàm số đồng biến khi $x > 0$ và nghịch biến khi $x < 0$."], "Dựa vào dấu của hệ số a.")
 
-# ==========================================
-# KHỐI LỆNH CHẠY APP CÓ BẢO VỆ (TRY-CATCH TỰ ĐỘNG BÁO LỖI)
-# ==========================================
-if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        st.error(f"🚨 HỆ THỐNG PHÁT HIỆN LỖI: {e}")
-        st.warning("Bạn hãy chụp ảnh dòng lỗi màu đỏ ở trên và gửi cho tôi để fix ngay nhé!")
+        # --- CHỦ ĐỀ 3: PHƯƠNG TRÌNH & HỆ (8 CÂU ĐA DẠNG) ---
+        self.build_q(r"Hệ phương trình nào sau đây KHÔNG phải là hệ hai phương trình bậc nhất hai ẩn?", r"$\begin{cases} \sqrt{x} + y = 1 \\ x - y = 0 \end{cases}$", 
+                     [r"$\begin{cases} x + 2y = 1 \\ x - y = 0 \end{cases}$", r"$\begin{cases} 2x = 1 \\ y = 0 \end{cases}$", r"$\begin{cases} 3x - y = 1 \\ x + y = 2 \end{cases}$"], "Hệ bậc nhất không chứa căn của ẩn.")
+        
+        self.build_q(r"Cặp số $(x; y)$ nào sau đây là nghiệm của phương trình $2x - y = 3$?", "(2; 1)", ["(1; 2)", "(-1; 1)", "(0; 3)"], "Thay tọa độ vào phương trình.")
+        
+        sum_v = random.randint(3, 7); prod_v = random.randint(2, 6)
+        self.build_q(rf"Theo định lý Viète, nếu phương trình bậc hai có 2 nghiệm $x_1, x_2$ thỏa mãn $x_1 + x_2 = {sum_v}$ và $x_1x_2 = {prod_v}$, thì đó là phương trình nào?", rf"$x^2 - {sum_v}x + {prod_v} = 0$", [rf"$x^2 + {sum_v}x + {prod_v} = 0$", rf"$x^2 - {prod_v}x + {sum_v} = 0$", rf"$x^2 + {prod_v}x - {sum_v} = 0$"], "Phương trình có dạng $x^2 - Sx + P = 0$.")
+        
+        m = random.randint(2, 4); n = random.randint(5, 7)
+        self.build_q(rf"Tổng các nghiệm của phương trình $(x - {m})(3x - {3*n}) = 0$ là", f"{m + n}", [f"{abs(m - n)}", f"{m * n}", f"{m + 3*n}"], "Giải từng nhân tử bằng 0 rồi cộng lại.")
+        
+        self.build_q(r"Số nghiệm của phương trình $\frac{x^2 - 4}{x - 2} = 0$ là", "1 nghiệm", ["0 nghiệm", "2 nghiệm", "3 nghiệm"], "Chú ý điều kiện xác định $x \ne 2$.")
+        
+        items = [("áo sơ mi", "cái", 200, 10, 50), ("trà sữa", "cốc", 30, 2, 20), ("vé xem phim", "vé", 80, 5, 30)]
+        item, unit, price, drop, boost = random.choice(items)
+        self.build_q(rf"Kinh doanh thực tế: Một cửa hàng bán {price*10} {item}/tháng với giá {price} nghìn/{unit}. Khảo sát cho thấy cứ giảm giá {drop} nghìn thì bán thêm được {boost} {item}. Hàm số biểu diễn doanh thu theo mức giảm giá là hàm số bậc mấy?", 
+                     "Bậc 2 (Parabol)", ["Bậc 1 (Đường thẳng)", "Bậc 3", "Bậc 4"], "Doanh thu = (Giá - x) * (Số lượng + k*x) tạo ra hàm bậc 2.")
+        
+        self.build_q(rf"Giải bài toán bằng cách lập PT: {names[0]} đi xe đạp từ A đến B với vận tốc $x$ km/h. Lúc về, {names[0]} tăng vận tốc thêm 4 km/h. Biểu thức thời gian về ít hơn thời gian đi 15 phút (quãng đường 10km) là", 
+                     r"$\frac{10}{x} - \frac{10}{x+4} = \frac{1}{4}$", [r"$\frac{10}{x+4} - \frac{10}{x} = \frac{1}{4}$", r"$\frac{10}{x} + \frac{10}{x+4} = 15$", r"$\frac{10}{x} - \frac{10}{x+4} = 15$"], "Thời gian = Quãng đường / Vận tốc. Đổi 15 phút = 1/4 giờ.")
+        
+        self.build_q(r"Cho phương trình $x^2 - 5x + m = 0$. Để phương trình có 2 nghiệm phân biệt thì $m$ phải thỏa mãn:", r"$m < \frac{25}{4}$", [r"$m > \frac{25}{4}$", r"$m \le \frac{25}{4}$", r"$m \ge \frac{25}{4}$"], "Tính $\Delta = 25 - 4m > 0$.")
+
+        # --- CHỦ ĐỀ 4: BẤT PHƯƠNG TRÌNH (3 CÂ
