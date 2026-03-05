@@ -423,27 +423,66 @@ def main():
                 score = (correct / 40) * 10
                 st.info(f"🏆 **ĐIỂM CỦA BẠN: {score:.2f} / 10** (Đúng {correct}/40 câu)")
 
-    # ==========================
-    # GIAO DIỆN ADMIN
+   # ==========================
+    # GIAO DIỆN ADMIN (ĐÃ NÂNG CẤP)
     # ==========================
     elif st.session_state.role == 'admin':
         st.title("⚙ Bảng Điều Khiển Quản Trị (Admin Dashboard)")
         
-        conn = sqlite3.connect('exam_db.sqlite')
-        df = pd.read_sql_query("SELECT username as 'Tài khoản', score as 'Điểm số', correct_count as 'Số câu đúng', wrong_count as 'Số câu sai', timestamp as 'Thời gian nộp' FROM results ORDER BY timestamp DESC", conn)
-        conn.close()
+        # Tạo các tab để chia bố cục cho gọn gàng
+        tab1, tab2 = st.tabs(["📊 Thống kê điểm số", "👤 Quản lý Tài khoản"])
         
-        if not df.empty:
-            st.subheader("📊 Thống kê kết quả thi của Học sinh")
-            st.dataframe(df, use_container_width=True)
+        # --- TAB 1: XEM ĐIỂM ---
+        with tab1:
+            conn = sqlite3.connect('exam_db.sqlite')
+            df = pd.read_sql_query("SELECT username as 'Tài khoản', score as 'Điểm số', correct_count as 'Số câu đúng', wrong_count as 'Số câu sai', timestamp as 'Thời gian nộp' FROM results ORDER BY timestamp DESC", conn)
+            conn.close()
             
-            c1, c2 = st.columns(2)
-            with c1:
-                st.metric("Tổng lượt thi đã thực hiện", len(df))
-            with c2:
-                st.metric("Điểm trung bình hệ thống", f"{df['Điểm số'].mean():.2f}")
-        else:
-            st.info("Chưa có học sinh nào nộp bài.")
+            if not df.empty:
+                st.subheader("Kết quả thi của Học sinh")
+                st.dataframe(df, use_container_width=True)
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.metric("Tổng lượt thi", len(df))
+                with c2:
+                    st.metric("Điểm trung bình", f"{df['Điểm số'].mean():.2f}")
+            else:
+                st.info("Chưa có học sinh nào nộp bài.")
 
-if __name__ == "__main__":
+        # --- TAB 2: TẠO TÀI KHOẢN MỚI ---
+        with tab2:
+            st.subheader("Tạo tài khoản mới cho Hệ thống")
+            with st.form("create_user_form", clear_on_submit=True):
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    new_username = st.text_input("Tên đăng nhập (viết liền không dấu)")
+                with col2:
+                    new_password = st.text_input("Mật khẩu")
+                with col3:
+                    new_role = st.selectbox("Phân quyền", options=["Học sinh (student)", "Quản trị viên (admin)"])
+                
+                submit_btn = st.form_submit_button("Tạo tài khoản", type="primary")
+                
+                if submit_btn:
+                    if new_username.strip() == "" or new_password.strip() == "":
+                        st.warning("Vui lòng điền đầy đủ Tên đăng nhập và Mật khẩu!")
+                    else:
+                        role_val = "admin" if "admin" in new_role else "student"
+                        try:
+                            conn = sqlite3.connect('exam_db.sqlite')
+                            c = conn.cursor()
+                            c.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", (new_username.strip(), new_password.strip(), role_val))
+                            conn.commit()
+                            conn.close()
+                            st.success(f"✅ Đã tạo thành công tài khoản: **{new_username}**")
+                        except sqlite3.IntegrityError:
+                            st.error(f"❌ Tên đăng nhập '{new_username}' đã tồn tại. Vui lòng chọn tên khác!")
+            
+            # Hiển thị danh sách tài khoản hiện có
+            st.markdown("---")
+            st.subheader("Danh sách tài khoản hiện tại")
+            conn = sqlite3.connect('exam_db.sqlite')
+            df_users = pd.read_sql_query("SELECT username as 'Tài khoản', role as 'Phân quyền' FROM users", conn)
+            conn.close()
+            st.dataframe(df_users, use_container_width=True)
     main()
