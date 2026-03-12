@@ -21,7 +21,7 @@ from datetime import datetime, timedelta, timezone
 
 VN_TZ = timezone(timedelta(hours=7))
 
-# Hàm hỗ trợ xuất DataFrame ra file Excel
+# Hàm hỗ trợ xuất Excel
 def to_excel(df):
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -30,7 +30,7 @@ def to_excel(df):
     return processed_data
 
 # ==========================================
-# 2. CƠ SỞ DỮ LIỆU ĐA TẦNG
+# 2. CƠ SỞ DỮ LIỆU ĐA TẦNG 
 # ==========================================
 def init_db():
     conn = sqlite3.connect('exam_db.sqlite')
@@ -190,13 +190,12 @@ class ExamGenerator:
 # 5. GIAO DIỆN LMS 
 # ==========================================
 def main():
-    st.set_page_config(page_title="LMS - Hệ Thống Quản Lý Giáo Dục", layout="wide", page_icon="🏫")
+    st.set_page_config(page_title="LMS - Hệ Thống Quản Lý", layout="wide", page_icon="🏫")
     init_db()
     
     if 'current_user' not in st.session_state: st.session_state.current_user = None
     if 'role' not in st.session_state: st.session_state.role = None
 
-    # --- ĐĂNG NHẬP ---
     if st.session_state.current_user is None:
         st.markdown("<h1 style='text-align: center; color: #2E3B55;'>🎓 HỆ THỐNG QUẢN LÝ HỌC TẬP</h1>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1, 1.5, 1])
@@ -400,16 +399,15 @@ def main():
             m_cls = c.fetchone()[0]
             available_classes = [x.strip() for x in m_cls.split(',')] if m_cls else []
         
-        # --- TAB 1: QUẢN LÝ LỚP & HỌC SINH (CÓ XUẤT EXCEL & FULL EDIT) ---
+        # --- TAB 1: QUẢN LÝ LỚP & HỌC SINH (FIX LỖI HIỂN THỊ TÙY CHỈNH) ---
         with tab_class:
             if not available_classes:
                 st.info("Chưa có lớp học nào được tạo hoặc được phân công cho bạn.")
             else:
                 selected_class = st.selectbox("📌 Chọn lớp để quản lý:", available_classes)
                 
-                # KHU VỰC TẠO MỚI
+                # KHU VỰC TẠO MỚI HỌC SINH
                 with st.expander(f"➕ Tạo tài khoản Học sinh cho lớp {selected_class}", expanded=False):
-                    st.info("💡 Chỉ CẦN BẮT BUỘC cột 'Họ tên'. Cột 'Ngày sinh' và 'Trường' có thể bỏ trống. Hệ thống sẽ tự động gán tên tài khoản và pass mặc định: 123456.")
                     uploaded_excel = st.file_uploader("1. Tạo hàng loạt từ file Excel", type=['xlsx'])
                     if uploaded_excel is not None:
                         if st.button("🔄 Nhập file Excel"):
@@ -439,7 +437,7 @@ def main():
                         m_name = col1.text_input("Họ và Tên (Bắt buộc)")
                         m_dob = col2.text_input("Ngày sinh (Không bắt buộc)")
                         m_school = col1.text_input("Trường (Không bắt buộc)")
-                        if st.form_submit_button("Tạo nhanh", type="primary"):
+                        if st.form_submit_button("Tạo nhanh"):
                             if m_name:
                                 uname = generate_username(m_name, m_dob)
                                 try:
@@ -447,55 +445,59 @@ def main():
                                     conn.commit()
                                     st.success(f"✅ Đã tạo: {uname} | Pass: 123456")
                                     st.rerun()
-                                except: st.error("Tên đăng nhập bị trùng, thử lại.")
+                                except: st.error("Tên đăng nhập bị trùng.")
                             else: st.warning("Vui lòng nhập Họ Tên!")
 
-                # HIỂN THỊ DANH SÁCH & NÚT TẢI XUỐNG
+                # HIỂN THỊ DANH SÁCH & TẢI XUỐNG
                 st.markdown(f"**Danh sách học sinh lớp {selected_class}:**")
                 df_students = pd.read_sql_query(f"SELECT username as 'Tài khoản', password as 'Mật khẩu', fullname as 'Họ Tên', dob as 'Ngày sinh', school as 'Trường' FROM users WHERE role='student' AND class_name='{selected_class}'", conn)
-                st.dataframe(df_students, use_container_width=True)
                 
                 if not df_students.empty:
-                    # TÍNH NĂNG TẢI FILE EXCEL
+                    # HIỂN THỊ NÚT TẢI EXCEL MÀU XANH NỔI BẬT
                     excel_data = to_excel(df_students)
                     st.download_button(
-                        label=f"📥 TẢI DANH SÁCH TÀI KHOẢN LỚP {selected_class} (EXCEL)",
+                        label=f"📥 TẢI DANH SÁCH TÀI KHOẢN (EXCEL)",
                         data=excel_data,
                         file_name=f"Danh_sach_tai_khoan_lop_{selected_class}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         type="primary"
                     )
-
-                    # TÍNH NĂNG TÙY CHỈNH VÀ XÓA HỌC SINH TOÀN DIỆN
+                
+                st.dataframe(df_students, use_container_width=True)
+                
+                # KHU VỰC TÙY CHỈNH & XÓA HỌC SINH (NẰM RÕ RÀNG Ở DƯỚI BẢNG)
+                if not df_students.empty:
                     st.markdown("---")
                     st.markdown("#### ✏️ Tùy chỉnh thông tin & Xóa Học sinh")
-                    user_to_edit = st.selectbox("Chọn Học sinh để thao tác:", ["-- Chọn --"] + df_students['Tài khoản'].tolist())
+                    user_to_edit = st.selectbox("Chọn Học sinh cần thao tác:", ["-- Chọn --"] + df_students['Tài khoản'].tolist())
                     
                     if user_to_edit != "-- Chọn --":
-                        c.execute("SELECT fullname, password, dob, school, class_name FROM users WHERE username=?", (user_to_edit,))
+                        c.execute("SELECT fullname, password, dob, school FROM users WHERE username=?", (user_to_edit,))
                         u_data = c.fetchone()
+                        
+                        # FORM SỬA THÔNG TIN ĐẦY ĐỦ
                         with st.form("edit_student_form"):
                             st.info(f"Đang thao tác tài khoản: **{user_to_edit}**")
                             col1, col2 = st.columns(2)
                             edit_name = col1.text_input("Họ và Tên", value=u_data[0])
                             edit_pwd = col2.text_input("Mật khẩu", value=u_data[1])
                             edit_dob = col1.text_input("Ngày sinh", value=u_data[2] if u_data[2] else "")
-                            edit_school = col2.text_input("Trường học", value=u_data[3] if u_data[3] else "")
-                            edit_class = st.text_input("Chuyển Lớp (Mặc định giữ nguyên)", value=u_data[4])
+                            edit_school = col2.text_input("Trường", value=u_data[3] if u_data[3] else "")
                             
-                            if st.form_submit_button("💾 Cập nhật Thông tin"):
-                                c.execute("UPDATE users SET fullname=?, password=?, dob=?, school=?, class_name=? WHERE username=?", (edit_name, edit_pwd, edit_dob, edit_school, edit_class, user_to_edit))
+                            if st.form_submit_button("💾 Lưu thay đổi thông tin"):
+                                c.execute("UPDATE users SET fullname=?, password=?, dob=?, school=? WHERE username=?", (edit_name, edit_pwd, edit_dob, edit_school, user_to_edit))
                                 conn.commit()
-                                st.success("✅ Cập nhật thành công!")
+                                st.success("✅ Đã cập nhật!")
                                 st.rerun()
                         
-                        # Nút xóa cảnh báo đỏ
-                        if st.button("🗑 XÓA VĨNH VIỄN HỌC SINH NÀY", type="secondary"):
+                        # NÚT XÓA HỌC SINH (MÀU ĐỎ)
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        if st.button(f"🗑 XÓA TÀI KHOẢN '{user_to_edit}'", type="secondary"):
                             c.execute("DELETE FROM users WHERE username=?", (user_to_edit,))
                             c.execute("DELETE FROM results WHERE username=?", (user_to_edit,))
                             c.execute("DELETE FROM mandatory_results WHERE username=?", (user_to_edit,))
                             conn.commit()
-                            st.success(f"Đã xóa hoàn toàn dữ liệu của {user_to_edit}!")
+                            st.success("Đã xóa hoàn toàn dữ liệu!")
                             st.rerun()
 
         # --- TAB 2: QUẢN LÝ NHÂN SỰ ---
@@ -549,7 +551,7 @@ def main():
                     conn.commit()
                     st.rerun()
 
-        # --- TAB 3: TRUNG TÂM BÁO CÁO PHÂN TÍCH ---
+        # --- TAB 3: TRUNG TÂM BÁO CÁO PHÂN TÍCH ĐỈNH CAO ---
         with tab_scores:
             st.subheader("📊 Báo cáo & Thống kê Chuyên sâu")
             if not available_classes:
