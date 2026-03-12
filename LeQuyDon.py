@@ -485,3 +485,55 @@ def main():
                     edit_name = col1.text_input("Họ và Tên", value=u_data[3] if u_data[3] else "")
                     edit_pwd = col2.text_input("Mật khẩu mới", value=u_data[1])
                     edit_class = col1.text_input("Lớp", value=u_data[5] if u_data[5] else "")
+                    
+                    if st.session_state.role in ['core_admin', 'sub_admin']:
+                        edit_role = col2.selectbox("Phân quyền", ["student", "teacher", "sub_admin"], index=["student", "teacher", "sub_admin"].index(u_data[2]) if u_data[2] in ["student", "teacher", "sub_admin"] else 0)
+                        edit_managed = st.text_input("Lớp quản lý (Giao cho GV, VD: 9A1,9A2)", value=u_data[8] if u_data[8] else "")
+                    else:
+                        edit_role = "student"
+                        edit_managed = ""
+                        col2.markdown("<br><span style='color:gray; font-size: 0.9em;'>*Giáo viên chỉ được sửa Thông tin và Mật khẩu.*</span>", unsafe_allow_html=True)
+                        
+                    if st.form_submit_button("💾 Cập nhật", type="primary"):
+                        c.execute("UPDATE users SET fullname=?, password=?, class_name=?, role=?, managed_classes=? WHERE username=?", (edit_name, edit_pwd, edit_class, edit_role, edit_managed, user_to_edit))
+                        conn.commit()
+                        st.success(f"✅ Đã cập nhật thành công mật khẩu và thông tin cho {edit_name}!")
+                        st.rerun()
+            conn.close()
+
+        with tab_assign:
+            st.subheader("📤 Tải file & Giao bài AI")
+            uploaded_pdf = st.file_uploader("Tải file Đề thi (PDF/Docx) để AI tham chiếu", type=['pdf', 'docx'])
+            exam_title = st.text_input("Tên bài kiểm tra (Bắt buộc)")
+            
+            if st.button("🚀 Xử lý AI & Giao bài", type="primary"):
+                if exam_title:
+                    gen = ExamGenerator()
+                    fixed_exam = gen.generate_all()
+                    conn = sqlite3.connect('exam_db.sqlite')
+                    c = conn.cursor()
+                    c.execute("INSERT INTO mandatory_exams (title, questions_json) VALUES (?, ?)", (exam_title.strip(), json.dumps(fixed_exam)))
+                    conn.commit()
+                    conn.close()
+                    st.success("✅ Bài tập đã được nạp và xuất hiện trên bảng làm bài của Học sinh!")
+                else: st.error("Vui lòng nhập tên bài kiểm tra!")
+
+        with tab_scores:
+            st.subheader("📊 Báo cáo điểm số")
+            conn = sqlite3.connect('exam_db.sqlite')
+            query_score = "SELECT u.fullname as 'Họ Tên', u.class_name as 'Lớp', me.title as 'Tên bài', mr.score as 'Điểm' FROM mandatory_results mr JOIN users u ON mr.username = u.username JOIN mandatory_exams me ON mr.exam_id = me.id"
+            params_score = []
+            
+            if st.session_state.role == 'teacher' and available_classes:
+                placeholders = ','.join(['?'] * len(available_classes))
+                query_score += f" WHERE u.class_name IN ({placeholders})"
+                params_score.extend(available_classes)
+                
+            query_score += " ORDER BY mr.timestamp DESC"
+            df_m = pd.read_sql_query(query_score, conn, params=params_score)
+            st.dataframe(df_m, use_container_width=True)
+            conn.close()
+
+if __name__ == "__main__":
+    try: main()
+    except Exception as e: st.error(f"🚨 LỖI HỆ THỐNG: {e}")
