@@ -91,7 +91,6 @@ def draw_real_parabola():
 def draw_intersecting_circles():
     fig, ax = plt.subplots(figsize=(3, 2))
     ax.set_aspect('equal')
-    # Tính toán tọa độ giao điểm chính xác 100% bằng Đại số
     x1, y1, r1 = -1, 0, 2
     x2, y2, r2 = 1, 0, 1.5
     c1 = plt.Circle((x1, y1), r1, color='#c0392b', fill=False, lw=1.5)
@@ -101,11 +100,10 @@ def draw_intersecting_circles():
     a = (r1**2 - r2**2 + d**2) / (2 * d)
     h = math.sqrt(r1**2 - a**2)
     x3 = x1 + a
-    y3_1 = y1 + h
-    y3_2 = y1 - h
+    y3_1 = y1 + h; y3_2 = y1 - h
     ax.plot(x3, y3_1, 'ko', markersize=5); ax.plot(x3, y3_2, 'ko', markersize=5)
-    ax.plot([x1, x2], [y1, y2], 'k--', lw=0.8) # Nối tâm
-    ax.plot([x3, x3], [y3_1, y3_2], 'b--', lw=0.8) # Dây chung
+    ax.plot([x1, x2], [y1, y2], 'k--', lw=0.8)
+    ax.plot([x3, x3], [y3_1, y3_2], 'b--', lw=0.8)
     ax.set_xlim(-3.5, 3); ax.set_ylim(-2.5, 2.5); ax.axis('off')
     return fig_to_base64(fig)
 
@@ -130,6 +128,18 @@ def draw_pie_chart():
     explode = (0.1, 0, 0, 0)  
     ax.pie(sizes, explode=explode, labels=labels, colors=colors, autopct='%1.1f%%', shadow=True, startangle=140)
     ax.axis('equal') 
+    return fig_to_base64(fig)
+
+# ĐÃ KHÔI PHỤC HÀM VẼ BIỂU ĐỒ CỘT BỊ THIẾU
+def draw_histogram():
+    fig, ax = plt.subplots(figsize=(4, 2.5))
+    bins = ['[5;6)', '[6;7)', '[7;8)', '[8;9)', '[9;10]']
+    percents = [10, 25, 40, 15, 10]
+    bars = ax.bar(bins, percents, color=['#3498db']*5, edgecolor='black')
+    bars[2].set_color('#e74c3c') 
+    ax.set_title("Phổ điểm môn Toán", fontsize=9)
+    ax.set_ylabel('% Học sinh', fontsize=8)
+    ax.set_ylim(0, 50)
     return fig_to_base64(fig)
 
 # ==========================================
@@ -158,8 +168,6 @@ class ExamGenerator:
         self.q_count += 1
 
     def generate_all(self):
-        # DÙNG NỐI CHUỖI r"..." + str(bien) + r"..." ĐỂ CHỐNG NAMEERROR TUYỆT ĐỐI
-        
         # --- CHỦ ĐỀ 1: ĐẠI SỐ - CĂN THỨC & HÀM SỐ (8 Câu) ---
         a1 = random.randint(2, 9)
         self.build_q(r"Điều kiện xác định của biểu thức $\sqrt{2x - " + str(2*a1) + r"}$ là:", r"$x \ge " + str(a1) + r"$", [r"$x > " + str(a1) + r"$", r"$x \le " + str(a1) + r"$", r"$x < " + str(a1) + r"$"], r"💡 **HD:** Biểu thức dưới căn không âm: $2x - " + str(2*a1) + r" \ge 0 \Leftrightarrow x \ge " + str(a1) + r"$.")
@@ -434,7 +442,7 @@ def main():
                     
                     if st.session_state.is_submitted:
                         if selected == q['answer']: st.success("✅ Đúng")
-                        else: st.error(f"❌ Sai. Đáp án: {q['answer']}")
+                        else: st.error(f"❌ Sai. Đáp án đúng: {q['answer']}")
                         with st.expander("📖 Lời Giải"): st.markdown(q['hint'], unsafe_allow_html=True)
                     st.markdown("---")
                 
