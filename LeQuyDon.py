@@ -21,17 +21,15 @@ from datetime import datetime, timedelta, timezone
 
 VN_TZ = timezone(timedelta(hours=7))
 
-# Hàm hỗ trợ xuất Excel Danh sách đã có tài khoản
+# Hàm hỗ trợ xuất Excel
 def to_excel(df):
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='DanhSachTaiKhoan')
     return output.getvalue()
 
-# Hàm tạo File Excel Mẫu Trống cho Giáo viên điền
 def create_excel_template():
     df_template = pd.DataFrame(columns=["Họ tên", "Ngày sinh", "Trường"])
-    # Thêm 1 dòng ví dụ để giáo viên biết cách nhập
     df_template.loc[0] = ["Nguyễn Văn A", "15/08/2010", "THCS Lê Quý Đôn"]
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -46,8 +44,7 @@ def init_db():
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT, role TEXT)''')
     
-    columns_to_add = ["fullname", "dob", "class_name", "school", "province", "managed_classes"]
-    for col in columns_to_add:
+    for col in ["fullname", "dob", "class_name", "school", "province", "managed_classes"]:
         try: c.execute(f"ALTER TABLE users ADD COLUMN {col} TEXT")
         except: pass
 
@@ -130,7 +127,7 @@ def draw_tower_shadow(chieu_dai_bong):
     return fig_to_base64(fig)
 
 # ==========================================
-# 4. ENGINE TẠO ĐỀ CHỐNG LẶP
+# 4. ENGINE TẠO ĐỀ
 # ==========================================
 class ExamGenerator:
     def __init__(self):
@@ -177,17 +174,7 @@ class ExamGenerator:
         kientruc = random.choice(["Cổng Parabol", "Cầu vượt"])
         self.build_q(f"Câu 6: Trục đối xứng của {kientruc.lower()} dạng y = -ax^2 là:", "Trục tung (Oy)", ["Trục hoành (Ox)", "Đường y = x", "Không có trục"], "Tính chất Parabol.", draw_real_parabola(kientruc))
 
-        topics = [
-            "Định lý Viète", "Giải phương trình bậc 2", "Giải BPT bậc nhất", "Hệ thức lượng trong tam giác", 
-            "Tỉ số lượng giác góc nhọn", "Đường tròn ngoại tiếp", "Góc nội tiếp", "Tứ giác nội tiếp", 
-            "Độ dài cung tròn", "Diện tích hình quạt", "Tính chất tiếp tuyến", "Giao điểm đường thẳng và parabol",
-            "Công thức nghiệm thu gọn", "Khoảng cách 2 tâm đường tròn", "Góc tạo bởi tia tiếp tuyến và dây cung",
-            "Chu vi hình tròn", "Diện tích mặt cầu", "Thể tích hình trụ", "Diện tích xung quanh hình nón",
-            "Xác suất gieo xúc xắc", "Bài toán vận tốc", "Tìm min max", "Rút gọn phân thức", 
-            "Giải pt chứa ẩn ở mẫu", "Biểu đồ thống kê", "Tần số tương đối", "Không gian mẫu đồng xu", 
-            "Bài toán chia hết", "Định lý Pytago", "Hệ thức đường cao", "Góc ở tâm", "Căn bậc ba", "Tính giá trị biểu thức", "Giải hệ bằng thế"
-        ]
-        
+        topics = ["Định lý Viète", "Giải phương trình bậc 2", "Giải BPT bậc nhất", "Hệ thức lượng trong tam giác", "Tỉ số lượng giác góc nhọn", "Đường tròn ngoại tiếp", "Góc nội tiếp", "Tứ giác nội tiếp", "Độ dài cung tròn", "Diện tích hình quạt", "Tính chất tiếp tuyến", "Giao điểm đường thẳng và parabol", "Công thức nghiệm thu gọn", "Khoảng cách 2 tâm đường tròn", "Góc tạo bởi tia tiếp tuyến và dây cung", "Chu vi hình tròn", "Diện tích mặt cầu", "Thể tích hình trụ", "Diện tích xung quanh hình nón", "Xác suất gieo xúc xắc", "Bài toán vận tốc", "Tìm min max", "Rút gọn phân thức", "Giải pt chứa ẩn ở mẫu", "Biểu đồ thống kê", "Tần số tương đối", "Không gian mẫu đồng xu", "Bài toán chia hết", "Định lý Pytago", "Hệ thức đường cao", "Góc ở tâm", "Căn bậc ba", "Tính giá trị biểu thức", "Giải hệ bằng thế"]
         for i in range(7, 41):
             topic = topics[i-7]
             val = random.randint(10, 99)
@@ -199,7 +186,7 @@ class ExamGenerator:
 # 5. GIAO DIỆN LMS 
 # ==========================================
 def main():
-    st.set_page_config(page_title="LMS - Hệ Thống Quản Lý Giáo Dục", layout="wide", page_icon="🏫")
+    st.set_page_config(page_title="LMS - Quản Lý Giáo Dục", layout="wide", page_icon="🏫")
     init_db()
     
     if 'current_user' not in st.session_state: st.session_state.current_user = None
@@ -409,46 +396,57 @@ def main():
             m_cls = c.fetchone()[0]
             available_classes = [x.strip() for x in m_cls.split(',')] if m_cls else []
         
-        # --- TAB 1: QUẢN LÝ LỚP & HỌC SINH (HOÀN THIỆN XUẤT EXCEL & FILE MẪU) ---
+        # =========================================================
+        # TAB 1: QUẢN LÝ LỚP & HỌC SINH (FIX LỖI TRÙNG TÊN & XÓA LỚP)
+        # =========================================================
         with tab_class:
             if not available_classes:
                 st.info("Chưa có lớp học nào được tạo hoặc được phân công cho bạn.")
             else:
                 selected_class = st.selectbox("📌 Chọn lớp để quản lý:", available_classes)
                 
+                # --- TRÍCH XUẤT TÊN ĐÃ TỒN TẠI TRONG LỚP NÀY ĐỂ CHECK TRÙNG LẶP ---
+                c.execute("SELECT fullname FROM users WHERE role='student' AND class_name=?", (selected_class,))
+                existing_names_in_class = [row[0].strip().lower() for row in c.fetchall()]
+
                 # KHU VỰC TẠO HỌC SINH
                 with st.expander(f"➕ Tạo tài khoản Học sinh cho lớp {selected_class}", expanded=False):
-                    st.info("💡 Bạn hãy Tải File Excel Mẫu về, điền danh sách học sinh rồi Nạp lên hệ thống nhé.")
+                    st.info("💡 Nếu học sinh bị trùng Họ Tên trong cùng 1 lớp, hệ thống bắt buộc phải nhập Ngày sinh để phân biệt.")
                     
-                    # 1. NÚT TẢI FILE MẪU EXCEL TẠO SẴN
                     template_excel = create_excel_template()
-                    st.download_button(
-                        label="⬇️ TẢI FILE EXCEL MẪU",
-                        data=template_excel,
-                        file_name="Mau_Danh_Sach_Hoc_Sinh.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    )
+                    st.download_button(label="⬇️ TẢI FILE EXCEL MẪU", data=template_excel, file_name="Mau_Danh_Sach_Hoc_Sinh.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
                     uploaded_excel = st.file_uploader("Nạp file Excel (Đã điền)", type=['xlsx'])
                     if uploaded_excel is not None:
                         if st.button("🔄 Nạp dữ liệu lên hệ thống"):
                             try:
                                 df_import = pd.read_excel(uploaded_excel)
-                                count = 0
+                                count_success = 0
+                                error_names = []
+                                
                                 for _, row in df_import.iterrows():
                                     fullname = str(row.get('Họ tên', '')).strip()
                                     dob = str(row.get('Ngày sinh', '')).strip()
                                     school = str(row.get('Trường', '')).strip()
+                                    
                                     if fullname and fullname.lower() != 'nan':
                                         if dob.lower() == 'nan': dob = ""
                                         if school.lower() == 'nan': school = ""
+                                        
+                                        # THUẬT TOÁN KIỂM TRA TRÙNG TÊN BẰNG EXCEL
+                                        if fullname.lower() in existing_names_in_class and not dob:
+                                            error_names.append(fullname)
+                                            continue # Bỏ qua em này
+                                            
                                         uname = generate_username(fullname, dob)
                                         try:
                                             c.execute("INSERT INTO users (username, password, role, fullname, dob, class_name, school) VALUES (?, '123456', 'student', ?, ?, ?, ?)", (uname, fullname, dob, selected_class, school))
-                                            count += 1
+                                            count_success += 1
+                                            existing_names_in_class.append(fullname.lower()) # Cập nhật danh sách để chặn dòng trùng tiếp theo
                                         except: pass
                                 conn.commit()
-                                st.success(f"✅ Đã tạo {count} tài khoản vào lớp {selected_class}!")
+                                if count_success > 0: st.success(f"✅ Đã tạo {count_success} tài khoản vào lớp {selected_class}!")
+                                if error_names: st.error(f"⚠️ Đã chặn tạo các học sinh sau do TRÙNG TÊN mà không có Ngày sinh: {', '.join(error_names)}. Vui lòng điền thêm ngày sinh cho các em này!")
                                 st.rerun()
                             except Exception as e: st.error("Lỗi đọc file Excel. Vui lòng kiểm tra lại định dạng file.")
                     
@@ -456,26 +454,29 @@ def main():
                     with st.form("manual_add_student"):
                         col1, col2 = st.columns(2)
                         m_name = col1.text_input("Họ và Tên (Bắt buộc)")
-                        m_dob = col2.text_input("Ngày sinh (Không bắt buộc)")
-                        m_school = col1.text_input("Trường (Không bắt buộc)")
+                        m_dob = col2.text_input("Ngày sinh (Bắt buộc nếu trùng tên)")
+                        m_school = col1.text_input("Trường")
                         if st.form_submit_button("Tạo nhanh"):
                             if m_name:
-                                uname = generate_username(m_name, m_dob)
-                                try:
-                                    c.execute("INSERT INTO users (username, password, role, fullname, dob, class_name, school) VALUES (?, '123456', 'student', ?, ?, ?, ?)", (uname, m_name, m_dob, selected_class, m_school))
-                                    conn.commit()
-                                    st.success(f"✅ Đã tạo: {uname} | Pass: 123456")
-                                    st.rerun()
-                                except: st.error("Tên đăng nhập bị trùng.")
+                                # THUẬT TOÁN KIỂM TRA TRÙNG TÊN NHẬP TAY
+                                if m_name.strip().lower() in existing_names_in_class and not m_dob.strip():
+                                    st.error(f"⚠️ Học sinh '{m_name}' đã tồn tại trong lớp {selected_class}. BẮT BUỘC phải nhập thêm 'Ngày sinh' để hệ thống phân biệt!")
+                                else:
+                                    uname = generate_username(m_name, m_dob)
+                                    try:
+                                        c.execute("INSERT INTO users (username, password, role, fullname, dob, class_name, school) VALUES (?, '123456', 'student', ?, ?, ?, ?)", (uname, m_name, m_dob, selected_class, m_school))
+                                        conn.commit()
+                                        st.success(f"✅ Đã tạo: {uname} | Pass: 123456")
+                                        st.rerun()
+                                    except: st.error("Lỗi: Tài khoản bị trùng ngẫu nhiên, vui lòng thử lại.")
                             else: st.warning("Vui lòng nhập Họ Tên!")
 
-                # DANH SÁCH & NÚT XUẤT EXCEL TÀI KHOẢN ĐÃ TẠO
+                # DANH SÁCH & NÚT XUẤT EXCEL
                 st.markdown("---")
                 st.markdown(f"### Danh sách Tài khoản lớp {selected_class}")
                 df_students = pd.read_sql_query(f"SELECT username as 'Tài khoản', password as 'Mật khẩu', fullname as 'Họ Tên', dob as 'Ngày sinh', school as 'Trường' FROM users WHERE role='student' AND class_name='{selected_class}'", conn)
                 
                 if not df_students.empty:
-                    # NÚT XUẤT EXCEL DANH SÁCH TÀI KHOẢN (RẤT QUAN TRỌNG)
                     excel_export_data = to_excel(df_students)
                     st.download_button(
                         label=f"📥 XUẤT EXCEL DANH SÁCH {len(df_students)} TÀI KHOẢN LỚP {selected_class} ĐỂ IN",
@@ -486,7 +487,7 @@ def main():
                     )
                 st.dataframe(df_students, use_container_width=True)
                 
-                # KHU VỰC TÙY CHỈNH & XÓA HỌC SINH
+                # KHU VỰC TÙY CHỈNH
                 if not df_students.empty:
                     st.markdown("---")
                     st.markdown("#### ✏️ Tùy chỉnh thông tin & Xóa Học sinh")
@@ -517,7 +518,24 @@ def main():
                             c.execute("DELETE FROM results WHERE username=?", (user_to_edit,))
                             c.execute("DELETE FROM mandatory_results WHERE username=?", (user_to_edit,))
                             conn.commit()
-                            st.success("Đã xóa hoàn toàn dữ liệu!")
+                            st.success("Đã xóa dữ liệu học sinh này!")
+                            st.rerun()
+
+                # KHU VỰC NGUY HIỂM: XÓA TOÀN BỘ LỚP (DÀNH CHO CUỐI NĂM HỌC)
+                st.markdown("---")
+                st.markdown("### 🚨 Khu vực Dọn dẹp Cuối năm")
+                with st.expander(f"⚠️ Quản lý vòng đời dữ liệu Lớp {selected_class}", expanded=False):
+                    st.error(f"**CẢNH BÁO:** Hành động này sẽ xóa VĨNH VIỄN toàn bộ danh sách {len(df_students)} học sinh của lớp {selected_class}, bao gồm cả tài khoản và mọi điểm số các em đã thi. (Phù hợp khi kết thúc năm học để nhập học sinh lứa mới).")
+                    confirm_delete = st.checkbox(f"Tôi hiểu và chắc chắn muốn dọn dẹp toàn bộ dữ liệu lớp {selected_class}")
+                    if confirm_delete:
+                        if st.button("🗑 XÓA TOÀN BỘ DỮ LIỆU LỚP NÀY", type="primary"):
+                            users_to_delete = df_students['Tài khoản'].tolist()
+                            for u in users_to_delete:
+                                c.execute("DELETE FROM users WHERE username=?", (u,))
+                                c.execute("DELETE FROM results WHERE username=?", (u,))
+                                c.execute("DELETE FROM mandatory_results WHERE username=?", (u,))
+                            conn.commit()
+                            st.success(f"✅ Đã dọn dẹp sạch sẽ toàn bộ học sinh lớp {selected_class}. Lớp học giờ đã sẵn sàng cho năm học mới!")
                             st.rerun()
 
         # --- TAB 2: QUẢN LÝ NHÂN SỰ ---
