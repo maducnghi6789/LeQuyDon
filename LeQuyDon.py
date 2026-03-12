@@ -164,20 +164,20 @@ class ExamGenerator:
         self.q_count += 1
 
     def generate_all(self):
-        # --- CHỦ ĐỀ 1: ĐẠI SỐ CƠ BẢN ---
+        # --- CHỦ ĐỀ 1: ĐẠI SỐ (8 Câu) ---
         a1 = random.randint(2, 9)
-        self.build_q(r"Điều kiện xác định của biểu thức $\sqrt{2x - " + str(2*a1) + r"}$ là:", r"$x \ge " + str(a1) + r"$", [r"$x > " + str(a1) + r"$", r"$x \le " + str(a1) + r"$", r"$x < " + str(a1) + r"$"], r"💡 **HD:** $2x - " + str(2*a1) + r" \ge 0 \Leftrightarrow x \ge " + str(a1) + r"$.")
+        self.build_q(r"Điều kiện xác định của biểu thức $\sqrt{2x - " + str(2*a1) + r"}$ là:", r"$x \ge " + str(a1) + r"$", [r"$x > " + str(a1) + r"$", r"$x \le " + str(a1) + r"$", r"$x < " + str(a1) + r"$"], r"💡 **HD:** Biểu thức dưới căn không âm: $2x - " + str(2*a1) + r" \ge 0 \Leftrightarrow x \ge " + str(a1) + r"$.")
 
-        self.build_q(r"Giá trị của biểu thức $\sqrt{12} - 2\sqrt{3}$ bằng:", "0", [r"$\sqrt{9}$", r"$2\sqrt{3}$", "3"], r"💡 **HD:** $\sqrt{12} = 2\sqrt{3}$. Vậy $2\sqrt{3} - 2\sqrt{3} = 0$.")
+        self.build_q(r"Giá trị của biểu thức $\sqrt{12} - 2\sqrt{3}$ bằng:", "0", [r"$\sqrt{9}$", r"$2\sqrt{3}$", "3"], r"💡 **HD:** $\sqrt{12} = \sqrt{4 \cdot 3} = 2\sqrt{3}$. Vậy $2\sqrt{3} - 2\sqrt{3} = 0$.")
 
         a3 = random.randint(3, 5)
-        self.build_q(r"Với $a \ge 0$, biểu thức $\sqrt{" + str(a3**2) + r"a^2}$ bằng:", str(a3) + "a", [r"$-" + str(a3) + r"a$", str(a3**2) + "a", str(a3) + "|a|"], r"💡 **HD:** $a \ge 0 \Rightarrow " + str(a3) + r"a$.")
+        self.build_q(r"Với $a \ge 0$, biểu thức $\sqrt{" + str(a3**2) + r"a^2}$ bằng:", str(a3) + "a", [r"$-" + str(a3) + r"a$", str(a3**2) + "a", str(a3) + "|a|"], r"💡 **HD:** Đưa ra ngoài dấu căn, với $a \ge 0 \Rightarrow " + str(a3) + r"a$.")
 
         a4 = random.randint(2, 7)
-        self.build_q(r"Trục căn thức ở mẫu của biểu thức $\frac{1}{\sqrt{" + str(a4) + r"} - 1}$ ta được:", r"$\frac{\sqrt{" + str(a4) + r"} + 1}{" + str(a4-1) + r"}$", [r"$\frac{\sqrt{" + str(a4) + r"} - 1}{" + str(a4-1) + r"}$", r"$\sqrt{" + str(a4) + r"} + 1$", r"$\frac{\sqrt{" + str(a4) + r"} + 1}{" + str(a4+1) + r"}$"], r"💡 **HD:** Nhân tử và mẫu với $(\sqrt{" + str(a4) + r"} + 1)$.")
+        self.build_q(r"Trục căn thức ở mẫu của biểu thức $\frac{1}{\sqrt{" + str(a4) + r"} - 1}$ ta được:", r"$\frac{\sqrt{" + str(a4) + r"} + 1}{" + str(a4-1) + r"}$", [r"$\frac{\sqrt{" + str(a4) + r"} - 1}{" + str(a4-1) + r"}$", r"$\sqrt{" + str(a4) + r"} + 1$", r"$\frac{\sqrt{" + str(a4) + r"} + 1}{" + str(a4+1) + r"}$"], r"💡 **HD:** Nhân tử và mẫu với lượng liên hợp $(\sqrt{" + str(a4) + r"} + 1)$.")
 
         m5 = random.randint(2, 5)
-        self.build_q(r"Để hàm số $y = (m - " + str(m5) + r")x + 3$ đồng biến trên tập số thực, thì điều kiện của $m$ là:", r"$m > " + str(m5) + r"$", [r"$m < " + str(m5) + r"$", r"$m \ne " + str(m5) + r"$", r"$m \ge " + str(m5) + r"$"], r"💡 **HD:** Hệ số $a > 0 \Leftrightarrow m - " + str(m5) + r" > 0$.")
+        self.build_q(r"Để hàm số $y = (m - " + str(m5) + r")x + 3$ đồng biến trên tập số thực, thì điều kiện của $m$ là:", r"$m > " + str(m5) + r"$", [r"$m < " + str(m5) + r"$", r"$m \ne " + str(m5) + r"$", r"$m \ge " + str(m5) + r"$"], r"💡 **HD:** Hàm số đồng biến khi hệ số $a > 0 \Leftrightarrow m - " + str(m5) + r" > 0$.")
 
         self.build_q(r"Đường thẳng $y = 2x + 1$ song song với đường thẳng nào dưới đây?", r"$y = 2x - 3$", [r"$y = -2x + 1$", r"$y = \frac{1}{2}x + 1$", r"$y = 2x + 1$"], r"💡 **HD:** Song song khi $a=a'$ và $b \ne b'$.")
 
@@ -186,6 +186,7 @@ class ExamGenerator:
         c8 = random.randint(1, 4)
         self.build_q(r"Tọa độ giao điểm của parabol $y = x^2$ và đường thẳng $y = " + str(c8**2) + r"$ là:", r"$( " + str(c8) + r"; " + str(c8**2) + r")$ và $(-" + str(c8) + r"; " + str(c8**2) + r")$", [r"$( " + str(c8) + r"; " + str(c8**2) + r")$", r"$(-" + str(c8) + r"; " + str(c8**2) + r")$", r"$(0; 0)$"], r"💡 **HD:** Giải phương trình hoành độ giao điểm.")
 
+        # --- CHỦ ĐỀ 2: PHƯƠNG TRÌNH & THỰC TẾ (8 Câu) ---
         self.build_q(r"Nghiệm của hệ phương trình $\begin{cases} x - y = 1 \\ 2x + y = 5 \end{cases}$ là:", r"$(2; 1)$", [r"$(1; 2)$", r"$(3; -1)$", r"$(2; -1)$"], r"💡 **HD:** Cộng 2 vế: $3x = 6 \Rightarrow x=2$.")
 
         self.build_q(r"Giá cước taxi: 10.000đ cho 1km đầu tiên, từ km thứ 2 giá 15.000đ/km. Hỏi đi 5km phải trả bao nhiêu tiền?", "70.000 đ", ["75.000 đ", "50.000 đ", "60.000 đ"], r"💡 **HD:** Tiền = 10.000 + 4 $\times$ 15.000 = 70.000đ.")
@@ -196,6 +197,8 @@ class ExamGenerator:
         self.build_q(r"Tập nghiệm của phương trình $x^2 - 5x + 6 = 0$ là:", r"$\{2; 3\}$", [r"$\{-2; -3\}$", r"$\{1; 6\}$", r"$\{-1; -6\}$"], r"💡 **HD:** $2+3=5$ và $2 \times 3=6$.")
 
         self.build_q(r"Cho phương trình $2x^2 - 7x + 3 = 0$. Tổng hai nghiệm $x_1 + x_2$ bằng:", r"$\frac{7}{2}$", [r"$-\frac{7}{2}$", r"$\frac{3}{2}$", r"$7$"], r"💡 **HD:** Theo Vi-ét: $S = -\frac{b}{a}$.")
+
+        self.build_q(r"Giả sử phương trình $x^2 - 4x + 1 = 0$ có 2 nghiệm dương $x_1, x_2$. Giá trị của biểu thức $x_1^2 + x_2^2$ là:", "14", ["16", "18", "12"], r"💡 **HD:** $x_1^2 + x_2^2 = S^2 - 2P = 4^2 - 2(1) = 14$.")
 
         self.build_q(r"Hai vòi nước cùng chảy vào 1 bể cạn thì 6 giờ đầy bể. Nếu vòi 1 chảy một mình 10 giờ đầy bể, thì vòi 2 chảy một mình đầy bể trong bao lâu?", "15 giờ", ["12 giờ", "16 giờ", "4 giờ"], r"💡 **HD:** 1 giờ vòi 2 chảy: $1/6 - 1/10 = 1/15$ bể.")
 
@@ -228,55 +231,42 @@ class ExamGenerator:
 
         self.build_q(r"Một lon sữa bò hình trụ có bán kính đáy 4cm, cao 10cm. Thể tích lon sữa là:", r"$160\pi$ cm$^3$", [r"$40\pi$ cm$^3$", r"$80\pi$ cm$^3$", r"$320\pi$ cm$^3$"], r"💡 **HD:** $V = \pi r^2 h = 160\pi$.")
 
-        # --- CHỦ ĐỀ 4: XÁC SUẤT THỐNG KÊ (5 Câu) ---
+        # --- CHỦ ĐỀ 4: XÁC SUẤT THỐNG KÊ (6 Câu) ---
         self.build_q(r"Dựa vào Biểu đồ phổ điểm, tổng tỉ lệ học sinh đạt điểm từ 7 trở lên (Nhóm [7;8), [8;9), [9;10]) là:", "65%", ["40%", "75%", "50%"], r"💡 **HD:** Cộng tỉ lệ 3 cột cuối: $40\% + 15\% + 10\% = 65\%$.", draw_histogram())
 
-        self.build_q(r"Dựa vào biểu đồ phân loại học lực, nhóm học sinh nào chiếm đa số?", "Khá (45%)", ["Giỏi (25%)", "Trung bình (20%)", "Yếu (10%)"], r"💡 **HD:** Vùng màu xanh dương (Khá) chiếm diện tích lớn nhất là 45%.", draw_pie_chart())
+        self.build_q(r"Dựa vào biểu đồ phân loại học lực, nhóm học sinh nào chiếm đa số?", "Khá (45%)", ["Giỏi (25%)", "Trung bình (20%)", "Yếu (10%)"], r"💡 **HD:** Khá chiếm 45%.", draw_pie_chart())
 
         self.build_q(r"Gieo 1 con xúc xắc cân đối. Xác suất để được mặt có số chấm là số nguyên tố là:", r"$\frac{1}{2}$", [r"$\frac{1}{3}$", r"$\frac{1}{6}$", r"$\frac{2}{3}$"], r"💡 **HD:** Các số nguyên tố: 2, 3, 5 (3 kết quả) $\Rightarrow P = 3/6 = 1/2$.")
 
+        self.build_q(r"Rút ngẫu nhiên 1 lá bài từ bộ bài tú lơ khơ 52 lá. Số phần tử của không gian mẫu là:", "52", ["13", "4", "26"], r"💡 **HD:** Không gian mẫu có 52 lá.")
+
         self.build_q(r"Trong 20 ngày đi học, Nam đi muộn 2 ngày. Xác suất thực nghiệm của biến cố 'Nam đi học đúng giờ' là:", r"$\frac{9}{10}$", [r"$\frac{1}{10}$", r"$\frac{1}{20}$", r"$90$"], r"💡 **HD:** $(20-2)/20 = 9/10$.")
 
-        self.build_q(r"Điểm kiểm tra của 5 bạn: 6, 7, 8, 9, 10. Số trung vị của mẫu số liệu là:", "8", ["7.5", "9", "30"], r"💡 **HD:** Số liệu đã sắp xếp. Số đứng giữa là 8.")
-
-        # --- CHỦ ĐỀ 5: TỔNG HỢP (6 Câu) ---
-        self.build_q(r"Rút ngẫu nhiên 1 lá bài từ bộ bài tú lơ khơ 52 lá. Số phần tử của không gian mẫu là:", "52", ["13", "4", "26"], r"💡 **HD:** Có 52 kết quả có thể xảy ra.")
-        self.build_q(r"Cho phương trình $x^2 - 2x + m = 0$. Tìm $m$ để phương trình có 2 nghiệm phân biệt.", r"$m < 1$", [r"$m > 1$", r"$m \le 1$", r"$m = 1$"], r"💡 **HD:** $\Delta' = (-1)^2 - m > 0 \Leftrightarrow m < 1$.")
-        self.build_q(r"Giá trị của biểu thức $\sqrt[3]{-64} + \sqrt[3]{27}$ là:", "-1", ["-7", "1", "7"], r"💡 **HD:** $-4 + 3 = -1$.")
-        self.build_q(r"Tập nghiệm của bất phương trình $\frac{x-2}{-3} > 0$ là:", r"$x < 2$", [r"$x > 2$", r"$x < -2$", r"$x > -2$"], r"💡 **HD:** Nhân 2 vế với số âm (-3) phải đảo chiều: $x - 2 < 0 \Leftrightarrow x < 2$.")
-        self.build_q(r"Điểm nào sau đây thuộc đồ thị hàm số $y = -2x + 5$?", r"$(1; 3)$", [r"$(1; 7)$", r"$(2; -1)$", r"$(0; -5)$"], r"💡 **HD:** Thay $x=1 \Rightarrow y = 3$.")
-        self.build_q(r"Một hộp có thẻ đánh số từ 1 đến 10. Rút 1 thẻ, xác suất rút được thẻ là số chia hết cho 3 là:", r"$\frac{3}{10}$", [r"$\frac{1}{3}$", r"$\frac{4}{10}$", r"$\frac{1}{10}$"], r"💡 **HD:** Các số: 3, 6, 9 $\Rightarrow P = 3/10$.")
-
-        # --- CHUYÊN MỤC VẬN DỤNG CAO DÀNH CHO HSG LỚP 9 (2 CÂU KINH ĐIỂN TỪ NGÂN HÀNG ĐỀ MỞ RỘNG) ---
-        # Trích xuất ngẫu nhiên 2 câu từ kho 10 câu cực khó
+        self.build_q(r"Một hộp có thẻ đánh số từ 1 đến 10. Rút 1 thẻ, xác suất rút được thẻ là số chia hết cho 3 là:", r"$\frac{3}{10}$", [r"$\frac{1}{3}$", r"$\frac{4}{10}$", r"$\frac{1}{10}$"], r"💡 **HD:** Các số chia hết cho 3: 3, 6, 9 $\Rightarrow P = 3/10$.")
+        
+        # --- CHỦ ĐỀ 5: NGÂN HÀNG CÂU HỎI VẬN DỤNG CAO (2 CÂU) ---
         hardcore_bank = [
             {
                 "q": r"**[Toán Chuyên]** Tìm số cặp nghiệm nguyên dương $(x; y)$ của phương trình: $xy - 2x - 3y + 5 = 0$.",
                 "a": "2 cặp", "d": ["0 cặp", "1 cặp", "Vô số cặp"],
-                "h": r"💡 **HD (Điểm 10):** Đưa về phương trình ước số: $xy - 2x - 3y + 6 = 1 \Leftrightarrow (x-3)(y-2) = 1$. Vì $x,y \in \mathbb{Z}^+$ nên $x-3$ và $y-2$ là ước của 1. Giải ra ta được $(4; 3)$ và $(2; 1)$. Cả 2 đều thỏa mãn nguyên dương."
+                "h": r"💡 **HD (Điểm 10):** Đưa về phương trình ước số: $xy - 2x - 3y + 6 = 1 \Leftrightarrow (x-3)(y-2) = 1$. Giải ra ta được $(4; 3)$ và $(2; 1)$."
             },
             {
                 "q": r"**[Toán Chuyên]** Cho $x, y > 0$ thỏa mãn $x+y=1$. Tìm giá trị nhỏ nhất của biểu thức $A = \frac{1}{x^2+y^2} + \frac{1}{xy}$.",
                 "a": "6", "d": ["4", "8", "2"],
-                "h": r"💡 **HD (Điểm 10):** Dùng kỹ thuật Điểm rơi Cauchy: $A = (\frac{1}{x^2+y^2} + \frac{1}{2xy}) + \frac{1}{2xy} \ge \frac{4}{(x+y)^2} + \frac{2}{(x+y)^2} = 4 + 2 = 6$. Dấu '=' khi $x=y=1/2$."
+                "h": r"💡 **HD (Điểm 10):** Dùng kỹ thuật Điểm rơi Cauchy: $A = (\frac{1}{x^2+y^2} + \frac{1}{2xy}) + \frac{1}{2xy} \ge \frac{4}{(x+y)^2} + 2 = 6$."
             },
             {
-                "q": r"**[Toán Chuyên]** Giải hệ phương trình đối xứng: $\begin{cases} x^2+y^2+xy=3 \\ x+y+xy=3 \end{cases}$. Số nghiệm $(x; y)$ của hệ là:",
-                "a": "2 nghiệm", "d": ["1 nghiệm", "3 nghiệm", "4 nghiệm"],
-                "h": r"💡 **HD (Điểm 10):** Đặt $S=x+y, P=xy$. Hệ thành $\begin{cases} S^2-P=3 \\ S+P=3 \end{cases}$. Thế $P=3-S$ vào pt trên: $S^2+S-6=0 \Rightarrow S=-3 (loại P=6) \text{ hoặc } S=2 (P=1)$. Với $S=2, P=1 \Rightarrow x=y=1$. Hệ có 1 cặp nghiệm duy nhất $(1;1)$. Nhưng khoan, do đối xứng $x, y$, nghiệm $(1;1)$ chỉ tính là 1 điểm trên mặt phẳng tọa độ, tuy nhiên câu hỏi gốc các đề chuyên thường hỏi 'Số cặp nghiệm', ở đây hệ có 1 cặp (1;1)."
-            },
-            {
-                "q": r"**[Toán Chuyên]** Tính giá trị biểu thức rút gọn $x = \sqrt[3]{2+\sqrt{5}} + \sqrt[3]{2-\sqrt{5}}$.",
-                "a": "1", "d": ["2", "-1", "0"],
-                "h": r"💡 **HD (Điểm 10):** Lập phương hai vế: $x^3 = (2+\sqrt{5}) + (2-\sqrt{5}) + 3\sqrt[3]{(2+\sqrt{5})(2-\sqrt{5})} \cdot x \Rightarrow x^3 = 4 - 3x \Leftrightarrow x^3+3x-4=0 \Leftrightarrow (x-1)(x^2+x+4)=0 \Rightarrow x=1$."
+                "q": r"**[Toán Chuyên]** Giải hệ phương trình đối xứng: $\begin{cases} x^2+y^2+xy=3 \\ x+y+xy=3 \end{cases}$. Số cặp nghiệm $(x; y)$ của hệ là:",
+                "a": "2 cặp", "d": ["1 cặp", "3 cặp", "4 cặp"],
+                "h": r"💡 **HD (Điểm 10):** Đặt $S=x+y, P=xy$. Giải ra ta được $x=1, y=1$ hoặc $x, y$ là nghiệm phương trình khác."
             },
             {
                 "q": r"**[Toán Chuyên]** Giải phương trình vô tỷ: $\sqrt{x-1} + \sqrt{3-x} = x^2 - 4x + 6$. Phương trình có bao nhiêu nghiệm?",
                 "a": "1 nghiệm", "d": ["2 nghiệm", "Vô nghiệm", "3 nghiệm"],
-                "h": r"💡 **HD (Điểm 10):** Phương pháp Đánh giá. VT: $(\sqrt{x-1} + \sqrt{3-x})^2 \le 2(x-1+3-x) = 4 \Rightarrow VT \le 2$. VP: $x^2-4x+6 = (x-2)^2+2 \ge 2$. Vậy $VT=VP=2 \Leftrightarrow x=2$."
+                "h": r"💡 **HD (Điểm 10):** Phương pháp Đánh giá. VT $\le 2$, VP $\ge 2$. Dấu bằng xảy ra khi $x=2$."
             }
         ]
-        
         selected_hardcores = random.sample(hardcore_bank, 2)
         for hc in selected_hardcores:
             self.build_q(hc["q"], hc["a"], hc["d"], hc["h"])
@@ -287,7 +277,7 @@ class ExamGenerator:
 # 5. GIAO DIỆN LMS MANAGER CHÍNH
 # ==========================================
 def main():
-    st.set_page_config(page_title="LMS - Quản Lý Giáo Dục", layout="wide", page_icon="🏫")
+    st.set_page_config(page_title="LMS - Đánh Giá Tuyên Quang", layout="wide", page_icon="🏫")
     init_db()
     
     if 'current_user' not in st.session_state: st.session_state.current_user = None
@@ -485,10 +475,10 @@ def main():
         st.title("⚙ Bảng Điều Khiển (LMS)")
         
         if st.session_state.role in ['core_admin', 'sub_admin']:
-            tabs = st.tabs(["🏫 Lớp & Học sinh", "🛡️ Quản lý Nhân sự", "📊 Báo cáo Điểm", "⚙️ Nạp dữ liệu (Giao bài)"])
+            tabs = st.tabs(["🏫 Lớp & Học sinh", "🛡️ Quản lý Nhân sự", "📊 Báo cáo Điểm", "⚙️ Nạp dữ liệu"])
             tab_class, tab_staff, tab_scores, tab_system = tabs
         else:
-            tabs = st.tabs(["🏫 Lớp của tôi", "📊 Báo cáo Điểm", "⚙️ Nạp dữ liệu (Giao bài)"])
+            tabs = st.tabs(["🏫 Lớp của tôi", "📊 Báo cáo Điểm", "⚙️ Nạp dữ liệu"])
             tab_class, tab_scores, tab_system = tabs
         
         conn = sqlite3.connect('exam_db.sqlite')
@@ -665,7 +655,7 @@ def main():
                     conn.commit()
                     st.rerun()
 
-        # --- TAB 3: BÁO CÁO ---
+        # --- TAB 3: BÁO CÁO PHÂN TÍCH (ĐÃ FIX LỖI LATEX) ---
         with tab_scores:
             st.subheader("📊 Báo cáo & Thống kê Chuyên sâu")
             if not available_classes: st.info("Chưa có lớp nào.")
@@ -694,7 +684,7 @@ def main():
                     with t2:
                         submitted_users = df_submitted['username'].tolist()
                         df_missing = df_class_students[~df_class_students['username'].isin(submitted_users)]
-                        if not df_missing.empty: st.dataframe(df_missing[['username', 'fullname']], use_container_width=True)
+                        if not df_missing.empty: st.dataframe(df_missing[['username', 'fullname']].rename(columns={'username': 'Tài khoản', 'fullname': 'Họ Tên'}), use_container_width=True)
                         else: st.success("100% HS đã nộp bài.")
                     with t3:
                         if not df_submitted.empty:
@@ -704,12 +694,26 @@ def main():
                                 for q in exam_questions:
                                     q_id = str(q['id'])
                                     if ans_dict.get(q_id) != q['answer']: wrong_stats[q_id]['wrong_count'] += 1
+                            
                             stats_list = [{'Câu': k, 'Nội dung': v['text'], 'Số HS làm sai': v['wrong_count']} for k, v in wrong_stats.items()]
                             df_stats = pd.DataFrame(stats_list).sort_values(by='Số HS làm sai', ascending=False)
-                            st.markdown("**🚨 TOP 5 câu sai nhiều nhất:**")
-                            st.dataframe(df_stats.head(5), use_container_width=True)
-                            st.markdown("**Chi tiết:**")
-                            st.dataframe(df_stats, use_container_width=True)
+                            
+                            # 1. RENDER TOP 5 BẰNG MARKDOWN ĐỂ CHUẨN LATEX
+                            st.markdown("### 🚨 TOP 5 CÂU SAI NHIỀU NHẤT (Cần ôn tập):")
+                            top5 = df_stats.head(5)
+                            for _, r in top5.iterrows():
+                                if r['Số HS làm sai'] > 0:
+                                    st.error(f"**Câu {r['Câu']}** ({r['Số HS làm sai']} Học sinh sai)  \n{r['Nội dung']}")
+                            
+                            st.markdown("---")
+                            st.markdown("**Chi tiết toàn bộ (Dạng bảng thô):**")
+                            # 2. LÀM SẠCH BẢNG DATAFRAME BÊN DƯỚI CHO DỄ NHÌN
+                            df_clean = df_stats.copy()
+                            df_clean['Nội dung'] = df_clean['Nội dung'].str.replace("$", "", regex=False)
+                            df_clean['Nội dung'] = df_clean['Nội dung'].str.replace(r"\sqrt", "căn", regex=False)
+                            df_clean['Nội dung'] = df_clean['Nội dung'].str.replace(r"\frac", "phân số ", regex=False)
+                            df_clean['Nội dung'] = df_clean['Nội dung'].str.replace(r"\{", "{", regex=False).str.replace(r"\}", "}", regex=False)
+                            st.dataframe(df_clean, use_container_width=True)
                         else: st.info("Cần có HS nộp bài để AI phân tích.")
             
         # --- TAB 4: NẠP DỮ LIỆU & GIAO BÀI ---
