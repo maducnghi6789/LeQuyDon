@@ -21,16 +21,25 @@ from datetime import datetime, timedelta, timezone
 
 VN_TZ = timezone(timedelta(hours=7))
 
-# Hàm hỗ trợ xuất Excel
+# Hàm hỗ trợ xuất Excel Danh sách đã có tài khoản
 def to_excel(df):
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='DanhSachTaiKhoan')
-    processed_data = output.getvalue()
-    return processed_data
+    return output.getvalue()
+
+# Hàm tạo File Excel Mẫu Trống cho Giáo viên điền
+def create_excel_template():
+    df_template = pd.DataFrame(columns=["Họ tên", "Ngày sinh", "Trường"])
+    # Thêm 1 dòng ví dụ để giáo viên biết cách nhập
+    df_template.loc[0] = ["Nguyễn Văn A", "15/08/2010", "THCS Lê Quý Đôn"]
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df_template.to_excel(writer, index=False, sheet_name='MauNhapLieu')
+    return output.getvalue()
 
 # ==========================================
-# 2. CƠ SỞ DỮ LIỆU ĐA TẦNG 
+# 2. CƠ SỞ DỮ LIỆU ĐA TẦNG
 # ==========================================
 def init_db():
     conn = sqlite3.connect('exam_db.sqlite')
@@ -121,7 +130,7 @@ def draw_tower_shadow(chieu_dai_bong):
     return fig_to_base64(fig)
 
 # ==========================================
-# 4. ENGINE TẠO ĐỀ
+# 4. ENGINE TẠO ĐỀ CHỐNG LẶP
 # ==========================================
 class ExamGenerator:
     def __init__(self):
@@ -196,6 +205,7 @@ def main():
     if 'current_user' not in st.session_state: st.session_state.current_user = None
     if 'role' not in st.session_state: st.session_state.role = None
 
+    # --- ĐĂNG NHẬP ---
     if st.session_state.current_user is None:
         st.markdown("<h1 style='text-align: center; color: #2E3B55;'>🎓 HỆ THỐNG QUẢN LÝ HỌC TẬP</h1>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1, 1.5, 1])
@@ -399,20 +409,29 @@ def main():
             m_cls = c.fetchone()[0]
             available_classes = [x.strip() for x in m_cls.split(',')] if m_cls else []
         
-        # --- TAB 1: QUẢN LÝ LỚP & HỌC SINH (KHU VỰC ĐƯỢC LÀM LẠI HOÀN TOÀN) ---
+        # --- TAB 1: QUẢN LÝ LỚP & HỌC SINH (HOÀN THIỆN XUẤT EXCEL & FILE MẪU) ---
         with tab_class:
             if not available_classes:
                 st.info("Chưa có lớp học nào được tạo hoặc được phân công cho bạn.")
             else:
                 selected_class = st.selectbox("📌 Chọn lớp để quản lý:", available_classes)
                 
-                # KHU VỰC 1: TẠO HỌC SINH
-                st.markdown("### 1. Thêm Học sinh mới")
-                with st.expander(f"➕ Nhấn vào đây để thêm học sinh cho lớp {selected_class}", expanded=False):
-                    st.info("💡 Bạn có thể nạp File Excel (Cột: Họ tên, Ngày sinh, Trường) hoặc điền nhanh.")
-                    uploaded_excel = st.file_uploader("Nạp từ file Excel", type=['xlsx'])
+                # KHU VỰC TẠO HỌC SINH
+                with st.expander(f"➕ Tạo tài khoản Học sinh cho lớp {selected_class}", expanded=False):
+                    st.info("💡 Bạn hãy Tải File Excel Mẫu về, điền danh sách học sinh rồi Nạp lên hệ thống nhé.")
+                    
+                    # 1. NÚT TẢI FILE MẪU EXCEL TẠO SẴN
+                    template_excel = create_excel_template()
+                    st.download_button(
+                        label="⬇️ TẢI FILE EXCEL MẪU",
+                        data=template_excel,
+                        file_name="Mau_Danh_Sach_Hoc_Sinh.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+
+                    uploaded_excel = st.file_uploader("Nạp file Excel (Đã điền)", type=['xlsx'])
                     if uploaded_excel is not None:
-                        if st.button("🔄 Nạp file Excel"):
+                        if st.button("🔄 Nạp dữ liệu lên hệ thống"):
                             try:
                                 df_import = pd.read_excel(uploaded_excel)
                                 count = 0
@@ -431,9 +450,9 @@ def main():
                                 conn.commit()
                                 st.success(f"✅ Đã tạo {count} tài khoản vào lớp {selected_class}!")
                                 st.rerun()
-                            except Exception as e: st.error("Lỗi đọc file Excel.")
+                            except Exception as e: st.error("Lỗi đọc file Excel. Vui lòng kiểm tra lại định dạng file.")
                     
-                    st.markdown("**Hoặc tạo thủ công:**")
+                    st.markdown("**Hoặc Tạo Thủ Công:**")
                     with st.form("manual_add_student"):
                         col1, col2 = st.columns(2)
                         m_name = col1.text_input("Họ và Tên (Bắt buộc)")
@@ -450,34 +469,33 @@ def main():
                                 except: st.error("Tên đăng nhập bị trùng.")
                             else: st.warning("Vui lòng nhập Họ Tên!")
 
-                # KHU VỰC 2: DANH SÁCH VÀ XUẤT EXCEL
+                # DANH SÁCH & NÚT XUẤT EXCEL TÀI KHOẢN ĐÃ TẠO
                 st.markdown("---")
-                st.markdown(f"### 2. Danh sách học sinh lớp {selected_class}")
+                st.markdown(f"### Danh sách Tài khoản lớp {selected_class}")
                 df_students = pd.read_sql_query(f"SELECT username as 'Tài khoản', password as 'Mật khẩu', fullname as 'Họ Tên', dob as 'Ngày sinh', school as 'Trường' FROM users WHERE role='student' AND class_name='{selected_class}'", conn)
                 
-                # HIỂN THỊ NÚT TẢI EXCEL (NẰM NGAY TRÊN BẢNG)
                 if not df_students.empty:
-                    excel_data = to_excel(df_students)
+                    # NÚT XUẤT EXCEL DANH SÁCH TÀI KHOẢN (RẤT QUAN TRỌNG)
+                    excel_export_data = to_excel(df_students)
                     st.download_button(
-                        label=f"📥 TẢI DANH SÁCH {len(df_students)} TÀI KHOẢN (EXCEL)",
-                        data=excel_data,
+                        label=f"📥 XUẤT EXCEL DANH SÁCH {len(df_students)} TÀI KHOẢN LỚP {selected_class} ĐỂ IN",
+                        data=excel_export_data,
                         file_name=f"Danh_sach_tai_khoan_lop_{selected_class}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         type="primary"
                     )
                 st.dataframe(df_students, use_container_width=True)
-
-                # KHU VỰC 3: CHỈNH SỬA VÀ XÓA TÀI KHOẢN
+                
+                # KHU VỰC TÙY CHỈNH & XÓA HỌC SINH
                 if not df_students.empty:
                     st.markdown("---")
-                    st.markdown("### 3. Tùy chỉnh thông tin & Xóa Học sinh")
-                    user_to_edit = st.selectbox("Chọn Học sinh cần tùy chỉnh:", ["-- Chọn --"] + df_students['Tài khoản'].tolist())
+                    st.markdown("#### ✏️ Tùy chỉnh thông tin & Xóa Học sinh")
+                    user_to_edit = st.selectbox("Chọn Học sinh cần thao tác:", ["-- Chọn --"] + df_students['Tài khoản'].tolist())
                     
                     if user_to_edit != "-- Chọn --":
                         c.execute("SELECT fullname, password, dob, school, class_name FROM users WHERE username=?", (user_to_edit,))
                         u_data = c.fetchone()
                         
-                        # Form chỉnh sửa ĐẦY ĐỦ các trường
                         with st.form("edit_student_form"):
                             st.info(f"Đang thao tác tài khoản: **{user_to_edit}**")
                             col1, col2 = st.columns(2)
@@ -493,7 +511,6 @@ def main():
                                 st.success("✅ Cập nhật thành công!")
                                 st.rerun()
                         
-                        # Nút xóa cảnh báo đỏ
                         st.markdown("<br>", unsafe_allow_html=True)
                         if st.button(f"🗑 XÓA TÀI KHOẢN '{user_to_edit}'", type="secondary"):
                             c.execute("DELETE FROM users WHERE username=?", (user_to_edit,))
