@@ -23,6 +23,8 @@ import matplotlib.patches as patches
 def init_db():
     conn = sqlite3.connect('exam_db.sqlite')
     c = conn.cursor()
+    
+    # Bảng Users
     c.execute('''CREATE TABLE IF NOT EXISTS users (
         username TEXT PRIMARY KEY, password TEXT, role TEXT, 
         fullname TEXT, dob TEXT, class_name TEXT, school TEXT, province TEXT, managed_classes TEXT)''')
@@ -32,13 +34,14 @@ def init_db():
         try: c.execute(f"ALTER TABLE users ADD COLUMN {col} TEXT")
         except: pass
 
+    # Bảng Kết quả
     c.execute('''CREATE TABLE IF NOT EXISTS results (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, score REAL, correct_count INTEGER, wrong_count INTEGER, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     c.execute('''CREATE TABLE IF NOT EXISTS mandatory_exams (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, questions_json TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     c.execute('''CREATE TABLE IF NOT EXISTS mandatory_results (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, exam_id INTEGER, score REAL, user_answers_json TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     try: c.execute("ALTER TABLE mandatory_results ADD COLUMN user_answers_json TEXT")
     except: pass
     
-    # ADMIN LÕI
+    # TÀI KHOẢN ADMIN LÕI
     c.execute("INSERT OR IGNORE INTO users (username, password, role, fullname) VALUES ('maducnghi6789@gmail.com', 'admin123', 'core_admin', 'Giám Đốc Hệ Thống')")
     conn.commit()
     conn.close()
@@ -102,6 +105,18 @@ def draw_tower_shadow(chieu_dai_bong):
     ax.text(2.2, 0.2, r'$\alpha$', fontsize=12, color='blue')
     ax.set_xlim(-1, 4.5); ax.set_ylim(-1, 4.5)
     ax.axis('off')
+    return fig_to_base64(fig)
+
+def draw_vivid_histogram(freqs, doi_tuong):
+    fig, ax = plt.subplots(figsize=(6, 3))
+    bins = ['[140;150)', '[150;160)', '[160;170)', '[170;180)', '[180;190)']
+    percents = [f / sum(freqs) * 100 for f in freqs]
+    bars = ax.bar(bins, percents, color=['#1abc9c', '#2ecc71', '#3498db', '#9b59b6', '#e67e22'], edgecolor='black')
+    ax.set_title(f"KHẢO SÁT CHIỀU CAO CỦA {doi_tuong.upper()}", fontweight='bold', pad=10)
+    ax.set_ylabel('Tỉ lệ (%)', fontweight='bold')
+    for bar, v in zip(bars, percents): 
+        ax.text(bar.get_x() + bar.get_width()/2, v + 1, f"{round(v)}%", ha='center', fontweight='bold')
+    ax.set_ylim(0, max(percents) + 15)
     return fig_to_base64(fig)
 
 # ==========================================
@@ -170,7 +185,7 @@ class ExamGenerator:
 # 5. GIAO DIỆN LMS VỚI PHÂN QUYỀN ĐA TẦNG
 # ==========================================
 def main():
-    st.set_page_config(page_title="LMS - Hệ Thống Đánh Giá Tuyên Quang", layout="wide", page_icon="🏫")
+    st.set_page_config(page_title="LMS - Hệ Thống Đánh Giá", layout="wide", page_icon="🏫")
     init_db()
     
     if 'current_user' not in st.session_state: st.session_state.current_user = None
@@ -178,7 +193,7 @@ def main():
 
     # --- MÀN HÌNH ĐĂNG NHẬP ---
     if st.session_state.current_user is None:
-        st.markdown("<h1 style='text-align: center; color: #2E3B55;'>🎓 HỆ THỐNG QUẢN LÝ HỌC TẬP TỈNH TUYÊN QUANG</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center; color: #2E3B55;'>🎓 HỆ THỐNG QUẢN LÝ HỌC TẬP TỈNH</h1>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1, 1.5, 1])
         with col2:
             with st.form("login_form"):
@@ -209,7 +224,7 @@ def main():
             st.rerun()
 
     # ==========================
-    # GIAO DIỆN HỌC SINH
+    # GIAO DIỆN HỌC SINH (GIỮ NGUYÊN)
     # ==========================
     if st.session_state.role == 'student':
         tab_mand, tab_ai = st.tabs(["🔥 Bài tập Bắt buộc", "🤖 Luyện đề AI Tự do"])
@@ -240,7 +255,6 @@ def main():
                                 st.rerun()
                     st.markdown("---")
             
-            # Khung làm bài (Vá lỗi Index Safe Lookup)
             if 'active_mand_exam' in st.session_state and st.session_state.active_mand_exam is not None:
                 exam_id = st.session_state.active_mand_exam
                 mode = st.session_state.mand_mode
@@ -364,17 +378,20 @@ def main():
                         st.rerun()
 
     # ==========================
-    # GIAO DIỆN ADMIN & GIÁO VIÊN
+    # GIAO DIỆN ADMIN & GIÁO VIÊN VỚI PHÂN QUYỀN MỚI
     # ==========================
     elif st.session_state.role in ['core_admin', 'sub_admin', 'teacher']:
         st.title("⚙ Bảng Điều Khiển (LMS)")
         
-        # Tabs hiển thị phụ thuộc vào quyền
-        if st.session_state.role in ['core_admin', 'sub_admin']:
-            tabs = st.tabs(["🏫 Quản lý Lớp & Học sinh", "👨‍🏫 Quản lý Giáo viên", "📊 Báo cáo Điểm", "⚙️ Nạp dữ liệu & Giao bài"])
-            tab_class, tab_teacher, tab_scores, tab_system = tabs
-        else:
-            tabs = st.tabs(["🏫 Lớp của tôi", "📊 Báo cáo Điểm", "⚙️ Nạp dữ liệu & Giao bài"])
+        # CHIA TABS THEO QUYỀN HẠN
+        if st.session_state.role == 'core_admin':
+            tabs = st.tabs(["🏫 Lớp & Học sinh", "🛡️ Quản lý Admin & GV", "📊 Báo cáo Điểm", "⚙️ Nạp dữ liệu"])
+            tab_class, tab_staff, tab_scores, tab_system = tabs
+        elif st.session_state.role == 'sub_admin':
+            tabs = st.tabs(["🏫 Lớp & Học sinh", "👨‍🏫 Quản lý Giáo viên", "📊 Báo cáo Điểm", "⚙️ Nạp dữ liệu"])
+            tab_class, tab_staff, tab_scores, tab_system = tabs
+        else: # teacher
+            tabs = st.tabs(["🏫 Lớp của tôi", "📊 Báo cáo Điểm", "⚙️ Nạp dữ liệu"])
             tab_class, tab_scores, tab_system = tabs
         
         # --- TAB 1: QUẢN LÝ LỚP & HỌC SINH ---
@@ -420,7 +437,7 @@ def main():
                 u_data = c.fetchone()
                 
                 with st.form("edit_student_form"):
-                    st.info("⚠️ Tài khoản (Username) không thể sửa để đảm bảo tính định danh hệ thống.")
+                    st.info("⚠️ Tài khoản (Username) không thể sửa để đảm bảo tính định danh.")
                     col1, col2 = st.columns(2)
                     st.text_input("Tài khoản (Đã khóa)", value=u_data[0], disabled=True)
                     edit_name = col1.text_input("Họ và Tên", value=u_data[3] if u_data[3] else "")
@@ -433,24 +450,57 @@ def main():
                         st.success(f"✅ Đã cập nhật thông tin cho học sinh {edit_name}!")
                         st.rerun()
 
-                # QUYỀN XÓA HỌC SINH (CHỈ DÀNH CHO ADMIN)
+                # QUYỀN XÓA HỌC SINH (CHỈ ADMIN)
                 if st.session_state.role in ['core_admin', 'sub_admin']:
                     if st.button("🗑 Xóa vĩnh viễn Học sinh này", type="secondary"):
                         c.execute("DELETE FROM users WHERE username=?", (user_to_edit,))
                         c.execute("DELETE FROM results WHERE username=?", (user_to_edit,))
                         c.execute("DELETE FROM mandatory_results WHERE username=?", (user_to_edit,))
                         conn.commit()
-                        st.success(f"Đã xóa toàn bộ dữ liệu của học sinh {user_to_edit}")
+                        st.success(f"Đã xóa dữ liệu của học sinh {user_to_edit}")
                         st.rerun()
             conn.close()
 
-        # --- TAB 2 (CHỈ ADMIN): QUẢN LÝ GIÁO VIÊN ---
+        # --- TAB 2 (CHỈ ADMIN): QUẢN LÝ NHÂN SỰ (ADMIN/GV) ---
         if st.session_state.role in ['core_admin', 'sub_admin']:
-            with tab_teacher:
-                st.subheader("👨‍🏫 Tạo Lớp & Chỉ định Giáo viên Quản lý")
+            with tab_staff:
+                conn = sqlite3.connect('exam_db.sqlite')
+                c = conn.cursor()
+                
+                # KHU VỰC QUẢN LÝ SUB ADMIN (CHỈ DÀNH CHO CORE ADMIN)
+                if st.session_state.role == 'core_admin':
+                    st.subheader("🛡️ 1. Quản lý Admin Thành viên")
+                    with st.form("add_subadmin_form"):
+                        col1, col2 = st.columns(2)
+                        sa_user = col1.text_input("Tài khoản Admin Thành viên")
+                        sa_pwd = col2.text_input("Mật khẩu")
+                        sa_name = st.text_input("Họ và Tên")
+                        
+                        if st.form_submit_button("Tạo Admin Thành viên", type="primary"):
+                            if sa_user and sa_pwd:
+                                try:
+                                    c.execute("INSERT INTO users (username, password, role, fullname) VALUES (?, ?, 'sub_admin', ?)", (sa_user.strip(), sa_pwd.strip(), sa_name.strip()))
+                                    conn.commit()
+                                    st.success(f"Đã tạo Admin: {sa_name}")
+                                    st.rerun()
+                                except: st.error("Tài khoản đã tồn tại!")
+                    
+                    df_sa = pd.read_sql_query("SELECT username as 'Tài khoản', fullname as 'Họ tên', password as 'Mật khẩu' FROM users WHERE role='sub_admin'", conn)
+                    st.dataframe(df_sa, use_container_width=True)
+                    
+                    sa_to_delete = st.selectbox("Chọn Admin Thành viên cần xóa:", ["-- Chọn --"] + df_sa['Tài khoản'].tolist())
+                    if sa_to_delete != "-- Chọn --" and st.button(f"🗑 Xóa Admin {sa_to_delete}"):
+                        c.execute("DELETE FROM users WHERE username=?", (sa_to_delete,))
+                        conn.commit()
+                        st.success("Đã xóa Admin thành viên!")
+                        st.rerun()
+                    st.markdown("---")
+
+                # KHU VỰC QUẢN LÝ GIÁO VIÊN (CẢ CORE & SUB ADMIN ĐỀU DÙNG ĐƯỢC)
+                st.subheader("👨‍🏫 " + ("2. " if st.session_state.role=='core_admin' else "1. ") + "Quản lý Giáo viên (Tạo & Chỉ định Lớp)")
                 with st.form("add_teacher_form"):
                     col1, col2 = st.columns(2)
-                    t_user = col1.text_input("Tài khoản Giáo viên (viết liền)")
+                    t_user = col1.text_input("Tài khoản Giáo viên")
                     t_pwd = col2.text_input("Mật khẩu")
                     t_name = col1.text_input("Họ và Tên Giáo viên")
                     t_classes = col2.text_input("Giao quản lý lớp nào? (VD: 9A1, 9A2)")
@@ -458,27 +508,20 @@ def main():
                     if st.form_submit_button("Tạo & Giao Lớp", type="primary"):
                         if t_user and t_pwd and t_name:
                             try:
-                                conn = sqlite3.connect('exam_db.sqlite')
-                                c = conn.cursor()
                                 c.execute("INSERT INTO users (username, password, role, fullname, managed_classes) VALUES (?, ?, 'teacher', ?, ?)", 
                                           (t_user.strip(), t_pwd.strip(), t_name.strip(), t_classes.strip()))
                                 conn.commit()
-                                conn.close()
-                                st.success(f"✅ Đã tạo thành công Giáo viên: {t_name} (Quản lý: {t_classes})")
+                                st.success(f"✅ Đã tạo thành công Giáo viên: {t_name} (Lớp: {t_classes})")
                                 st.rerun()
                             except: st.error("Tên tài khoản này đã tồn tại!")
-                        else: st.warning("Vui lòng điền đủ Tài khoản, Mật khẩu và Tên!")
+                        else: st.warning("Vui lòng điền đủ thông tin!")
                 
                 st.markdown("---")
-                st.subheader("Danh sách Giáo viên Hệ thống")
-                conn = sqlite3.connect('exam_db.sqlite')
                 df_teachers = pd.read_sql_query("SELECT username as 'Tài khoản', fullname as 'Họ tên', managed_classes as 'Lớp Quản Lý', password as 'Mật khẩu' FROM users WHERE role='teacher'", conn)
                 st.dataframe(df_teachers, use_container_width=True)
 
-                st.markdown("#### ✏️ Thao tác với Giáo viên")
-                teacher_to_edit = st.selectbox("Chọn Giáo viên:", ["-- Chọn --"] + df_teachers['Tài khoản'].tolist())
+                teacher_to_edit = st.selectbox("Chọn Giáo viên để thao tác:", ["-- Chọn --"] + df_teachers['Tài khoản'].tolist())
                 if teacher_to_edit != "-- Chọn --":
-                    c = conn.cursor()
                     c.execute("SELECT * FROM users WHERE username=?", (teacher_to_edit,))
                     t_data = c.fetchone()
                     
