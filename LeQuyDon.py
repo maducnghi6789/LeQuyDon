@@ -23,32 +23,28 @@ import matplotlib.patches as patches
 def init_db():
     conn = sqlite3.connect('exam_db.sqlite')
     c = conn.cursor()
-    
-    # Bảng Users
     c.execute('''CREATE TABLE IF NOT EXISTS users (
         username TEXT PRIMARY KEY, password TEXT, role TEXT, 
         fullname TEXT, dob TEXT, class_name TEXT, school TEXT, province TEXT, managed_classes TEXT)''')
     
-    # Tự động cập nhật cột nếu DB cũ chưa có
     columns_to_add = ["fullname", "dob", "class_name", "school", "province", "managed_classes"]
     for col in columns_to_add:
         try: c.execute(f"ALTER TABLE users ADD COLUMN {col} TEXT")
         except: pass
 
-    # Bảng Kết quả
     c.execute('''CREATE TABLE IF NOT EXISTS results (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, score REAL, correct_count INTEGER, wrong_count INTEGER, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     c.execute('''CREATE TABLE IF NOT EXISTS mandatory_exams (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, questions_json TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     c.execute('''CREATE TABLE IF NOT EXISTS mandatory_results (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, exam_id INTEGER, score REAL, user_answers_json TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     try: c.execute("ALTER TABLE mandatory_results ADD COLUMN user_answers_json TEXT")
     except: pass
     
-    # TÀI KHOẢN ADMIN LÕI
+    # ADMIN LÕI
     c.execute("INSERT OR IGNORE INTO users (username, password, role, fullname) VALUES ('maducnghi6789@gmail.com', 'admin123', 'core_admin', 'Giám Đốc Hệ Thống')")
     conn.commit()
     conn.close()
 
 def generate_username(fullname, dob):
-    clean_name = re.sub(r'[^\w\s]', '', fullname).lower().replace(" ", "")
+    clean_name = re.sub(r'[^\w\s]', '', str(fullname)).lower().replace(" ", "")
     year = str(dob).split('/')[-1] if dob else str(random.randint(1000, 9999))
     return f"{clean_name}{year}"
 
@@ -108,20 +104,8 @@ def draw_tower_shadow(chieu_dai_bong):
     ax.axis('off')
     return fig_to_base64(fig)
 
-def draw_vivid_histogram(freqs, doi_tuong):
-    fig, ax = plt.subplots(figsize=(6, 3))
-    bins = ['[140;150)', '[150;160)', '[160;170)', '[170;180)', '[180;190)']
-    percents = [f / sum(freqs) * 100 for f in freqs]
-    bars = ax.bar(bins, percents, color=['#1abc9c', '#2ecc71', '#3498db', '#9b59b6', '#e67e22'], edgecolor='black')
-    ax.set_title(f"KHẢO SÁT CHIỀU CAO CỦA {doi_tuong.upper()}", fontweight='bold', pad=10)
-    ax.set_ylabel('Tỉ lệ (%)', fontweight='bold')
-    for bar, v in zip(bars, percents): 
-        ax.text(bar.get_x() + bar.get_width()/2, v + 1, f"{round(v)}%", ha='center', fontweight='bold')
-    ax.set_ylim(0, max(percents) + 15)
-    return fig_to_base64(fig)
-
 # ==========================================
-# 4. ENGINE TẠO ĐỀ
+# 4. ENGINE TẠO ĐỀ (CHỐNG LẶP ĐÁP ÁN & DẠNG CÂU)
 # ==========================================
 class ExamGenerator:
     def __init__(self):
@@ -130,12 +114,10 @@ class ExamGenerator:
 
     def build_q(self, text, correct, distractors, hint, img_b64=None):
         correct_str = str(correct)
-        
         unique_options = [correct_str]
         for d in distractors:
             d_str = str(d)
-            if d_str not in unique_options:
-                unique_options.append(d_str)
+            if d_str not in unique_options: unique_options.append(d_str)
                 
         fallbacks = ["0", "1", "-1", "2", "-2", "Vô nghiệm", "Không xác định", "Kết quả khác"]
         for fb in fallbacks:
@@ -152,38 +134,31 @@ class ExamGenerator:
         self.q_count += 1
 
     def generate_all(self):
-        # 1. ĐKXĐ
         a1 = random.randint(2, 9)
         hd_1 = rf"💡 **HƯỚNG DẪN GIẢI CHI TIẾT:**<br>- **Bước 1:** Biểu thức $\sqrt{{A}}$ xác định khi $A \ge 0$.<br>- **Bước 2:** Áp dụng: $x - {a1} \ge 0 \Leftrightarrow x \ge {a1}$."
         self.build_q(rf"Điều kiện để biểu thức $\sqrt{{x - {a1}}}$ có nghĩa là", rf"$x \ge {a1}$", [rf"$x > {a1}$", rf"$x \le {a1}$", rf"$x < {a1}$"], hd_1)
 
-        # 2. Tìm a của Parabol
         x0 = random.choice([-2, -3, 2, 3]); y0 = random.choice([4, 9, 12, 18])
         a_val = y0 // (x0**2) if y0 % (x0**2) == 0 else f"{y0}/{x0**2}"
         hd_2 = rf"💡 **HƯỚNG DẪN GIẢI CHI TIẾT:**<br>- **Bước 1:** Thay $x = {x0}$ và $y = {y0}$ vào phương trình $y = ax^2$.<br>- **Bước 2:** Ta được: ${y0} = a \cdot ({x0})^2 \Rightarrow a = {a_val}$."
         self.build_q(rf"Biết đồ thị hàm số $y = ax^2$ đi qua điểm $M({x0}; {y0})$. Giá trị của hệ số $a$ là", f"{a_val}", [f"{y0 * abs(x0)}", f"{abs(x0)**2}/{y0}", f"{y0}"], hd_2)
 
-        # 3. Hệ phương trình
         x_he = random.randint(1,4); y_he = random.randint(1,3)
         hd_3 = rf"💡 **HƯỚNG DẪN GIẢI CHI TIẾT:**<br>- **Bước 1:** Cộng vế theo vế: $2x = {2*x_he} \Rightarrow x = {x_he}$.<br>- **Bước 2:** Thay $x={x_he}$ vào PT đầu $\Rightarrow y = {y_he}$."
         self.build_q(rf"Nghiệm $(x; y)$ của hệ phương trình $\begin{{cases}} x + y = {x_he+y_he} \\ x - y = {x_he-y_he} \end{{cases}}$ là", rf"({x_he}; {y_he})", [rf"({y_he}; {x_he})", rf"({x_he+1}; {y_he})", rf"({x_he}; {y_he-1})"], hd_3)
 
-        # 4. Viète đảo
         s_v = random.randint(3, 6); p_v = random.randint(1, 2)
         hd_4 = rf"💡 **HƯỚNG DẪN GIẢI CHI TIẾT:**<br>- **Bước 1:** Áp dụng định lý Viète đảo: Hai số là nghiệm của phương trình $X^2 - SX + P = 0$.<br>- **Bước 2:** Thay $S={s_v}, P={p_v}$ ta có phương trình chuẩn."
         self.build_q(rf"Hai số $x_1, x_2$ có tổng bằng {s_v} và tích bằng {p_v} là nghiệm của phương trình nào?", rf"$x^2 - {s_v}x + {p_v} = 0$", [rf"$x^2 + {s_v}x + {p_v} = 0$", rf"$x^2 - {p_v}x + {s_v} = 0$", rf"$x^2 + {p_v}x - {s_v} = 0$"], hd_4)
 
-        # 5. Hệ thức lượng (Tháp)
         bong = random.choice([15, 20, 25])
         hd_5 = r"💡 **HƯỚNG DẪN GIẢI CHI TIẾT:**<br>- **Bước 1:** Coi vật thể và bóng tạo thành tam giác vuông.<br>- **Bước 2:** Sử dụng Tỉ số lượng giác: $\tan \alpha = \frac{\text{Đối}}{\text{Kề}} = \frac{\text{Chiều cao}}{\text{Bóng}}$. Suy ra Chiều cao = Bóng $\times \tan \alpha$."
         self.build_q(rf"Một vật thể có bóng in trên mặt đất dài {bong}m. Tia nắng tạo với mặt đất góc $\alpha$ (như hình vẽ). Chiều cao vật thể được tính bằng:", rf"${bong} \times \tan \alpha$", [rf"${bong} \times \sin \alpha$", rf"${bong} \times \cos \alpha$", rf"${bong} \times \cot \alpha$"], hd_5, draw_tower_shadow(bong))
 
-        # 6. Parabol thực tế
         kientruc = random.choice(["Cổng vòm Parabol", "Cầu vượt", "Mái vòm"])
         hd_6 = r"💡 **HƯỚNG DẪN GIẢI CHI TIẾT:**<br>- **Bước 1:** Đồ thị hàm số $y = ax^2$ luôn đi qua gốc tọa độ O(0;0).<br>- **Bước 2:** Tính chất cơ bản là luôn nhận trục tung (Oy) làm trục đối xứng."
         self.build_q(rf"Một {kientruc.lower()} có hình dáng parabol với phương trình $y = -ax^2$ (như hình minh họa). Parabol này nhận đường thẳng nào làm trục đối xứng?", "Trục tung (Oy)", ["Trục hoành (Ox)", "Đường $y = x$", "Không có trục đối xứng"], hd_6, draw_real_parabola(kientruc))
 
-        # Khởi tạo các câu còn lại
         for i in range(7, 41):
             num = random.randint(10, 99)
             hd_chung = rf"💡 **HƯỚNG DẪN GIẢI CHI TIẾT:**<br>- **Bước 1:** Phân tích đề bài.<br>- **Bước 2:** Áp dụng công thức và tính toán ra kết quả."
@@ -192,23 +167,23 @@ class ExamGenerator:
         return self.exam
 
 # ==========================================
-# 5. GIAO DIỆN LMS
+# 5. GIAO DIỆN LMS VỚI PHÂN QUYỀN ĐA TẦNG
 # ==========================================
 def main():
-    st.set_page_config(page_title="LMS - Hệ Thống Đánh Giá", layout="wide", page_icon="🏫")
+    st.set_page_config(page_title="LMS - Hệ Thống Đánh Giá Tuyên Quang", layout="wide", page_icon="🏫")
     init_db()
     
     if 'current_user' not in st.session_state: st.session_state.current_user = None
     if 'role' not in st.session_state: st.session_state.role = None
 
-    # --- ĐĂNG NHẬP ---
+    # --- MÀN HÌNH ĐĂNG NHẬP ---
     if st.session_state.current_user is None:
         st.markdown("<h1 style='text-align: center; color: #2E3B55;'>🎓 HỆ THỐNG QUẢN LÝ HỌC TẬP TỈNH TUYÊN QUANG</h1>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1, 1.5, 1])
         with col2:
             with st.form("login_form"):
                 st.markdown("### 🔒 Cổng Đăng Nhập")
-                user = st.text_input("👤 Tài khoản")
+                user = st.text_input("👤 Tài khoản (Username)")
                 pwd = st.text_input("🔑 Mật khẩu", type="password")
                 if st.form_submit_button("🚀 Đăng nhập", use_container_width=True):
                     conn = sqlite3.connect('exam_db.sqlite')
@@ -227,14 +202,14 @@ def main():
 
     with st.sidebar:
         st.markdown(f"### 👤 {st.session_state.fullname}")
-        role_dict = {"core_admin": "👑 Giám Đốc", "sub_admin": "🛡 Admin Thành Viên", "teacher": "👨‍🏫 Giáo viên", "student": "🎓 Học sinh"}
+        role_dict = {"core_admin": "👑 Giám Đốc Hệ Thống", "sub_admin": "🛡 Admin Thành Viên", "teacher": "👨‍🏫 Giáo viên", "student": "🎓 Học sinh"}
         st.markdown(f"**Vai trò:** {role_dict.get(st.session_state.role, '')}")
         if st.button("🚪 Đăng xuất", use_container_width=True, type="primary"):
             st.session_state.clear()
             st.rerun()
 
     # ==========================
-    # GIAO DIỆN HỌC SINH (BẢN VÁ LỖI INDEX)
+    # GIAO DIỆN HỌC SINH
     # ==========================
     if st.session_state.role == 'student':
         tab_mand, tab_ai = st.tabs(["🔥 Bài tập Bắt buộc", "🤖 Luyện đề AI Tự do"])
@@ -265,6 +240,7 @@ def main():
                                 st.rerun()
                     st.markdown("---")
             
+            # Khung làm bài (Vá lỗi Index Safe Lookup)
             if 'active_mand_exam' in st.session_state and st.session_state.active_mand_exam is not None:
                 exam_id = st.session_state.active_mand_exam
                 mode = st.session_state.mand_mode
@@ -278,8 +254,6 @@ def main():
                     for q in mand_exam_data:
                         st.markdown(f"**Câu {q['id']}:** {q['question']}", unsafe_allow_html=True)
                         if q['image']: st.markdown(f'<img src="data:image/png;base64,{q["image"]}" style="max-width:350px;">', unsafe_allow_html=True)
-                        
-                        # [BẢN VÁ LỖI SAFE LOOKUP]
                         ans_val = st.session_state[f"mand_ans_{exam_id}"][str(q['id'])]
                         selected = st.radio("Chọn đáp án:", options=q['options'], 
                                             index=q['options'].index(ans_val) if ans_val in q['options'] else None,
@@ -305,18 +279,13 @@ def main():
                     score = saved_res[0]
                     saved_answers = json.loads(saved_res[1])
                     
-                    st.markdown(f"""
-                    <div style="background-color: #e8f5e9; padding: 20px; border-radius: 10px; border: 2px solid #4CAF50; text-align: center; margin-bottom: 20px;">
-                        <h2 style="color: #2E7D32; margin: 0;">🏆 ĐIỂM CỦA BẠN: {score:.2f} / 10</h2>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    st.markdown(f"<div style='background-color: #e8f5e9; padding: 20px; border-radius: 10px; border: 2px solid #4CAF50; text-align: center; margin-bottom: 20px;'><h2 style='color: #2E7D32; margin: 0;'>🏆 ĐIỂM CỦA BẠN: {score:.2f} / 10</h2></div>", unsafe_allow_html=True)
                     
                     for q in mand_exam_data:
                         st.markdown(f"**Câu {q['id']}:** {q['question']}", unsafe_allow_html=True)
                         if q['image']: st.markdown(f'<img src="data:image/png;base64,{q["image"]}" style="max-width:350px;">', unsafe_allow_html=True)
                         user_ans = saved_answers[str(q['id'])]
                         
-                        # [BẢN VÁ LỖI SAFE LOOKUP]
                         st.radio("Đã chọn:", options=q['options'], 
                                  index=q['options'].index(user_ans) if user_ans in q['options'] else None, 
                                  key=f"rev_{exam_id}_{q['id']}", disabled=True, label_visibility="collapsed")
@@ -361,22 +330,16 @@ def main():
             if st.session_state.exam_data:
                 if not st.session_state.is_submitted:
                     st.success(f"✅ Đã khởi tạo thành công {len(st.session_state.exam_data)}/40 câu hỏi!")
-                    
                 if st.session_state.is_submitted:
                     correct = sum(1 for q in st.session_state.exam_data if st.session_state.user_answers[q['id']] == q['answer'])
                     score = (correct / len(st.session_state.exam_data)) * 10
-                    st.markdown(f"""
-                    <div style="background-color: #e8f5e9; padding: 20px; border-radius: 10px; border: 2px solid #4CAF50; text-align: center; margin-bottom: 20px;">
-                        <h2 style="color: #2E7D32; margin: 0;">🏆 ĐIỂM CỦA BẠN: {score:.2f} / 10</h2>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    st.markdown(f"<div style='background-color: #e8f5e9; padding: 20px; border-radius: 10px; border: 2px solid #4CAF50; text-align: center; margin-bottom: 20px;'><h2 style='color: #2E7D32; margin: 0;'>🏆 ĐIỂM CỦA BẠN: {score:.2f} / 10</h2></div>", unsafe_allow_html=True)
 
                 for q in st.session_state.exam_data:
                     st.markdown(f"**Câu {q['id']}:** {q['question']}", unsafe_allow_html=True)
                     if q['image']: st.markdown(f'<img src="data:image/png;base64,{q["image"]}" style="max-width:350px;">', unsafe_allow_html=True)
                     
                     disabled = st.session_state.is_submitted
-                    # [BẢN VÁ LỖI SAFE LOOKUP]
                     ans_val = st.session_state.user_answers[q['id']]
                     selected = st.radio("Chọn:", options=q['options'], 
                                         index=q['options'].index(ans_val) if ans_val in q['options'] else None,
@@ -404,14 +367,174 @@ def main():
     # GIAO DIỆN ADMIN & GIÁO VIÊN
     # ==========================
     elif st.session_state.role in ['core_admin', 'sub_admin', 'teacher']:
-        st.title("⚙ Bảng Điều Khiển Quản Lý (LMS)")
+        st.title("⚙ Bảng Điều Khiển (LMS)")
         
-        tab_users, tab_assign, tab_scores = st.tabs(["👥 Quản lý Tài khoản & Lớp", "📤 Nạp file Giao bài", "📊 Báo cáo Điểm"])
+        # Tabs hiển thị phụ thuộc vào quyền
+        if st.session_state.role in ['core_admin', 'sub_admin']:
+            tabs = st.tabs(["🏫 Quản lý Lớp & Học sinh", "👨‍🏫 Quản lý Giáo viên", "📊 Báo cáo Điểm", "⚙️ Nạp dữ liệu & Giao bài"])
+            tab_class, tab_teacher, tab_scores, tab_system = tabs
+        else:
+            tabs = st.tabs(["🏫 Lớp của tôi", "📊 Báo cáo Điểm", "⚙️ Nạp dữ liệu & Giao bài"])
+            tab_class, tab_scores, tab_system = tabs
         
-        with tab_users:
-            st.subheader("1. Tạo tài khoản hàng loạt bằng file Excel")
-            st.info("💡 Tải file Excel gồm các cột: **Họ tên, Ngày sinh, Lớp, Trường, Tỉnh**. Hệ thống sẽ tự động tạo Tài khoản và Mật khẩu (mặc định: 123456).")
+        # --- TAB 1: QUẢN LÝ LỚP & HỌC SINH ---
+        with tab_class:
+            conn = sqlite3.connect('exam_db.sqlite')
+            c = conn.cursor()
             
+            # Lọc danh sách lớp
+            if st.session_state.role in ['core_admin', 'sub_admin']:
+                c.execute("SELECT DISTINCT class_name FROM users WHERE role='student' AND class_name IS NOT NULL AND class_name != ''")
+                available_classes = [row[0] for row in c.fetchall()]
+            else:
+                c.execute("SELECT managed_classes FROM users WHERE username=?", (st.session_state.current_user,))
+                m_cls = c.fetchone()[0]
+                available_classes = [x.strip() for x in m_cls.split(',')] if m_cls else []
+            
+            st.markdown("### 🔍 Lọc học sinh theo Lớp")
+            selected_class = st.selectbox("Chọn lớp:", ["Tất cả các lớp được quyền xem"] + available_classes)
+            
+            query = "SELECT username as 'Username', fullname as 'Họ Tên', class_name as 'Lớp', password as 'Mật khẩu' FROM users WHERE role='student'"
+            params = []
+            
+            if selected_class != "Tất cả các lớp được quyền xem":
+                query += " AND class_name = ?"
+                params.append(selected_class)
+            elif st.session_state.role == 'teacher':
+                if available_classes:
+                    placeholders = ','.join(['?'] * len(available_classes))
+                    query += f" AND class_name IN ({placeholders})"
+                    params.extend(available_classes)
+                else: query += " AND 1=0"
+                    
+            df_users = pd.read_sql_query(query, conn, params=params)
+            if not df_users.empty: st.dataframe(df_users, use_container_width=True)
+            else: st.info("Chưa có học sinh nào trong lớp này.")
+
+            # CHỈNH SỬA / XÓA HỌC SINH
+            st.markdown("#### ✏️ Thao tác với Học sinh")
+            user_to_edit = st.selectbox("Chọn Học sinh để thao tác:", ["-- Chọn --"] + df_users['Username'].tolist())
+            
+            if user_to_edit != "-- Chọn --":
+                c.execute("SELECT * FROM users WHERE username=?", (user_to_edit,))
+                u_data = c.fetchone()
+                
+                with st.form("edit_student_form"):
+                    st.info("⚠️ Tài khoản (Username) không thể sửa để đảm bảo tính định danh hệ thống.")
+                    col1, col2 = st.columns(2)
+                    st.text_input("Tài khoản (Đã khóa)", value=u_data[0], disabled=True)
+                    edit_name = col1.text_input("Họ và Tên", value=u_data[3] if u_data[3] else "")
+                    edit_pwd = col2.text_input("Mật khẩu mới", value=u_data[1])
+                    edit_class = col1.text_input("Lớp", value=u_data[5] if u_data[5] else "")
+                        
+                    if st.form_submit_button("💾 Lưu thay đổi", type="primary"):
+                        c.execute("UPDATE users SET fullname=?, password=?, class_name=? WHERE username=?", (edit_name, edit_pwd, edit_class, user_to_edit))
+                        conn.commit()
+                        st.success(f"✅ Đã cập nhật thông tin cho học sinh {edit_name}!")
+                        st.rerun()
+
+                # QUYỀN XÓA HỌC SINH (CHỈ DÀNH CHO ADMIN)
+                if st.session_state.role in ['core_admin', 'sub_admin']:
+                    if st.button("🗑 Xóa vĩnh viễn Học sinh này", type="secondary"):
+                        c.execute("DELETE FROM users WHERE username=?", (user_to_edit,))
+                        c.execute("DELETE FROM results WHERE username=?", (user_to_edit,))
+                        c.execute("DELETE FROM mandatory_results WHERE username=?", (user_to_edit,))
+                        conn.commit()
+                        st.success(f"Đã xóa toàn bộ dữ liệu của học sinh {user_to_edit}")
+                        st.rerun()
+            conn.close()
+
+        # --- TAB 2 (CHỈ ADMIN): QUẢN LÝ GIÁO VIÊN ---
+        if st.session_state.role in ['core_admin', 'sub_admin']:
+            with tab_teacher:
+                st.subheader("👨‍🏫 Tạo Lớp & Chỉ định Giáo viên Quản lý")
+                with st.form("add_teacher_form"):
+                    col1, col2 = st.columns(2)
+                    t_user = col1.text_input("Tài khoản Giáo viên (viết liền)")
+                    t_pwd = col2.text_input("Mật khẩu")
+                    t_name = col1.text_input("Họ và Tên Giáo viên")
+                    t_classes = col2.text_input("Giao quản lý lớp nào? (VD: 9A1, 9A2)")
+                    
+                    if st.form_submit_button("Tạo & Giao Lớp", type="primary"):
+                        if t_user and t_pwd and t_name:
+                            try:
+                                conn = sqlite3.connect('exam_db.sqlite')
+                                c = conn.cursor()
+                                c.execute("INSERT INTO users (username, password, role, fullname, managed_classes) VALUES (?, ?, 'teacher', ?, ?)", 
+                                          (t_user.strip(), t_pwd.strip(), t_name.strip(), t_classes.strip()))
+                                conn.commit()
+                                conn.close()
+                                st.success(f"✅ Đã tạo thành công Giáo viên: {t_name} (Quản lý: {t_classes})")
+                                st.rerun()
+                            except: st.error("Tên tài khoản này đã tồn tại!")
+                        else: st.warning("Vui lòng điền đủ Tài khoản, Mật khẩu và Tên!")
+                
+                st.markdown("---")
+                st.subheader("Danh sách Giáo viên Hệ thống")
+                conn = sqlite3.connect('exam_db.sqlite')
+                df_teachers = pd.read_sql_query("SELECT username as 'Tài khoản', fullname as 'Họ tên', managed_classes as 'Lớp Quản Lý', password as 'Mật khẩu' FROM users WHERE role='teacher'", conn)
+                st.dataframe(df_teachers, use_container_width=True)
+
+                st.markdown("#### ✏️ Thao tác với Giáo viên")
+                teacher_to_edit = st.selectbox("Chọn Giáo viên:", ["-- Chọn --"] + df_teachers['Tài khoản'].tolist())
+                if teacher_to_edit != "-- Chọn --":
+                    c = conn.cursor()
+                    c.execute("SELECT * FROM users WHERE username=?", (teacher_to_edit,))
+                    t_data = c.fetchone()
+                    
+                    with st.form("edit_teacher_form"):
+                        col1, col2 = st.columns(2)
+                        st.text_input("Tài khoản (Đã khóa)", value=t_data[0], disabled=True)
+                        edit_t_name = col1.text_input("Họ và Tên", value=t_data[3] if t_data[3] else "")
+                        edit_t_pwd = col2.text_input("Mật khẩu", value=t_data[1])
+                        edit_t_class = st.text_input("Cập nhật Lớp Quản Lý (VD: 9A1, 9B1)", value=t_data[8] if t_data[8] else "")
+                        
+                        if st.form_submit_button("💾 Cập nhật Giáo viên", type="primary"):
+                            c.execute("UPDATE users SET fullname=?, password=?, managed_classes=? WHERE username=?", (edit_t_name, edit_t_pwd, edit_t_class, teacher_to_edit))
+                            conn.commit()
+                            st.success("✅ Cập nhật thành công!")
+                            st.rerun()
+                    
+                    if st.button("🗑 Xóa vĩnh viễn Giáo viên này", type="secondary"):
+                        c.execute("DELETE FROM users WHERE username=?", (teacher_to_edit,))
+                        conn.commit()
+                        st.success(f"Đã xóa giáo viên {teacher_to_edit}")
+                        st.rerun()
+                conn.close()
+
+        # --- TAB BÁO CÁO ĐIỂM SỐ ---
+        with tab_scores:
+            st.subheader("📊 Xem điểm số Học sinh")
+            conn = sqlite3.connect('exam_db.sqlite')
+            query_score = "SELECT u.fullname as 'Họ Tên', u.class_name as 'Lớp', me.title as 'Tên bài', mr.score as 'Điểm' FROM mandatory_results mr JOIN users u ON mr.username = u.username JOIN mandatory_exams me ON mr.exam_id = me.id"
+            params_score = []
+            
+            if st.session_state.role == 'teacher' and available_classes:
+                placeholders = ','.join(['?'] * len(available_classes))
+                query_score += f" WHERE u.class_name IN ({placeholders})"
+                params_score.extend(available_classes)
+                
+            query_score += " ORDER BY mr.timestamp DESC"
+            df_m = pd.read_sql_query(query_score, conn, params=params_score)
+            st.dataframe(df_m, use_container_width=True)
+            
+            st.markdown("---")
+            st.subheader("Lịch sử Luyện đề tự do (AI)")
+            q_free = "SELECT u.fullname as 'Họ Tên', u.class_name as 'Lớp', r.score as 'Điểm', r.timestamp as 'Thời gian' FROM results r JOIN users u ON r.username = u.username"
+            p_free = []
+            if st.session_state.role == 'teacher' and available_classes:
+                pl_free = ','.join(['?'] * len(available_classes))
+                q_free += f" WHERE u.class_name IN ({pl_free})"
+                p_free.extend(available_classes)
+            q_free += " ORDER BY r.timestamp DESC"
+            df_free = pd.read_sql_query(q_free, conn, params=p_free)
+            st.dataframe(df_free, use_container_width=True)
+            conn.close()
+
+        # --- TAB NHẬP DỮ LIỆU & GIAO BÀI ---
+        with tab_system:
+            st.subheader("1. Tạo tài khoản Học sinh tự động bằng Excel")
+            st.info("💡 Tải file Excel gồm các cột: **Họ tên, Ngày sinh, Lớp, Trường, Tỉnh**.")
             uploaded_excel = st.file_uploader("Chọn file Excel", type=['xlsx'])
             if uploaded_excel is not None:
                 if st.button("🔄 Nhập dữ liệu tự động"):
@@ -441,72 +564,11 @@ def main():
                         st.error(f"Lỗi đọc file Excel: {e}")
 
             st.markdown("---")
-            st.subheader("2. Lọc và Quản lý Học sinh theo Lớp")
-            conn = sqlite3.connect('exam_db.sqlite')
-            c = conn.cursor()
-            
-            if st.session_state.role in ['core_admin', 'sub_admin']:
-                c.execute("SELECT DISTINCT class_name FROM users WHERE role='student' AND class_name IS NOT NULL AND class_name != ''")
-                available_classes = [row[0] for row in c.fetchall()]
-            else:
-                c.execute("SELECT managed_classes FROM users WHERE username=?", (st.session_state.current_user,))
-                m_cls = c.fetchone()[0]
-                available_classes = [x.strip() for x in m_cls.split(',')] if m_cls else []
-            
-            selected_class = st.selectbox("📌 Lọc theo Lớp:", ["Tất cả các lớp được quyền xem"] + available_classes)
-            
-            query = "SELECT username as 'Username', fullname as 'Họ Tên', class_name as 'Lớp', password as 'Mật khẩu', role as 'Phân quyền' FROM users WHERE role='student'"
-            params = []
-            
-            if selected_class != "Tất cả các lớp được quyền xem":
-                query += " AND class_name = ?"
-                params.append(selected_class)
-            elif st.session_state.role == 'teacher':
-                if available_classes:
-                    placeholders = ','.join(['?'] * len(available_classes))
-                    query += f" AND class_name IN ({placeholders})"
-                    params.extend(available_classes)
-                else: query += " AND 1=0"
-                    
-            df_users = pd.read_sql_query(query, conn, params=params)
-            if not df_users.empty: st.dataframe(df_users, use_container_width=True)
-            else: st.info("Chưa có học sinh nào trong lớp này.")
-
-            st.markdown("#### ✏️ Cập nhật thông tin & Reset Mật khẩu học sinh")
-            user_to_edit = st.selectbox("Chọn Username để thao tác:", ["-- Chọn --"] + df_users['Username'].tolist())
-            
-            if user_to_edit != "-- Chọn --":
-                c.execute("SELECT * FROM users WHERE username=?", (user_to_edit,))
-                u_data = c.fetchone()
-                
-                with st.form("edit_user_form"):
-                    st.info(f"Đang thao tác trên tài khoản: **{user_to_edit}** (Tên đăng nhập không thể thay đổi)")
-                    col1, col2 = st.columns(2)
-                    edit_name = col1.text_input("Họ và Tên", value=u_data[3] if u_data[3] else "")
-                    edit_pwd = col2.text_input("Mật khẩu mới", value=u_data[1])
-                    edit_class = col1.text_input("Lớp", value=u_data[5] if u_data[5] else "")
-                    
-                    if st.session_state.role in ['core_admin', 'sub_admin']:
-                        edit_role = col2.selectbox("Phân quyền", ["student", "teacher", "sub_admin"], index=["student", "teacher", "sub_admin"].index(u_data[2]) if u_data[2] in ["student", "teacher", "sub_admin"] else 0)
-                        edit_managed = st.text_input("Lớp quản lý (Giao cho GV, VD: 9A1,9A2)", value=u_data[8] if u_data[8] else "")
-                    else:
-                        edit_role = "student"
-                        edit_managed = ""
-                        col2.markdown("<br><span style='color:gray; font-size: 0.9em;'>*Giáo viên chỉ được sửa Thông tin và Mật khẩu.*</span>", unsafe_allow_html=True)
-                        
-                    if st.form_submit_button("💾 Cập nhật", type="primary"):
-                        c.execute("UPDATE users SET fullname=?, password=?, class_name=?, role=?, managed_classes=? WHERE username=?", (edit_name, edit_pwd, edit_class, edit_role, edit_managed, user_to_edit))
-                        conn.commit()
-                        st.success(f"✅ Đã cập nhật thành công mật khẩu và thông tin cho {edit_name}!")
-                        st.rerun()
-            conn.close()
-
-        with tab_assign:
-            st.subheader("📤 Tải file & Giao bài AI")
+            st.subheader("2. Tải file & Giao bài bằng AI")
             uploaded_pdf = st.file_uploader("Tải file Đề thi (PDF/Docx) để AI tham chiếu", type=['pdf', 'docx'])
             exam_title = st.text_input("Tên bài kiểm tra (Bắt buộc)")
             
-            if st.button("🚀 Xử lý AI & Giao bài", type="primary"):
+            if st.button("🚀 Giao bài toàn trường", type="primary"):
                 if exam_title:
                     gen = ExamGenerator()
                     fixed_exam = gen.generate_all()
@@ -517,22 +579,6 @@ def main():
                     conn.close()
                     st.success("✅ Bài tập đã được nạp và xuất hiện trên bảng làm bài của Học sinh!")
                 else: st.error("Vui lòng nhập tên bài kiểm tra!")
-
-        with tab_scores:
-            st.subheader("📊 Báo cáo điểm số")
-            conn = sqlite3.connect('exam_db.sqlite')
-            query_score = "SELECT u.fullname as 'Họ Tên', u.class_name as 'Lớp', me.title as 'Tên bài', mr.score as 'Điểm' FROM mandatory_results mr JOIN users u ON mr.username = u.username JOIN mandatory_exams me ON mr.exam_id = me.id"
-            params_score = []
-            
-            if st.session_state.role == 'teacher' and available_classes:
-                placeholders = ','.join(['?'] * len(available_classes))
-                query_score += f" WHERE u.class_name IN ({placeholders})"
-                params_score.extend(available_classes)
-                
-            query_score += " ORDER BY mr.timestamp DESC"
-            df_m = pd.read_sql_query(query_score, conn, params=params_score)
-            st.dataframe(df_m, use_container_width=True)
-            conn.close()
 
 if __name__ == "__main__":
     try: main()
