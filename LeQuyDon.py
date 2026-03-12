@@ -50,9 +50,16 @@ def init_db():
     conn.close()
 
 def generate_username(fullname, dob):
+    # Xử lý an toàn: Nếu không có ngày sinh, tự động gắn số ngẫu nhiên
     clean_name = re.sub(r'[^\w\s]', '', str(fullname)).lower().replace(" ", "")
-    year = str(dob).split('/')[-1] if dob else str(random.randint(1000, 9999))
-    return f"{clean_name}{year}"
+    if not dob or str(dob).lower() == 'nan':
+        suffix = str(random.randint(1000, 9999))
+    else:
+        suffix = str(dob).split('/')[-1]
+        if not suffix.isdigit():
+            suffix = str(random.randint(1000, 9999))
+    # Gắn thêm 2 số cuối ngẫu nhiên để chống trùng tên tuyệt đối
+    return f"{clean_name}{suffix}_{random.randint(10,99)}"
 
 # ==========================================
 # 3. ĐỒ HỌA TOÁN HỌC CHUẨN XÁC
@@ -178,13 +185,12 @@ class ExamGenerator:
 # 5. GIAO DIỆN LMS 
 # ==========================================
 def main():
-    st.set_page_config(page_title="LMS - Hệ Thống Quản Lý Giáo Dục", layout="wide", page_icon="🏫")
+    st.set_page_config(page_title="LMS - Hệ Thống Quản Lý", layout="wide", page_icon="🏫")
     init_db()
     
     if 'current_user' not in st.session_state: st.session_state.current_user = None
     if 'role' not in st.session_state: st.session_state.role = None
 
-    # --- ĐĂNG NHẬP ---
     if st.session_state.current_user is None:
         st.markdown("<h1 style='text-align: center; color: #2E3B55;'>🎓 HỆ THỐNG QUẢN LÝ HỌC TẬP</h1>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1, 1.5, 1])
@@ -367,7 +373,6 @@ def main():
             tabs = st.tabs(["🏫 Lớp của tôi", "📊 Báo cáo Điểm", "⚙️ Nạp dữ liệu"])
             tab_class, tab_scores, tab_system = tabs
         
-        # ĐỒNG BỘ DANH SÁCH LỚP CHUNG (CHO CẢ TAB 1 VÀ TAB BÁO CÁO)
         conn = sqlite3.connect('exam_db.sqlite')
         c = conn.cursor()
         
@@ -389,7 +394,7 @@ def main():
             m_cls = c.fetchone()[0]
             available_classes = [x.strip() for x in m_cls.split(',')] if m_cls else []
         
-        # --- TAB 1: QUẢN LÝ LỚP & HỌC SINH ---
+        # --- TAB 1: QUẢN LÝ LỚP & HỌC SINH (TỐI ƯU TẠO NHANH) ---
         with tab_class:
             if not available_classes:
                 st.info("Chưa có lớp học nào được tạo hoặc được phân công cho bạn.")
@@ -397,6 +402,8 @@ def main():
                 selected_class = st.selectbox("📌 Chọn lớp để quản lý:", available_classes)
                 
                 with st.expander(f"➕ Tạo tài khoản Học sinh cho lớp {selected_class}", expanded=False):
+                    st.info("💡 Chỉ CẦN BẮT BUỘC cột 'Họ tên'. Cột 'Ngày sinh' và 'Trường' có thể bỏ trống. Hệ thống sẽ tự động gán tên tài khoản và pass mặc định: 123456.")
+                    
                     uploaded_excel = st.file_uploader("1. Tạo hàng loạt từ file Excel", type=['xlsx'])
                     if uploaded_excel is not None:
                         if st.button("🔄 Nhập file Excel"):
@@ -404,10 +411,14 @@ def main():
                                 df_import = pd.read_excel(uploaded_excel)
                                 count = 0
                                 for _, row in df_import.iterrows():
-                                    fullname = str(row.get('Họ tên', ''))
-                                    dob = str(row.get('Ngày sinh', ''))
-                                    school = str(row.get('Trường', ''))
-                                    if fullname and fullname.strip() != 'nan':
+                                    fullname = str(row.get('Họ tên', '')).strip()
+                                    dob = str(row.get('Ngày sinh', '')).strip()
+                                    school = str(row.get('Trường', '')).strip()
+                                    
+                                    if fullname and fullname.lower() != 'nan':
+                                        if dob.lower() == 'nan': dob = ""
+                                        if school.lower() == 'nan': school = ""
+                                        
                                         uname = generate_username(fullname, dob)
                                         try:
                                             c.execute("INSERT INTO users (username, password, role, fullname, dob, class_name, school) VALUES (?, '123456', 'student', ?, ?, ?, ?)", (uname, fullname, dob, selected_class, school))
@@ -416,49 +427,59 @@ def main():
                                 conn.commit()
                                 st.success(f"✅ Đã tạo {count} tài khoản vào lớp {selected_class}!")
                                 st.rerun()
-                            except Exception as e: st.error("Lỗi đọc file Excel.")
+                            except Exception as e: st.error(f"Lỗi đọc file Excel: {e}")
                     
                     st.markdown("**Hoặc**")
                     with st.form("manual_add_student"):
                         col1, col2 = st.columns(2)
-                        m_name = col1.text_input("Họ và Tên")
-                        m_dob = col2.text_input("Ngày sinh (VD: 01/01/2010)")
-                        m_school = col1.text_input("Trường")
-                        if st.form_submit_button("Tạo nhanh"):
+                        m_name = col1.text_input("Họ và Tên (Bắt buộc)")
+                        m_dob = col2.text_input("Ngày sinh (Không bắt buộc)")
+                        m_school = col1.text_input("Trường (Không bắt buộc)")
+                        if st.form_submit_button("Tạo nhanh Học sinh", type="primary"):
                             if m_name:
                                 uname = generate_username(m_name, m_dob)
                                 try:
                                     c.execute("INSERT INTO users (username, password, role, fullname, dob, class_name, school) VALUES (?, '123456', 'student', ?, ?, ?, ?)", (uname, m_name, m_dob, selected_class, m_school))
                                     conn.commit()
-                                    st.success(f"Đã tạo: {uname} | Pass: 123456")
+                                    st.success(f"✅ Đã tạo: {uname} | Pass: 123456")
                                     st.rerun()
-                                except: st.error("Tên đăng nhập bị trùng.")
-                            else: st.warning("Vui lòng nhập Họ tên.")
+                                except: st.error("Tên đăng nhập bị trùng, thử lại.")
+                            else: st.warning("⚠️ Vui lòng nhập Họ Tên!")
 
-                df_students = pd.read_sql_query(f"SELECT username as 'Tài khoản', fullname as 'Họ Tên', password as 'Mật khẩu' FROM users WHERE role='student' AND class_name='{selected_class}'", conn)
+                # HIỂN THỊ DANH SÁCH (ĐẦY ĐỦ THÔNG TIN)
+                st.markdown(f"**Danh sách học sinh lớp {selected_class}:**")
+                df_students = pd.read_sql_query(f"SELECT username as 'Tài khoản', fullname as 'Họ Tên', password as 'Mật khẩu', dob as 'Ngày sinh', school as 'Trường' FROM users WHERE role='student' AND class_name='{selected_class}'", conn)
                 st.dataframe(df_students, use_container_width=True)
                 
+                # CHỈNH SỬA & XÓA TOÀN DIỆN
                 if not df_students.empty:
-                    user_to_edit = st.selectbox("Sửa / Xóa Học sinh:", ["-- Chọn --"] + df_students['Tài khoản'].tolist())
+                    st.markdown("---")
+                    st.markdown("#### ✏️ Cập nhật & Xóa thông tin Học sinh")
+                    user_to_edit = st.selectbox("Chọn Học sinh để thao tác:", ["-- Chọn --"] + df_students['Tài khoản'].tolist())
                     if user_to_edit != "-- Chọn --":
-                        c.execute("SELECT fullname, password FROM users WHERE username=?", (user_to_edit,))
+                        c.execute("SELECT fullname, password, dob, school FROM users WHERE username=?", (user_to_edit,))
                         u_data = c.fetchone()
                         with st.form("edit_student_form"):
                             col1, col2 = st.columns(2)
                             edit_name = col1.text_input("Họ và Tên", value=u_data[0])
                             edit_pwd = col2.text_input("Mật khẩu mới", value=u_data[1])
-                            if st.form_submit_button("💾 Cập nhật", type="primary"):
-                                c.execute("UPDATE users SET fullname=?, password=? WHERE username=?", (edit_name, edit_pwd, user_to_edit))
+                            edit_dob = col1.text_input("Ngày sinh", value=u_data[2] if u_data[2] else "")
+                            edit_school = col2.text_input("Trường", value=u_data[3] if u_data[3] else "")
+                            
+                            if st.form_submit_button("💾 Cập nhật Thông tin", type="primary"):
+                                c.execute("UPDATE users SET fullname=?, password=?, dob=?, school=? WHERE username=?", (edit_name, edit_pwd, edit_dob, edit_school, user_to_edit))
                                 conn.commit()
-                                st.success("Cập nhật thành công!")
+                                st.success("✅ Cập nhật thành công!")
                                 st.rerun()
                         
-                        if st.session_state.role in ['core_admin', 'sub_admin']:
-                            if st.button("🗑 Xóa Học sinh này", type="secondary"):
-                                c.execute("DELETE FROM users WHERE username=?", (user_to_edit,))
-                                conn.commit()
-                                st.success("Đã xóa!")
-                                st.rerun()
+                        # Chức năng xóa mở cho người quản lý lớp đó
+                        if st.button("🗑 Xóa Vĩnh Viễn Học Sinh Này", type="secondary"):
+                            c.execute("DELETE FROM users WHERE username=?", (user_to_edit,))
+                            c.execute("DELETE FROM results WHERE username=?", (user_to_edit,))
+                            c.execute("DELETE FROM mandatory_results WHERE username=?", (user_to_edit,))
+                            conn.commit()
+                            st.success(f"Đã xóa hoàn toàn dữ liệu của {user_to_edit}!")
+                            st.rerun()
 
         # --- TAB 2: QUẢN LÝ NHÂN SỰ ---
         if st.session_state.role in ['core_admin', 'sub_admin']:
@@ -513,40 +534,32 @@ def main():
                     conn.commit()
                     st.rerun()
 
-        # --- TAB 3: TRUNG TÂM BÁO CÁO DỮ LIỆU ĐỈNH CAO ---
+        # --- TAB 3: TRUNG TÂM BÁO CÁO PHÂN TÍCH ĐỈNH CAO ---
         with tab_scores:
             st.subheader("📊 Báo cáo & Thống kê Chuyên sâu")
             if not available_classes:
                 st.info("Chưa có lớp nào để xem báo cáo.")
             else:
-                # 1. Lọc theo lớp
                 selected_rep_class = st.selectbox("📌 Chọn Lớp để xem báo cáo:", available_classes, key="rep_class")
-                
-                # 2. Lọc theo bài kiểm tra
                 df_all_exams = pd.read_sql_query("SELECT id, title, questions_json FROM mandatory_exams ORDER BY id DESC", conn)
                 if df_all_exams.empty:
-                    st.info("Chưa có bài kiểm tra nào được giao trên hệ thống.")
+                    st.info("Chưa có bài kiểm tra nào được giao.")
                 else:
                     selected_exam_title = st.selectbox("📝 Chọn Bài kiểm tra:", df_all_exams['title'].tolist())
                     exam_row = df_all_exams[df_all_exams['title'] == selected_exam_title].iloc[0]
                     exam_id = exam_row['id']
                     exam_questions = json.loads(exam_row['questions_json'])
 
-                    st.markdown("---")
-                    
-                    # Truy xuất toàn bộ Học sinh của lớp đó
                     df_class_students = pd.read_sql_query(f"SELECT username, fullname FROM users WHERE role='student' AND class_name='{selected_rep_class}'", conn)
-                    
-                    # Truy xuất Học sinh đã nộp bài của đề thi đó
                     df_submitted = pd.read_sql_query(f"SELECT u.username, u.fullname, mr.score, mr.user_answers_json, mr.timestamp FROM mandatory_results mr JOIN users u ON mr.username = u.username WHERE mr.exam_id={exam_id} AND u.class_name='{selected_rep_class}'", conn)
                     
-                    # Hiển thị Tổng quan
+                    st.markdown("---")
                     col1, col2, col3 = st.columns(3)
                     col1.metric("Tổng HS trong lớp", len(df_class_students))
                     col2.metric("Đã nộp bài", len(df_submitted))
                     col3.metric("Chưa làm bài", len(df_class_students) - len(df_submitted))
                     
-                    t1, t2, t3 = st.tabs(["✅ Bảng Điểm", "❌ HS Chưa Làm Bài", "📈 Phân tích Câu hỏi (Độ khó)"])
+                    t1, t2, t3 = st.tabs(["✅ Bảng Điểm", "❌ HS Chưa Làm Bài", "📈 Thống kê Độ Khó Câu Hỏi"])
                     
                     with t1:
                         if not df_submitted.empty:
@@ -558,14 +571,13 @@ def main():
                         submitted_users = df_submitted['username'].tolist()
                         df_missing = df_class_students[~df_class_students['username'].isin(submitted_users)]
                         if not df_missing.empty:
-                            st.warning(f"Có {len(df_missing)} học sinh lười chưa làm bài:")
+                            st.warning(f"Có {len(df_missing)} học sinh chưa làm bài:")
                             st.dataframe(df_missing[['username', 'fullname']].rename(columns={'username': 'Tài khoản', 'fullname': 'Họ Tên'}), use_container_width=True)
                         else:
                             st.success("Tuyệt vời! 100% học sinh đã hoàn thành bài thi.")
                             
                     with t3:
                         if not df_submitted.empty:
-                            # Phân tích JSON để tìm câu sai nhiều nhất
                             wrong_stats = {str(q['id']): {'text': q['question'], 'wrong_count': 0} for q in exam_questions}
                             for _, row in df_submitted.iterrows():
                                 ans_dict = json.loads(row['user_answers_json'])
@@ -575,16 +587,15 @@ def main():
                                         wrong_stats[q_id]['wrong_count'] += 1
                                         
                             stats_list = [{'Câu': k, 'Nội dung': v['text'], 'Số HS làm sai': v['wrong_count']} for k, v in wrong_stats.items()]
-                            df_stats = pd.DataFrame(stats_list)
-                            df_stats = df_stats.sort_values(by='Số HS làm sai', ascending=False)
+                            df_stats = pd.DataFrame(stats_list).sort_values(by='Số HS làm sai', ascending=False)
                             
-                            st.markdown("**🚨 Cảnh báo: Các câu sai nhiều nhất (Cần ôn tập lại trên lớp):**")
+                            st.markdown("**🚨 Cảnh báo: TOP 5 câu sai nhiều nhất (Cần ôn tập lại trên lớp):**")
                             st.dataframe(df_stats.head(5), use_container_width=True)
                             
-                            st.markdown("**Tất cả thống kê:**")
+                            st.markdown("**Chi tiết toàn bộ câu hỏi:**")
                             st.dataframe(df_stats, use_container_width=True)
                         else:
-                            st.info("Cần có dữ liệu nộp bài để tiến hành thống kê độ khó câu hỏi.")
+                            st.info("Cần có học sinh nộp bài để AI phân tích độ khó câu hỏi.")
             
         # --- TAB 4: NẠP DỮ LIỆU ---
         with tab_system:
@@ -600,7 +611,6 @@ def main():
                 if exam_title:
                     gen = ExamGenerator()
                     fixed_exam = gen.generate_all()
-                    c = conn.cursor()
                     s_str = f"{s_date} {s_time.strftime('%H:%M:%S')}"
                     e_str = f"{e_date} {e_time.strftime('%H:%M:%S')}"
                     c.execute("INSERT INTO mandatory_exams (title, questions_json, start_time, end_time) VALUES (?, ?, ?, ?)", (exam_title.strip(), json.dumps(fixed_exam), s_str, e_str))
