@@ -121,16 +121,40 @@ def draw_vivid_histogram(freqs, doi_tuong):
 # 4. ENGINE TẠO ĐỀ: ĐẢM BẢO 40 CÂU KHÔNG TRÙNG LẶP DẠNG
 # ==========================================
 class ExamGenerator:
-    def __init__(self):
-        self.exam = []
-        self.q_count = 1
-
     def build_q(self, text, correct, distractors, hint, img_b64=None):
-        options = [correct] + distractors
-        random.shuffle(options)
+        # 1. Chuyển tất cả về chuỗi (string) để chống lỗi định dạng
+        correct_str = str(correct)
+        
+        # 2. BỘ LỌC KHỬ TRÙNG LẶP THÔNG MINH
+        unique_options = [correct_str]
+        for d in distractors:
+            d_str = str(d)
+            # Chỉ thêm đáp án nhiễu nếu nó chưa từng xuất hiện trong danh sách
+            if d_str not in unique_options:
+                unique_options.append(d_str)
+                
+        # 3. BƠM ĐÁP ÁN DỰ PHÒNG (Nếu thuật toán random vô tình làm trùng lặp khiến bị thiếu đáp án)
+        # Các đáp án này mang tính chất đánh lừa học sinh rất tốt
+        fallbacks = [
+            "0", "1", "-1", "2", "-2", 
+            "Vô nghiệm", "Không xác định", 
+            "Không có trục đối xứng", "Kết quả khác"
+        ]
+        
+        # Bổ sung dự phòng cho đến khi đủ đúng 4 đáp án phân biệt
+        for fb in fallbacks:
+            if len(unique_options) == 4:
+                break
+            if fb not in unique_options:
+                unique_options.append(fb)
+                
+        # 4. Cắt chuẩn 4 đáp án và Trộn ngẫu nhiên (Shuffle)
+        final_options = unique_options[:4]
+        random.shuffle(final_options)
+        
         self.exam.append({
-            "id": self.q_count, "question": text, "options": options,
-            "answer": correct, "hint": hint, "image": img_b64
+            "id": self.q_count, "question": text, "options": final_options,
+            "answer": correct_str, "hint": hint, "image": img_b64
         })
         self.q_count += 1
 
@@ -551,3 +575,4 @@ def main():
 if __name__ == "__main__":
     try: main()
     except Exception as e: st.error(f"🚨 LỖI HỆ THỐNG: {e}")
+
