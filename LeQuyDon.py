@@ -69,7 +69,7 @@ def generate_username(fullname, dob):
     return f"{clean_name}{suffix}_{random.randint(10,99)}"
 
 # ==========================================
-# 3. HỆ THỐNG VẼ HÌNH HỌC TỰ ĐỘNG
+# 3. HỆ THỐNG VẼ HÌNH HỌC TỰ ĐỘNG CHUẨN XÁC
 # ==========================================
 def fig_to_base64(fig):
     buf = BytesIO()
@@ -79,49 +79,62 @@ def fig_to_base64(fig):
 
 def draw_real_parabola():
     fig, ax = plt.subplots(figsize=(3, 2))
-    x = np.linspace(-3, 3, 100); y = -0.5 * x**2 + 4.5
-    ax.plot(x, y, color='#c0392b', lw=2)
+    x = np.linspace(-3, 3, 100); y = 0.5 * x**2
+    ax.plot(x, y, color='#2980b9', lw=2)
     ax.spines['left'].set_position('zero'); ax.spines['bottom'].set_position('zero')
     ax.spines['right'].set_color('none'); ax.spines['top'].set_color('none')
     ax.set_xticks([]); ax.set_yticks([]) 
-    ax.text(0.2, 4.7, 'y', style='italic'); ax.text(3.2, 0.2, 'x', style='italic'); ax.text(0.1, -0.5, 'O')
+    ax.text(0.2, 4.5, 'y', style='italic'); ax.text(3.2, 0.2, 'x', style='italic'); ax.text(-0.3, -0.3, 'O')
     return fig_to_base64(fig)
 
 def draw_intersecting_circles():
     fig, ax = plt.subplots(figsize=(3, 2))
-    ax.set_aspect('equal') 
-    c1 = plt.Circle((-0.8, 0), 1.5, color='#2980b9', fill=False, lw=1.5)
-    c2 = plt.Circle((0.8, 0), 1.2, color='#27ae60', fill=False, lw=1.5)
+    ax.set_aspect('equal')
+    # Tọa độ tâm và bán kính
+    x1, y1, r1 = -1, 0, 2
+    x2, y2, r2 = 1, 0, 1.5
+    c1 = plt.Circle((x1, y1), r1, color='#c0392b', fill=False, lw=1.5)
+    c2 = plt.Circle((x2, y2), r2, color='#27ae60', fill=False, lw=1.5)
     ax.add_patch(c1); ax.add_patch(c2)
-    ax.plot(0, 1.15, 'ko', markersize=4); ax.plot(0, -1.15, 'ko', markersize=4)
-    ax.set_xlim(-2.5, 2.5); ax.set_ylim(-2, 2); ax.axis('off')
+    # Toán học chính xác tìm giao điểm 2 đường tròn
+    d = x2 - x1
+    a = (r1**2 - r2**2 + d**2) / (2 * d)
+    h = math.sqrt(r1**2 - a**2)
+    x3 = x1 + a
+    y3_1 = y1 + h
+    y3_2 = y1 - h
+    ax.plot(x3, y3_1, 'ko', markersize=5); ax.plot(x3, y3_2, 'ko', markersize=5)
+    ax.plot([x1, x2], [y1, y2], 'k--', lw=0.8) # Nối 2 tâm
+    ax.plot([x3, x3], [y3_1, y3_2], 'b--', lw=0.8) # Dây chung
+    ax.set_xlim(-3.5, 3); ax.set_ylim(-2.5, 2.5); ax.axis('off')
     return fig_to_base64(fig)
 
-def draw_tower_shadow(bong):
+def draw_right_triangle(a, b):
     fig, ax = plt.subplots(figsize=(3, 2))
     ax.set_aspect('equal')
-    ax.plot([-1, 4], [0, 0], color='#27ae60', lw=3) 
-    ax.plot([0, 0], [0, 3], color='#7f8c8d', lw=4)
-    ax.plot([2.5, 0], [0, 3], color='#f39c12', lw=1.5, linestyle='--')
-    ax.text(-0.8, 1.5, 'Tháp', rotation=90, fontsize=8)
-    ax.text(0.5, -0.5, f'Bóng: {bong}m', fontsize=8)
-    ax.text(1.8, 0.1, r'$\alpha$', fontsize=10, color='blue')
-    ax.set_xlim(-1, 3); ax.set_ylim(-1, 3.5); ax.axis('off')
+    ax.plot([0, b, 0, 0], [0, 0, a, 0], color='#2c3e50', lw=2) # Tam giác vuông tại gốc
+    # Vẽ ký hiệu góc vuông
+    ax.plot([0, 0.3, 0.3], [0.3, 0.3, 0], color='red', lw=1)
+    ax.text(-0.2, -0.3, 'A', fontweight='bold')
+    ax.text(b + 0.1, -0.2, 'B', fontweight='bold')
+    ax.text(-0.2, a + 0.1, 'C', fontweight='bold')
+    ax.text(b/2, -0.5, f'{b} cm', color='blue')
+    ax.text(-0.8, a/2, f'{a} cm', color='blue')
+    ax.axis('off')
     return fig_to_base64(fig)
 
-def draw_histogram():
-    fig, ax = plt.subplots(figsize=(4, 2.5))
-    bins = ['[5;6)', '[6;7)', '[7;8)', '[8;9)', '[9;10]']
-    percents = [10, 25, 40, 15, 10]
-    bars = ax.bar(bins, percents, color=['#3498db']*5, edgecolor='black')
-    bars[2].set_color('#e74c3c') 
-    ax.set_title("Phổ điểm môn Toán", fontsize=9)
-    ax.set_ylabel('% Học sinh', fontsize=8)
-    ax.set_ylim(0, 50)
+def draw_pie_chart():
+    fig, ax = plt.subplots(figsize=(3, 3))
+    labels = ['Giỏi', 'Khá', 'TB', 'Yếu']
+    sizes = [25, 45, 20, 10]
+    colors = ['#2ecc71', '#3498db', '#f1c40f', '#e74c3c']
+    explode = (0.1, 0, 0, 0)  
+    ax.pie(sizes, explode=explode, labels=labels, colors=colors, autopct='%1.1f%%', shadow=True, startangle=140)
+    ax.axis('equal') 
     return fig_to_base64(fig)
 
 # ==========================================
-# 4. BỘ MÁY SINH ĐỀ CHUẨN MA TRẬN 40 CÂU (ĐÃ FIX LỖI CÚ PHÁP)
+# 4. BỘ MÁY SINH ĐỀ CHUẨN MA TRẬN 40 CÂU (THỰC CHIẾN VN)
 # ==========================================
 class ExamGenerator:
     def __init__(self):
@@ -146,128 +159,138 @@ class ExamGenerator:
         self.q_count += 1
 
     def generate_all(self):
-        # --- CHỦ ĐỀ 1: ĐẠI SỐ - CĂN THỨC & HÀM SỐ (10 Câu) ---
+        # --- CHỦ ĐỀ 1: ĐẠI SỐ - CĂN THỨC & HÀM SỐ ---
+        # 1. ĐKXĐ
         a1 = random.randint(2, 9)
-        self.build_q(rf"Điều kiện để biểu thức $\sqrt{{x - {a1}}}$ có nghĩa là", rf"$x \ge {a1}$", [rf"$x > {a1}$", rf"$x \le {a1}$", rf"$x < {a1}$"], rf"💡 **HD:** Căn thức bậc hai xác định khi biểu thức dưới căn không âm $\Rightarrow x - {a1} \ge 0 \Leftrightarrow x \ge {a1}$.")
+        self.build_q(rf"Điều kiện xác định của biểu thức $\sqrt{{2x - {2*a1}}}$ là:", rf"$x \ge {a1}$", [rf"$x > {a1}$", rf"$x \le {a1}$", rf"$x < {a1}$"], rf"💡 **HD:** $2x - {2*a1} \ge 0 \Leftrightarrow 2x \ge {2*a1} \Leftrightarrow x \ge {a1}$.")
         
-        a2 = random.choice([16, 25, 36, 49, 64, 81])
-        c2 = int(math.sqrt(a2))
-        self.build_q(rf"Căn bậc hai số học của ${a2}$ là", f"{c2}", [f"$-{c2}$", rf"$\pm {c2}$", f"{a2**2}"], rf"💡 **HD:** Căn bậc hai số học của một số dương $a$ là số dương $x$ sao cho $x^2 = a$. Vậy đáp án là {c2}.")
+        # 2. Rút gọn số
+        self.build_q(r"Giá trị của biểu thức $\sqrt{12} - 2\sqrt{3}$ bằng:", "0", [r"$\sqrt{9}$", r"$2\sqrt{3}$", "3"], r"💡 **HD:** $\sqrt{12} = \sqrt{4 \cdot 3} = 2\sqrt{3}$. Vậy $2\sqrt{3} - 2\sqrt{3} = 0$.")
         
-        a3 = random.randint(2, 5); b3 = random.randint(6, 9)
-        self.build_q(rf"Với $x < {a3}$, rút gọn biểu thức $\sqrt{{({a3} - x)^2}} + x - {b3}$ ta được:", f"{a3 - b3}", [f"{b3 - a3}", rf"$2x - {a3+b3}$", rf"$-2x + {a3+b3}$"], rf"💡 **HD:** Do $x < {a3} \Rightarrow {a3} - x > 0$. Suy ra $\sqrt{{({a3}-x)^2}} = |{a3}-x| = {a3}-x$. Biểu thức bằng $({a3}-x) + x - {b3} = {a3-b3}$.")
+        # 3. Rút gọn biểu thức chứa biến
+        a3 = random.randint(3, 5)
+        self.build_q(r"Với $a \ge 0$, biểu thức $\sqrt{" + f"{a3**2}" + r"a^2}$ bằng:", rf"${a3}a$", [rf"$-{a3}a$", rf"${a3**2}a$", rf"${a3}|a|$"], r"💡 **HD:** $\sqrt{" + f"{a3**2}" + r"a^2} = |" + f"{a3}" + r"a|$. Vì $a \ge 0 \Rightarrow " + f"{a3}a$.")
         
-        a4 = random.choice([2, 3, 5])
-        self.build_q(rf"Trục căn thức ở mẫu của biểu thức $\frac{{{a4}}}{{\sqrt{{{a4}}}}}$ ta được:", rf"$\sqrt{{{a4}}}$", [f"{a4}", "1", rf"${a4}\sqrt{{{a4}}}$"], rf"💡 **HD:** Nhân cả tử và mẫu với $\sqrt{{{a4}}}$, ta có $\frac{{{a4}\sqrt{{{a4}}}}}{{\sqrt{{{a4}}} \cdot \sqrt{{{a4}}}}} = \frac{{{a4}\sqrt{{{a4}}}}}{{{a4}}} = \sqrt{{{a4}}}$.")
+        # 4. Trục căn thức
+        a4 = random.randint(2, 7)
+        self.build_q(r"Trục căn thức ở mẫu của biểu thức $\frac{1}{\sqrt{" + f"{a4}" + r"} - 1}$ ta được:", r"$\frac{\sqrt{" + f"{a4}" + r"} + 1}{" + f"{a4-1}" + r"}$", [r"$\frac{\sqrt{" + f"{a4}" + r"} - 1}{" + f"{a4-1}" + r"}$", r"$\sqrt{" + f"{a4}" + r"} + 1$", r"$\frac{\sqrt{" + f"{a4}" + r"} + 1}{" + f"{a4+1}" + r"}$"], r"💡 **HD:** Nhân cả tử và mẫu với lượng liên hợp $(\sqrt{" + f"{a4}" + r"} + 1)$. Mẫu số trở thành $(\sqrt{" + f"{a4}" + r"})^2 - 1^2 = " + f"{a4-1}$.")
         
-        self.build_q(r"Với $a > 0, b > 0$, biểu thức $\sqrt{9a^2b}$ bằng", r"$3a\sqrt{b}$", [r"$-3a\sqrt{b}$", r"$9a\sqrt{b}$", r"$3a^2\sqrt{b}$"], r"💡 **HD:** Đưa thừa số ra ngoài dấu căn: $\sqrt{9a^2b} = \sqrt{(3a)^2 \cdot b} = |3a|\sqrt{b} = 3a\sqrt{b}$ (do $a>0$).")
+        # 5. Hàm số bậc nhất
+        m5 = random.randint(2, 5)
+        self.build_q(r"Để hàm số $y = (m - " + f"{m5}" + r")x + 3$ đồng biến trên $\mathbb{R}$, thì điều kiện của $m$ là:", rf"$m > {m5}$", [rf"$m < {m5}$", rf"$m \ne {m5}$", rf"$m \ge {m5}$"], r"💡 **HD:** Hàm số $y = ax+b$ đồng biến khi $a > 0 \Leftrightarrow m - " + f"{m5}" + r" > 0 \Leftrightarrow m > " + f"{m5}$.")
         
-        # [FIX LỖI CÂU 6 Ở ĐÂY - Tách riêng biến và LaTeX để Python không bị nhầm lẫn]
-        a6 = random.choice([-2, -3, -4, -5])
-        q6_hint = r"💡 **HD:** Hàm số $y = ax+b$ nghịch biến trên $\mathbb{R}$ khi hệ số $a < 0$. Ở đây $a = " + f"{a6}" + r" < 0$."
-        self.build_q(rf"Hàm số $y = {a6}x + 3$ là hàm số:", r"Nghịch biến trên $\mathbb{R}$", [r"Đồng biến trên $\mathbb{R}$", r"Nghịch biến khi $x < 0$", r"Đồng biến khi $x > 0$"], q6_hint)
+        # 6. Vị trí tương đối 2 đường thẳng
+        self.build_q(r"Đường thẳng $y = 2x + 1$ song song với đường thẳng nào dưới đây?", r"$y = 2x - 3$", [r"$y = -2x + 1$", r"$y = \frac{1}{2}x + 1$", r"$y = 2x + 1$"], r"💡 **HD:** Hai đường thẳng $y=ax+b$ và $y=a'x+b'$ song song khi $a=a'$ và $b \ne b'$.")
         
-        b7 = random.randint(2, 9)
-        self.build_q(rf"Đồ thị hàm số $y = 2x - {b7}$ cắt trục tung tại điểm có tọa độ là:", rf"$(0; -{b7})$", [rf"$(0; {b7})$", rf"$({b7}; 0)$", rf"$(0; 2)$"], rf"💡 **HD:** Điểm nằm trên trục tung có hoành độ $x=0$. Thay $x=0$ vào hàm số ta được $y = -{b7}$.")
-        
-        self.build_q(r"Quan sát hình vẽ. Đồ thị hàm số $y = ax^2 (a \ne 0)$ luôn nhận đường thẳng nào làm trục đối xứng?", "Trục tung (Oy)", ["Trục hoành (Ox)", "Đường thẳng $y = x$", "Đường thẳng $y = -x$"], "💡 **HD:** Đồ thị hàm số $y=ax^2$ là một Parabol đi qua gốc tọa độ O và nhận trục Oy làm trục đối xứng.", draw_real_parabola())
-        
-        x9 = random.choice([-2, 2, 3]); y9 = random.choice([4, 12, 18])
-        a9 = y9 // (x9**2) if y9 % (x9**2) == 0 else f"{y9}/{x9**2}"
-        self.build_q(rf"Biết đồ thị hàm số $y = ax^2$ đi qua điểm $M({x9}; {y9})$. Giá trị của hệ số $a$ là:", f"{a9}", [f"{y9 * abs(x9)}", f"{x9**2}", f"{y9}"], rf"💡 **HD:** Thay tọa độ $x = {x9}, y = {y9}$ vào pt $y = ax^2$, ta có: ${y9} = a \cdot ({x9})^2 \Rightarrow a = {a9}$.")
-        
-        self.build_q(r"Số giao điểm của Parabol $y = x^2$ và đường thẳng $y = x + 2$ là:", "2", ["0", "1", "3"], r"💡 **HD:** Xét pt hoành độ giao điểm: $x^2 = x + 2 \Leftrightarrow x^2 - x - 2 = 0$. PT này có $\Delta = (-1)^2 - 4(1)(-2) = 9 > 0$, nên có 2 nghiệm phân biệt.")
+        # 7. Hàm số bậc 2 (Hình ảnh)
+        self.build_q(r"Quan sát đồ thị Parabol $y = ax^2$ trong hình vẽ. Khẳng định nào sau đây ĐÚNG?", r"Hệ số $a > 0$", [r"Hệ số $a < 0$", r"Hàm số luôn nghịch biến", r"Đồ thị nhận trục Ox làm trục đối xứng"], r"💡 **HD:** Đồ thị Parabol có bề lõm hướng lên trên nên hệ số $a > 0$.", draw_real_parabola())
 
-        # --- CHỦ ĐỀ 2: ĐẠI SỐ - PHƯƠNG TRÌNH & HỆ (10 Câu) ---
-        self.build_q(r"Phương trình nào sau đây là phương trình bậc nhất hai ẩn $x, y$?", r"$2x - 3y = 5$", [r"$xy = 5$", r"$2x^2 - y = 0$", r"$x - \frac{1}{y} = 2$"], r"💡 **HD:** Phương trình bậc nhất 2 ẩn có dạng $ax + by = c$ (với $a,b$ không đồng thời bằng 0).")
-        
-        # [FIX LỖI CÂU 12 - Tách chuỗi ngoặc nhọn LaTeX]
-        x12 = random.randint(1,4); y12 = random.randint(1,3)
-        q12_text = r"Nghiệm $(x; y)$ của hệ phương trình $\begin{cases} x + y = " + f"{x12+y12}" + r" \\ x - y = " + f"{x12-y12}" + r" \end{cases}$ là:"
-        self.build_q(q12_text, rf"$({x12}; {y12})$", [rf"$({y12}; {x12})$", rf"$({x12+1}; {y12})$", rf"$({x12}; -{y12})$"], rf"💡 **HD:** Cộng 2 vế ta được $2x = {2*x12} \Rightarrow x = {x12}$. Thay vào PT trên suy ra $y = {y12}$.")
-        
-        b13 = random.randint(3, 5); c13 = random.randint(1, 2)
-        self.build_q(rf"Biệt thức $\Delta$ của phương trình $x^2 + {b13}x + {c13} = 0$ bằng:", f"{b13**2 - 4*1*c13}", [f"{b13**2 + 4*c13}", f"{b13 - 4*c13}", f"{b13**2 - c13}"], rf"💡 **HD:** Công thức $\Delta = b^2 - 4ac = ({b13})^2 - 4 \cdot 1 \cdot {c13} = {b13**2 - 4*c13}$.")
-        
-        # [FIX LỖI CÂU 14, 15 - Tách chuỗi phân số]
-        b14 = random.randint(2, 8); c14 = random.randint(-5, -1)
-        q14_hint = r"💡 **HD:** Theo định lý Vi-ét, tổng hai nghiệm $S = x_1 + x_2 = -\frac{b}{a} = -\frac{" + f"{-b14}" + r"}{1} = " + f"{b14}$."
-        self.build_q(rf"Gọi $x_1, x_2$ là hai nghiệm của PT $x^2 - {b14}x {c14} = 0$. Tổng $x_1 + x_2$ bằng:", f"{b14}", [f"{-b14}", f"{c14}", f"{-c14}"], q14_hint)
-        
-        q15_hint = r"💡 **HD:** Theo định lý Vi-ét, tích hai nghiệm $P = x_1 \cdot x_2 = \frac{c}{a} = \frac{" + f"{c14}" + r"}{1} = " + f"{c14}$."
-        self.build_q(rf"Gọi $x_1, x_2$ là hai nghiệm của PT $x^2 - {b14}x {c14} = 0$. Tích $x_1 \cdot x_2$ bằng:", f"{c14}", [f"{-c14}", f"{b14}", f"{-b14}"], q15_hint)
-        
-        # [FIX LỖI CÂU 16 - Tách chuỗi ngoặc nhọn của Tập hợp]
-        m16 = random.randint(2, 4); n16 = random.randint(5, 7)
-        ans16 = r"$\{" + f"{m16}; {n16}" + r"\}$"
-        dis16_1 = r"$\{" + f"{-m16}; {-n16}" + r"\}$"
-        dis16_2 = r"$\{" + f"{m16 * n16}" + r"\}$"
-        dis16_3 = r"$\{" + f"{m16}; {-n16}" + r"\}$"
-        self.build_q(rf"Tập nghiệm của phương trình $(x - {m16})(x - {n16}) = 0$ là:", ans16, [dis16_1, dis16_2, dis16_3], rf"💡 **HD:** PT $\Leftrightarrow x - {m16} = 0$ hoặc $x - {n16} = 0 \Leftrightarrow x = {m16}$ hoặc $x = {n16}$.")
-        
-        a17 = random.randint(1, 3)
-        q17_text = r"Điều kiện xác định của phương trình $\frac{x+1}{x-" + f"{a17}" + r"} = 2$ là:"
-        self.build_q(q17_text, rf"$x \ne {a17}$", [rf"$x \ne -{a17}$", rf"$x > {a17}$", rf"$x \ge {a17}$"], rf"💡 **HD:** Phương trình có nghĩa khi mẫu số khác 0 $\Rightarrow x - {a17} \ne 0 \Leftrightarrow x \ne {a17}$.")
-        
-        v18 = random.choice([30, 40, 50])
-        self.build_q(rf"Một ô tô đi quãng đường 120km với vận tốc $x$ km/h. Thời gian đi là:", r"$\frac{120}{x}$ giờ", [rf"$120x$ giờ", r"$\frac{x}{120}$ giờ", rf"$120 + x$ giờ"], r"💡 **HD:** Công thức tính thời gian: $t = \frac{S}{v} = \frac{120}{x}$.")
-        
-        self.build_q(r"Với mọi số thực $a, b$ thoả mãn $a < b$, khẳng định nào sau đây LUÔN ĐÚNG?", r"$a - 5 < b - 5$", [r"$a + 5 > b + 5$", r"$-2a < -2b$", r"$3a > 3b$"], r"💡 **HD:** Cộng hoặc trừ cùng một số vào 2 vế của BĐT thì chiều BĐT không đổi.")
-        
-        sv20 = random.randint(4, 7); pv20 = random.randint(2, 3)
-        self.build_q(rf"Hai số có tổng bằng {sv20} và tích bằng {pv20} là nghiệm của phương trình nào?", rf"$x^2 - {sv20}x + {pv20} = 0$", [rf"$x^2 + {sv20}x + {pv20} = 0$", rf"$x^2 - {pv20}x + {sv20} = 0$", rf"$x^2 + {pv20}x - {sv20} = 0$"], r"💡 **HD:** Theo hệ thức Vi-ét đảo, hai số là nghiệm của PT $X^2 - SX + P = 0$.")
+        # 8. Tương giao
+        c8 = random.randint(1, 4)
+        self.build_q(r"Tọa độ giao điểm của parabol $y = x^2$ và đường thẳng $y = " + f"{c8**2}" + r"$ là:", r"$( " + f"{c8}" + r"; " + f"{c8**2}" + r")$ và $(-" + f"{c8}" + r"; " + f"{c8**2}" + r")$", [r"$( " + f"{c8}" + r"; " + f"{c8**2}" + r")$", r"$(-" + f"{c8}" + r"; " + f"{c8**2}" + r")$", r"$(0; 0)$"], r"💡 **HD:** Xét pt hoành độ: $x^2 = " + f"{c8**2}" + r" \Leftrightarrow x = \pm " + f"{c8}$. Thay vào y ta có 2 giao điểm.")
 
-        # --- CHỦ ĐỀ 3: HÌNH HỌC (12 Câu) ---
-        self.build_q(r"Cho $\Delta ABC$ vuông tại $A$, đường cao $AH$. Khẳng định ĐÚNG là:", r"$AH^2 = HB \cdot HC$", [r"$AH^2 = AB \cdot AC$", r"$AB^2 = HB \cdot HC$", r"$AC^2 = HB \cdot BC$"], r"💡 **HD:** Trong tam giác vuông, bình phương đường cao ứng với cạnh huyền bằng tích hai hình chiếu của 2 cạnh góc vuông.")
+        # --- CHỦ ĐỀ 2: PHƯƠNG TRÌNH & BÀI TOÁN THỰC TẾ ---
+        # 9. Giải hệ cơ bản
+        self.build_q(r"Nghiệm của hệ phương trình $\begin{cases} x - y = 1 \\ 2x + y = 5 \end{cases}$ là:", r"$(2; 1)$", [r"$(1; 2)$", r"$(3; -1)$", r"$(2; -1)$"], r"💡 **HD:** Cộng 2 vế: $3x = 6 \Rightarrow x=2$. Thay $x=2$ vào PT 1 được $y=1$.")
         
-        self.build_q(r"Cho góc nhọn $\alpha$. Hệ thức nào sau đây ĐÚNG?", r"$\sin^2 \alpha + \cos^2 \alpha = 1$", [r"$\sin \alpha + \cos \alpha = 1$", r"$\tan \alpha \cdot \cot \alpha = 0$", r"$\sin^2 \alpha - \cos^2 \alpha = 1$"], r"💡 **HD:** Hệ thức cơ bản của lượng giác.")
+        # 10. Bài toán Taxi (Thực tế)
+        self.build_q(r"Giá cước taxi: 10.000đ cho 1km đầu tiên, từ km thứ 2 giá 15.000đ/km. Hỏi đi 5km phải trả bao nhiêu tiền?", "70.000 đ", ["75.000 đ", "50.000 đ", "60.000 đ"], r"💡 **HD:** Tiền = 10.000 (km đầu) + 4 $\times$ 15.000 (4km sau) = 70.000đ.")
         
-        bong23 = random.choice([20, 30, 40])
-        self.build_q(rf"Một cột tháp có bóng trên mặt đất dài {bong23}m. Tia nắng tạo với mặt đất góc $45^\circ$ (như hình vẽ). Chiều cao tháp là:", rf"${bong23}$ m", [rf"${bong23}\sqrt{{2}}$ m", rf"${bong23}\sqrt{{3}}$ m", rf"${bong23}/2$ m"], rf"💡 **HD:** Dùng Tan: Chiều cao = Bóng $\times \tan(45^\circ) = {bong23} \times 1 = {bong23}m$.", draw_tower_shadow(bong23))
+        # 11. Bài toán Lãi suất (Thực tế)
+        p11 = random.choice([100, 200, 300])
+        self.build_q(rf"Bác An gửi tiết kiệm {p11} triệu đồng với lãi suất 6%/năm. Sau 1 năm, tổng số tiền bác An nhận được cả gốc và lãi là:", rf"{p11 + p11*0.06:g} triệu", [rf"{p11 * 0.06:g} triệu", rf"{p11 + 6} triệu", rf"{p11 + p11*0.6:g} triệu"], r"💡 **HD:** Lãi = Gốc $\times$ Lãi suất. Tổng = Gốc $\times (1 + r) = " + f"{p11} \\times 1.06$ triệu.")
         
-        self.build_q(r"Quan sát hình vẽ, hai đường tròn này có bao nhiêu điểm chung?", "2 điểm chung", ["0 điểm chung", "1 điểm chung", "3 điểm chung"], "💡 **HD:** Hai đường tròn cắt nhau tại 2 điểm phân biệt.", draw_intersecting_circles())
+        # 12. Giải PT Bậc 2
+        self.build_q(r"Tập nghiệm của phương trình $x^2 - 5x + 6 = 0$ là:", r"$\{2; 3\}$", [r"$\{-2; -3\}$", r"$\{1; 6\}$", r"$\{-1; -6\}$"], r"💡 **HD:** Nhẩm nghiệm hoặc dùng Delta. Do $2+3=5$ và $2 \times 3=6$ nên nghiệm là 2 và 3.")
         
-        self.build_q(r"Từ điểm $M$ nằm ngoài đường tròn $(O)$, kẻ 2 tiếp tuyến $MA, MB$. Khẳng định SAI là:", r"$\widehat{OMA} \ne \widehat{OMB}$", [r"$MA = MB$", r"$OM$ là phân giác góc $\widehat{AOB}$", r"$OM \perp AB$"], r"💡 **HD:** Tính chất 2 tiếp tuyến cắt nhau: $\widehat{OMA} = \widehat{OMB}$.")
+        # 13. Vi-ét cơ bản
+        self.build_q(r"Cho PT $2x^2 - 7x + 3 = 0$. Tổng hai nghiệm $x_1 + x_2$ bằng:", r"$\frac{7}{2}$", [r"$-\frac{7}{2}$", r"$\frac{3}{2}$", r"$7$"], r"💡 **HD:** Theo Vi-ét: $S = -\frac{b}{a} = -\frac{-7}{2} = \frac{7}{2}$.")
         
-        self.build_q(r"Góc nội tiếp chắn nửa đường tròn có số đo bằng:", r"$90^\circ$", [r"$180^\circ$", r"$60^\circ$", r"$45^\circ$"], r"💡 **HD:** Định lý SGK Toán 9: Góc nội tiếp chắn nửa đường tròn luôn là góc vuông.")
+        # 14. Vi-ét nâng cao (Vận dụng Cao)
+        self.build_q(r"Giả sử PT $x^2 - 4x + 1 = 0$ có 2 nghiệm dương $x_1, x_2$. Giá trị của biểu thức $x_1^2 + x_2^2$ là:", "14", ["16", "18", "12"], r"💡 **HD:** $x_1^2 + x_2^2 = (x_1+x_2)^2 - 2x_1x_2 = S^2 - 2P$. Vi-ét có $S=4, P=1 \Rightarrow 4^2 - 2(1) = 14$.")
         
-        g27 = random.choice([60, 70, 80])
-        self.build_q(rf"Biết góc ở tâm $\widehat{{AOB}} = {g27}^\circ$. Góc nội tiếp $\widehat{{ACB}}$ cùng chắn cung $AB$ có số đo bằng:", rf"${g27//2}^\circ$", [rf"${g27}^\circ$", rf"${g27*2}^\circ$", rf"${180 - g27}^\circ$"], r"💡 **HD:** Góc nội tiếp bằng một nửa số đo góc ở tâm cùng chắn một cung.")
+        # 15. Bài toán Công việc chung - riêng
+        self.build_q(r"Hai vòi nước cùng chảy vào 1 bể cạn thì 6 giờ đầy bể. Nếu vòi 1 chảy một mình 10 giờ đầy bể, thì vòi 2 chảy một mình đầy bể trong bao lâu?", "15 giờ", ["12 giờ", "16 giờ", "4 giờ"], r"💡 **HD:** 1 giờ cả 2 vòi chảy $1/6$ bể. Vòi 1 chảy $1/10$ bể. Vậy 1 giờ vòi 2 chảy: $1/6 - 1/10 = 1/15$ bể $\Rightarrow$ Cần 15 giờ.")
         
-        self.build_q(r"Tứ giác $ABCD$ nội tiếp đường tròn. Biết $\widehat{A} = 85^\circ$, tính $\widehat{C}$ (góc đối diện).", r"$95^\circ$", [r"$85^\circ$", r"$105^\circ$", r"$180^\circ$"], r"💡 **HD:** Tổng số đo 2 góc đối diện của tứ giác nội tiếp bằng $180^\circ$.")
-        
-        R29 = random.choice([3, 4, 5])
-        self.build_q(rf"Chu vi đường tròn có bán kính $R = {R29}$ cm là:", rf"${2*R29}\pi$ cm", [rf"${R29}\pi$ cm", rf"${R29**2}\pi$ cm", rf"${2*R29}$ cm"], r"💡 **HD:** Công thức chu vi đường tròn $C = 2\pi R$.")
-        
-        h30 = random.choice([5, 6]); r30 = random.choice([2, 3])
-        q30_ans = r"$" + f"{r30**2 * h30}" + r"\pi$ cm$^3$"
-        q30_dis1 = r"$" + f"{2*r30 * h30}" + r"\pi$ cm$^3$"
-        q30_dis2 = r"$" + f"{r30 * h30}" + r"\pi$ cm$^3$"
-        q30_dis3 = r"$\frac{" + f"{r30**2 * h30}" + r"\pi}{3}$ cm$^3$"
-        self.build_q(rf"Một hình trụ có bán kính đáy $r={r30}$ cm, chiều cao $h={h30}$ cm. Thể tích hình trụ là:", q30_ans, [q30_dis1, q30_dis2, q30_dis3], r"💡 **HD:** Công thức thể tích khối trụ $V = \pi r^2 h$.")
-        
-        self.build_q(r"Công thức tính diện tích xung quanh của hình nón bán kính đáy $r$, đường sinh $l$ là:", r"$S = \pi r l$", [r"$S = 2\pi r l$", r"$S = \pi r^2 l$", r"$S = \frac{1}{3} \pi r l$"], r"💡 **HD:** Công thức chuẩn SGK: $S = \pi r l$.")
-        
-        self.build_q(r"Công thức tính diện tích mặt cầu bán kính $R$ là:", r"$S = 4\pi R^2$", [r"$S = \frac{4}{3}\pi R^3$", r"$S = \pi R^2$", r"$S = 2\pi R^2$"], r"💡 **HD:** Diện tích mặt cầu $S = 4\pi R^2$.")
+        # 16. Phương trình bậc 4 trùng phương
+        self.build_q(r"Số nghiệm của phương trình $x^4 - 3x^2 - 4 = 0$ là:", "2 nghiệm", ["4 nghiệm", "1 nghiệm", "Vô nghiệm"], r"💡 **HD:** Đặt $t = x^2 (t \ge 0)$. PT thành $t^2 - 3t - 4 = 0 \Rightarrow t=4$ (nhận) hoặc $t=-1$ (loại). Với $t=4 \Rightarrow x = \pm 2$. Có 2 nghiệm.")
 
-        # --- CHỦ ĐỀ 4: THỐNG KÊ & XÁC SUẤT (8 Câu) ---
-        self.build_q(r"Dựa vào biểu đồ Phổ điểm Toán, nhóm điểm nào có tỉ lệ học sinh đạt cao nhất?", r"Nhóm $[7;8)$", [r"Nhóm $[6;7)$", r"Nhóm $[8;9)$", r"Nhóm $[5;6)$"], r"💡 **HD:** Cột màu đỏ cao nhất tương ứng với nhóm [7;8) chiếm 40%.", draw_histogram())
+        # --- CHỦ ĐỀ 3: HÌNH HỌC (Không gian, Lượng giác, Đường tròn) ---
+        # 17. Hệ thức lượng (Hình ảnh tam giác)
+        c17_1 = random.choice([3, 6, 9]); c17_2 = int(c17_1 * 4/3)
+        huyen17 = int(math.sqrt(c17_1**2 + c17_2**2))
+        self.build_q(r"Dựa vào kích thước $\Delta ABC$ vuông tại A trên hình vẽ, độ dài cạnh huyền $BC$ là:", rf"{huyen17} cm", [rf"{c17_1+c17_2} cm", rf"{huyen17**2} cm", rf"{huyen17+1} cm"], r"💡 **HD:** Định lý Pytago: $BC = \sqrt{AB^2 + AC^2}$.", draw_right_triangle(c17_1, c17_2))
         
-        self.build_q(r"Gieo đồng thời hai đồng xu cân đối. Tập hợp các kết quả có thể xảy ra (Không gian mẫu) là:", r"$\{SS, SN, NS, NN\}$", [r"$\{S, N\}$", r"$\{SS, NN\}$", r"$\{1, 2, 3, 4\}$"], r"💡 **HD:** Có $2 \times 2 = 4$ trường hợp: Sấp-Sấp, Sấp-Ngửa, Ngửa-Sấp, Ngửa-Ngửa.")
+        # 18. Lượng giác cơ bản
+        self.build_q(r"Trong tam giác $ABC$ vuông tại $A$, tỉ số $\frac{AB}{BC}$ là tỉ số lượng giác nào của $\widehat{C}$?", r"$\sin C$", [r"$\cos C$", r"$\tan C$", r"$\cot C$"], r"💡 **HD:** $\sin$ = Đối / Huyền. Cạnh đối của góc C là AB, cạnh huyền là BC.")
         
-        self.build_q(r"Gieo một con xúc xắc 6 mặt. Xác suất xuất hiện mặt có số chấm lớn hơn 4 là:", r"$\frac{1}{3}$", [r"$\frac{1}{6}$", r"$\frac{1}{2}$", r"$\frac{2}{3}$"], r"💡 **HD:** Mặt > 4 gồm {5, 6} (2 kết quả). Xác suất = $\frac{2}{6} = \frac{1}{3}$.")
+        # 19. Hệ thức đường cao
+        self.build_q(r"Cho tam giác vuông có 2 hình chiếu của 2 cạnh góc vuông lên cạnh huyền là 4cm và 9cm. Độ dài đường cao ứng với cạnh huyền là:", "6 cm", ["13 cm", "36 cm", "5 cm"], r"💡 **HD:** $h^2 = b' \cdot c' = 4 \times 9 = 36 \Rightarrow h = 6$ cm.")
         
-        bx36 = random.randint(3,5); bd36 = random.randint(4,6)
-        q36_ans = r"$\frac{" + f"{bd36}" + r"}{" + f"{bx36+bd36}" + r"}$"
-        self.build_q(rf"Hộp có {bx36} bi xanh và {bd36} bi đỏ. Xác suất bốc 1 viên bi ra bi đỏ là:", q36_ans, [r"$\frac{1}{2}$", rf"$\frac{{{bx36}}}{{{bx36+bd36}}}$", rf"$\frac{{{bd36}}}{{{bx36}}}$"], rf"💡 **HD:** Tổng bi: {bx36+bd36}. Bi đỏ: {bd36}. Xác suất = $\frac{{{bd36}}}{{{bx36+bd36}}}$.")
+        # 20. Đường tròn - Dây cung
+        self.build_q(r"Cho đường tròn $(O; 5cm)$. Khoảng cách từ tâm $O$ đến dây $AB$ bằng 3cm. Độ dài dây $AB$ là:", "8 cm", ["4 cm", "10 cm", "6 cm"], r"💡 **HD:** Áp dụng Pytago cho nửa dây cung: $(AB/2)^2 = R^2 - d^2 = 5^2 - 3^2 = 16 \Rightarrow AB/2 = 4 \Rightarrow AB = 8$.")
         
-        self.build_q(r"Kiểm tra 50 bóng đèn thì thấy có 2 bóng bị hỏng. Tần số tương đối của bóng đèn hỏng là:", r"$4\%$", [r"$2\%$", r"$5\%$", r"$20\%$"], r"💡 **HD:** Tần số tương đối = $\frac{2}{50} \times 100\% = 4\%$.")
+        # 21. Vị trí 2 đường tròn (Hình vẽ)
+        self.build_q(r"Quan sát hình vẽ, dây cung chung của hai đường tròn cắt nhau có tính chất gì?", "Vuông góc với đường nối tâm", ["Song song với đường nối tâm", "Đi qua tâm của cả hai đường tròn", "Bằng tổng 2 bán kính"], r"💡 **HD:** Tính chất 2 đường tròn cắt nhau: Đường nối tâm là đường trung trực của dây chung.", draw_intersecting_circles())
         
-        self.build_q(r"Bảng điểm của 4 học sinh: 7, 8, 8, 9. Điểm trung bình là:", r"$8,0$", [r"$7,5$", r"$8,5$", r"$8,2$"], r"💡 **HD:** $\bar{X} = \frac{7+8+8+9}{4} = 8,0$.")
+        # 22. Tứ giác nội tiếp
+        self.build_q(r"Tứ giác $ABCD$ nội tiếp. Biết $\widehat{A} = 70^\circ, \widehat{B} = 100^\circ$. Số đo $\widehat{C}$ là:", r"$110^\circ$", [r"$80^\circ$", r"$70^\circ$", r"$100^\circ$"], r"💡 **HD:** Tổng 2 góc đối diện $= 180^\circ \Rightarrow \widehat{C} = 180^\circ - \widehat{A} = 110^\circ$.")
         
-        self.build_q(r"Cầu thủ sút phạt 100 quả, trúng đích 85 quả. Xác suất thực nghiệm sút trúng là:", r"$0,85$", [r"$0,15$", r"$8,5$", r"$15$"], r"💡 **HD:** Xác suất = Số lần trúng / Tổng số lần = $\frac{85}{100} = 0,85$.")
+        # 23. Góc nội tiếp và nửa đường tròn
+        self.build_q(r"Tam giác $ABC$ nội tiếp đường tròn $(O)$ có cạnh $BC$ là đường kính. Khẳng định ĐÚNG là:", r"$\Delta ABC$ vuông tại $A$", [r"$\Delta ABC$ đều", r"$\Delta ABC$ cân tại $A$", r"$\widehat{A} = 60^\circ$"], r"💡 **HD:** Góc nội tiếp chắn nửa đường tròn là góc vuông.")
         
-        self.build_q(r"Trong các biến cố sau khi gieo 1 xúc xắc, biến cố nào là CHẮC CHẮN?", r"Xuất hiện mặt có số chấm nhỏ hơn 7", [r"Xuất hiện mặt 6 chấm", r"Xuất hiện mặt chẵn", r"Xuất hiện mặt lớn hơn 7"], r"💡 **HD:** Xúc xắc có 6 mặt từ 1 đến 6, nên việc gieo ra mặt nhỏ hơn 7 là điều chắc chắn xảy ra.")
+        # 24. Tính diện tích hình quạt
+        self.build_q(r"Diện tích hình quạt tròn bán kính $R=6cm$, góc ở tâm $60^\circ$ là:", r"$6\pi$ cm$^2$", [r"$12\pi$ cm$^2$", r"$36\pi$ cm$^2$", r"$2\pi$ cm$^2$"], r"💡 **HD:** $S = \frac{\pi R^2 n}{360} = \frac{\pi \cdot 36 \cdot 60}{360} = 6\pi$.")
+        
+        # 25. Độ dài cung
+        self.build_q(r"Độ dài cung $90^\circ$ của đường tròn bán kính 4cm là:", r"$2\pi$ cm", [r"$4\pi$ cm", r"$8\pi$ cm", r"$\pi$ cm"], r"💡 **HD:** $l = \frac{\pi R n}{180} = \frac{\pi \cdot 4 \cdot 90}{180} = 2\pi$.")
+        
+        # 26. Thể tích Hình nón
+        self.build_q(r"Hình nón có bán kính đáy $r=3$, chiều cao $h=4$. Thể tích là:", r"$12\pi$", [r"$36\pi$", r"$15\pi$", r"$9\pi$"], r"💡 **HD:** $V = \frac{1}{3}\pi r^2 h = \frac{1}{3}\pi (3^2)(4) = 12\pi$.")
+        
+        # 27. Diện tích mặt cầu
+        self.build_q(r"Nếu tăng bán kính mặt cầu lên 2 lần thì diện tích mặt cầu tăng lên mấy lần?", "4 lần", ["2 lần", "8 lần", "16 lần"], r"💡 **HD:** $S = 4\pi R^2$. Vì $R$ được bình phương, nên tăng $R$ lên 2 lần thì $S$ tăng $2^2 = 4$ lần.")
+        
+        # 28. Thể tích hình trụ thực tế
+        self.build_q(r"Một lon sữa bò hình trụ có bán kính đáy 4cm, cao 10cm. Thể tích lon sữa là:", r"$160\pi$ cm$^3$", [r"$40\pi$ cm$^3$", r"$80\pi$ cm$^3$", r"$320\pi$ cm$^3$"], r"💡 **HD:** $V = \pi r^2 h = \pi \cdot 4^2 \cdot 10 = 160\pi$.")
+
+        # --- CHỦ ĐỀ 4: XÁC SUẤT THỐNG KÊ (Chương trình mới) ---
+        # 29. Biểu đồ (Hình ảnh)
+        self.build_q(r"Dựa vào Biểu đồ phổ điểm, tổng tỉ lệ học sinh đạt điểm từ 7 trở lên (Nhóm [7;8), [8;9), [9;10]) là:", "65%", ["40%", "75%", "50%"], r"💡 **HD:** Cộng tỉ lệ 3 cột cuối: $40\% + 15\% + 10\% = 65\%$.", draw_histogram())
+        
+        # 30. Biểu đồ tròn (Hình ảnh)
+        self.build_q(r"Dựa vào biểu đồ phân loại học lực, nhóm học sinh nào chiếm đa số?", "Khá (45%)", ["Giỏi (25%)", "Trung bình (20%)", "Yếu (10%)"], r"💡 **HD:** Vùng màu xanh dương (Khá) chiếm diện tích lớn nhất là 45%.", draw_pie_chart())
+        
+        # 31. Xác suất xúc xắc
+        self.build_q(r"Gieo 1 con xúc xắc cân đối. Xác suất để được mặt có số chấm là số nguyên tố (2, 3, 5) là:", r"$\frac{1}{2}$", [r"$\frac{1}{3}$", r"$\frac{1}{6}$", r"$\frac{2}{3}$"], r"💡 **HD:** Có 3 kết quả thuận lợi trên tổng số 6 kết quả. $P = 3/6 = 1/2$.")
+        
+        # 32. Không gian mẫu
+        self.build_q(r"Rút ngẫu nhiên 1 lá bài từ bộ bài tú lơ khơ 52 lá. Số phần tử của không gian mẫu là:", "52", ["13", "4", "26"], r"💡 **HD:** Mỗi lá bài là một kết quả có thể. Tổng cộng có 52 lá.")
+        
+        # 33. Xác suất thực nghiệm
+        self.build_q(r"Trong 20 ngày đi học, Nam bị đi muộn 2 ngày. Xác suất thực nghiệm của biến cố 'Nam đi học đúng giờ' là:", r"$\frac{9}{10}$", [r"$\frac{1}{10}$", r"$\frac{1}{20}$", r"$90$"], r"💡 **HD:** Số ngày đúng giờ = 18. Xác suất = $18/20 = 9/10$.")
+        
+        # 34. Trung vị
+        self.build_q(r"Điểm kiểm tra của 5 bạn: 6, 7, 8, 9, 10. Số trung vị của mẫu số liệu là:", "8", ["7.5", "9", "30"], r"💡 **HD:** Số liệu đã sắp xếp. Số đứng giữa là 8.")
+
+        # --- CHỦ ĐỀ 5: TỔNG HỢP VẬN DỤNG KIẾN THỨC ---
+        # 35. Hệ thức Vi-et (Tìm m)
+        self.build_q(r"Cho PT $x^2 - 2x + m = 0$. Tìm $m$ để PT có 2 nghiệm phân biệt.", r"$m < 1$", [r"$m > 1$", r"$m \le 1$", r"$m = 1$"], r"💡 **HD:** PT có 2 nghiệm pb $\Leftrightarrow \Delta' = (-1)^2 - m > 0 \Leftrightarrow 1 - m > 0 \Leftrightarrow m < 1$.")
+        
+        # 36. Căn bậc ba
+        self.build_q(r"Giá trị của biểu thức $\sqrt[3]{-64} + \sqrt[3]{27}$ là:", "-1", ["-7", "1", "7"], r"💡 **HD:** $\sqrt[3]{-64} = -4$ và $\sqrt[3]{27} = 3$. Tổng $= -4 + 3 = -1$.")
+        
+        # 37. Giải Bất PT chứa mẫu
+        self.build_q(r"Tập nghiệm của bất phương trình $\frac{x-2}{-3} > 0$ là:", r"$x < 2$", [r"$x > 2$", r"$x < -2$", r"$x > -2$"], r"💡 **HD:** Nhân 2 vế với số âm (-3) phải đảo chiều BĐT: $x - 2 < 0 \Leftrightarrow x < 2$.")
+        
+        # 38. Hàm số (Tìm tọa độ)
+        self.build_q(r"Điểm nào sau đây thuộc đồ thị hàm số $y = -2x + 5$?", r"$(1; 3)$", [r"$(1; 7)$", r"$(2; -1)$", r"$(0; -5)$"], r"💡 **HD:** Thay $x=1$ vào hàm số $\Rightarrow y = -2(1) + 5 = 3$. Vậy điểm (1;3) thuộc đồ thị.")
+        
+        # 39. Diện tích hình vuông nội tiếp
+        self.build_q(r"Tính diện tích hình vuông nội tiếp đường tròn bán kính $R=2cm$.", r"$8$ cm$^2$", [r"$4$ cm$^2$", r"$16$ cm$^2$", r"$2\pi$ cm$^2$"], r"💡 **HD:** Hình vuông nội tiếp có đường chéo là đường kính $2R=4$. Diện tích $= \frac{1}{2} d^2 = \frac{1}{2} \cdot 4^2 = 8$.")
+        
+        # 40. Xác suất bốc bóng (Tổng hợp)
+        self.build_q(r"Một hộp có thẻ đánh số từ 1 đến 10. Rút 1 thẻ, xác suất rút được thẻ là số chia hết cho 3 là:", r"$\frac{3}{10}$", [r"$\frac{1}{3}$", r"$\frac{4}{10}$", r"$\frac{1}{10}$"], r"💡 **HD:** Các số chia hết cho 3 từ 1 đến 10 là: 3, 6, 9 (có 3 số). Xác suất $P = 3/10$.")
 
         return self.exam
 
@@ -275,7 +298,7 @@ class ExamGenerator:
 # 5. GIAO DIỆN LMS MANAGER CHÍNH
 # ==========================================
 def main():
-    st.set_page_config(page_title="LMS - Đánh Giá Tuyên Quang", layout="wide", page_icon="🏫")
+    st.set_page_config(page_title="LMS - Quản Lý Giáo Dục", layout="wide", page_icon="🏫")
     init_db()
     
     if 'current_user' not in st.session_state: st.session_state.current_user = None
@@ -315,7 +338,7 @@ def main():
     # GIAO DIỆN HỌC SINH 
     # ==========================
     if st.session_state.role == 'student':
-        tab_mand, tab_ai = st.tabs(["🔥 Bài tập Bắt buộc", "🤖 Luyện đề Tự do"])
+        tab_mand, tab_ai = st.tabs(["🔥 Bài tập Bắt buộc", "🤖 Luyện đề Đa dạng"])
         now_vn = datetime.now(VN_TZ)
         
         with tab_mand:
@@ -428,12 +451,12 @@ def main():
             conn.close()
 
         with tab_ai:
-            st.title("Luyện Tập Tự Do (40 Câu Chuẩn Ma Trận)")
+            st.title("Luyện Tập Tự Do (Ngân hàng đề 40 dạng VN)")
             if 'exam_data' not in st.session_state: st.session_state.exam_data = None
             if 'user_answers' not in st.session_state: st.session_state.user_answers = {}
             if 'is_submitted' not in st.session_state: st.session_state.is_submitted = False
 
-            if st.button("🔄 TẠO ĐỀ MỚI AI", use_container_width=True):
+            if st.button("🔄 TẠO ĐỀ THI MỚI", use_container_width=True):
                 gen = ExamGenerator()
                 st.session_state.exam_data = gen.generate_all()
                 st.session_state.user_answers = {q['id']: None for q in st.session_state.exam_data}
@@ -451,12 +474,12 @@ def main():
                     
                     if st.session_state.is_submitted:
                         if selected == q['answer']: st.success("✅ Đúng")
-                        else: st.error(f"❌ Sai. Đáp án: {q['answer']}")
-                        with st.expander("📖 Lời Giải"): st.markdown(q['hint'], unsafe_allow_html=True)
+                        else: st.error(f"❌ Sai. Đáp án đúng: {q['answer']}")
+                        with st.expander("📖 Lời Giải Chi Tiết"): st.markdown(q['hint'], unsafe_allow_html=True)
                     st.markdown("---")
                 
                 if not st.session_state.is_submitted:
-                    if st.button("📤 NỘP BÀI TỰ LUYỆN", type="primary", use_container_width=True):
+                    if st.button("📤 NỘP BÀI", type="primary", use_container_width=True):
                         st.session_state.is_submitted = True
                         st.rerun()
 
@@ -467,10 +490,10 @@ def main():
         st.title("⚙ Bảng Điều Khiển (LMS)")
         
         if st.session_state.role in ['core_admin', 'sub_admin']:
-            tabs = st.tabs(["🏫 Lớp & Học sinh", "🛡️ Quản lý Nhân sự", "📊 Báo cáo Điểm", "⚙️ Nạp dữ liệu (Giao bài)"])
+            tabs = st.tabs(["🏫 Lớp & Học sinh", "🛡️ Quản lý Nhân sự", "📊 Báo cáo Điểm", "⚙️ Nạp dữ liệu"])
             tab_class, tab_staff, tab_scores, tab_system = tabs
         else:
-            tabs = st.tabs(["🏫 Lớp của tôi", "📊 Báo cáo Điểm", "⚙️ Nạp dữ liệu (Giao bài)"])
+            tabs = st.tabs(["🏫 Lớp của tôi", "📊 Báo cáo Điểm", "⚙️ Nạp dữ liệu"])
             tab_class, tab_scores, tab_system = tabs
         
         conn = sqlite3.connect('exam_db.sqlite')
@@ -659,9 +682,9 @@ def main():
                     selected_exam_title = st.selectbox("📝 Chọn Bài:", df_all_exams['title'].tolist())
                     exam_row = df_all_exams[df_all_exams['title'] == selected_exam_title].iloc[0]
                     exam_id = exam_row['id']
-                    
+                    exam_questions = json.loads(exam_row['questions_json'])
                     df_class_students = pd.read_sql_query(f"SELECT username, fullname FROM users WHERE role='student' AND class_name='{selected_rep_class}'", conn)
-                    df_submitted = pd.read_sql_query(f"SELECT u.username, u.fullname, mr.score, mr.timestamp FROM mandatory_results mr JOIN users u ON mr.username = u.username WHERE mr.exam_id={exam_id} AND u.class_name='{selected_rep_class}'", conn)
+                    df_submitted = pd.read_sql_query(f"SELECT u.username, u.fullname, mr.score, mr.user_answers_json, mr.timestamp FROM mandatory_results mr JOIN users u ON mr.username = u.username WHERE mr.exam_id={exam_id} AND u.class_name='{selected_rep_class}'", conn)
                     
                     st.markdown("---")
                     c1, c2, c3 = st.columns(3)
@@ -669,7 +692,7 @@ def main():
                     c2.metric("Đã nộp", len(df_submitted))
                     c3.metric("Chưa nộp", len(df_class_students) - len(df_submitted))
                     
-                    t1, t2 = st.tabs(["✅ Bảng Điểm", "❌ HS Chưa Làm Bài"])
+                    t1, t2, t3 = st.tabs(["✅ Bảng Điểm", "❌ HS Chưa Làm Bài", "📈 Thống kê Độ Khó Câu Hỏi"])
                     with t1:
                         if not df_submitted.empty: st.dataframe(df_submitted[['fullname', 'score', 'timestamp']].rename(columns={'fullname': 'Họ Tên', 'score': 'Điểm', 'timestamp': 'Nộp lúc'}), use_container_width=True)
                         else: st.info("Chưa có ai nộp.")
@@ -678,10 +701,25 @@ def main():
                         df_missing = df_class_students[~df_class_students['username'].isin(submitted_users)]
                         if not df_missing.empty: st.dataframe(df_missing[['username', 'fullname']], use_container_width=True)
                         else: st.success("100% HS đã nộp bài.")
+                    with t3:
+                        if not df_submitted.empty:
+                            wrong_stats = {str(q['id']): {'text': q['question'], 'wrong_count': 0} for q in exam_questions}
+                            for _, row in df_submitted.iterrows():
+                                ans_dict = json.loads(row['user_answers_json'])
+                                for q in exam_questions:
+                                    q_id = str(q['id'])
+                                    if ans_dict.get(q_id) != q['answer']: wrong_stats[q_id]['wrong_count'] += 1
+                            stats_list = [{'Câu': k, 'Nội dung': v['text'], 'Số HS làm sai': v['wrong_count']} for k, v in wrong_stats.items()]
+                            df_stats = pd.DataFrame(stats_list).sort_values(by='Số HS làm sai', ascending=False)
+                            st.markdown("**🚨 TOP 5 câu sai nhiều nhất:**")
+                            st.dataframe(df_stats.head(5), use_container_width=True)
+                            st.markdown("**Chi tiết:**")
+                            st.dataframe(df_stats, use_container_width=True)
+                        else: st.info("Cần có HS nộp bài để AI phân tích.")
             
         # --- TAB 4: NẠP DỮ LIỆU & GIAO BÀI ---
         with tab_system:
-            st.subheader("📤 Giao bài AI (KẾT NỐI THEO LỚP)")
+            st.subheader("📤 Giao bài AI (Theo Lớp)")
             assign_options = ["Toàn trường"] if st.session_state.role in ['core_admin', 'sub_admin'] else []
             assign_options.extend(available_classes)
             
