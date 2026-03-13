@@ -160,6 +160,9 @@ def draw_tower_shadow(bong):
 # ==========================================
 # 4. BỘ MÁY SINH ĐỀ AI LUYỆN TẬP (TRỘN ĐỀ HOÀN TOÀN)
 # ==========================================
+# ==========================================
+# 4. BỘ MÁY SINH ĐỀ AI 40 CÂU (ĐÃ VÁ LỖI CÚ PHÁP)
+# ==========================================
 class ExamGenerator:
     def __init__(self):
         self.exam = []
@@ -171,7 +174,8 @@ class ExamGenerator:
 
     def generate_all(self):
         pool = []
-        # Cơ bản (Rút gọn)
+        
+        # --- CHỦ ĐỀ 1: ĐẠI SỐ ---
         a1 = random.randint(2, 9)
         pool.append({"q": r"Điều kiện xác định của biểu thức $\sqrt{2x - " + str(2*a1) + r"}$ là:", "a": r"$x \ge " + str(a1) + r"$", "d": [r"$x > " + str(a1) + r"$", r"$x \le " + str(a1) + r"$", r"$x < " + str(a1) + r"$"], "h": "💡 HD: Biểu thức dưới căn $\ge 0$.", "i": None})
         a2 = random.choice([16, 25, 36, 49, 64])
@@ -187,54 +191,63 @@ class ExamGenerator:
         pool.append({"q": "Quan sát đồ thị Parabol trong hình vẽ. Khẳng định nào sau đây ĐÚNG?", "a": r"Hệ số $a > 0$", "d": [r"Hệ số $a < 0$", "Hàm số luôn nghịch biến", "Đồ thị nhận $Ox$ làm trục đối xứng"], "h": "💡 HD: Bề lõm hướng lên trên $\Rightarrow a > 0$.", "i": draw_real_parabola()})
         c8 = random.randint(1, 4)
         pool.append({"q": r"Tọa độ giao điểm của parabol $y = x^2$ và đường thẳng $y = " + str(c8**2) + r"$ là:", "a": r"$( " + str(c8) + r"; " + str(c8**2) + r")$ và $(-" + str(c8) + r"; " + str(c8**2) + r")$", "d": [r"$( " + str(c8) + r"; " + str(c8**2) + r")$", r"$(-" + str(c8) + r"; " + str(c8**2) + r")$", r"$(0; 0)$"], "h": "💡 HD: Giải phương trình hoành độ giao điểm.", "i": None})
-        
-        # Phương trình & Thực tế
+
+        # --- CHỦ ĐỀ 2: PHƯƠNG TRÌNH & THỰC TẾ ---
         pool.append({"q": r"Nghiệm của hệ phương trình $\begin{cases} x - y = 1 \\ 2x + y = 5 \end{cases}$ là:", "a": r"$(2; 1)$", "d": [r"$(1; 2)$", r"$(3; -1)$", r"$(2; -1)$"], "h": "💡 HD: Cộng 2 vế: $3x = 6 \Rightarrow x=2$.", "i": None})
         pool.append({"q": "Giá cước taxi: 10.000đ cho 1km đầu tiên, từ km thứ 2 giá 15.000đ/km. Hỏi đi 5km phải trả bao nhiêu tiền?", "a": "70.000 đ", "d": ["75.000 đ", "50.000 đ", "60.000 đ"], "h": "💡 HD: Tiền = 10.000 + 4 $\\times$ 15.000 = 70.000đ.", "i": None})
         p11 = random.choice([100, 200, 300])
-        pool.append({"q": f"Bác An gửi tiết kiệm {p11} triệu đồng với lãi suất 6%/năm. Sau 1 năm, tổng số tiền nhận được cả gốc và lãi là:", "a": f"{int(p11 * 1.06)} triệu", "d": [f"{int(p11 * 0.06)} triệu", f"{p11 + 6} triệu", f"{int(p11 * 1.6)} triệu"], "h": "💡 HD: Gốc + Lãi.", "i": None})
+        pool.append({"q": f"Bác An gửi tiết kiệm {p11} triệu đồng với lãi suất 6%/năm. Sau 1 năm, tổng số tiền bác An nhận được cả gốc và lãi là:", "a": f"{int(p11 * 1.06)} triệu", "d": [f"{int(p11 * 0.06)} triệu", f"{p11 + 6} triệu", f"{int(p11 * 1.6)} triệu"], "h": "💡 HD: Tổng = Gốc $\times (1 + 0.06)$.", "i": None})
         pool.append({"q": r"Tập nghiệm của phương trình $x^2 - 5x + 6 = 0$ là:", "a": r"$\{2; 3\}$", "d": [r"$\{-2; -3\}$", r"$\{1; 6\}$", r"$\{-1; -6\}$"], "h": "💡 HD: $2+3=5$ và $2 \times 3=6$.", "i": None})
         pool.append({"q": r"Cho phương trình $2x^2 - 7x + 3 = 0$. Tổng hai nghiệm $x_1 + x_2$ bằng:", "a": r"$\frac{7}{2}$", "d": [r"$-\frac{7}{2}$", r"$\frac{3}{2}$", "7"], "h": r"💡 HD: Theo Vi-ét: $S = -b/a$.", "i": None})
-        pool.append({"q": r"Giả sử phương trình $x^2 - 4x + 1 = 0$ có 2 nghiệm dương $x_1, x_2$. Giá trị của biểu thức $x_1^2 + x_2^2$ là:", "14", "d": ["16", "18", "12"], "h": r"💡 HD: $x_1^2 + x_2^2 = S^2 - 2P = 4^2 - 2(1) = 14$.", "i": None})
+        
+        # ĐÂY LÀ DÒNG CHỨA LỖI ĐÃ ĐƯỢC CHUYÊN GIA KHẮC PHỤC
+        pool.append({"q": r"Giả sử phương trình $x^2 - 4x + 1 = 0$ có 2 nghiệm dương $x_1, x_2$. Giá trị của biểu thức $x_1^2 + x_2^2$ là:", "a": "14", "d": ["16", "18", "12"], "h": r"💡 HD: $x_1^2 + x_2^2 = S^2 - 2P = 4^2 - 2(1) = 14$.", "i": None})
+        
         pool.append({"q": r"Hai vòi nước cùng chảy vào 1 bể cạn thì 6 giờ đầy bể. Nếu vòi 1 chảy một mình 10 giờ đầy bể, thì vòi 2 chảy một mình đầy bể trong bao lâu?", "a": "15 giờ", "d": ["12 giờ", "16 giờ", "4 giờ"], "h": "💡 HD: 1 giờ vòi 2 chảy: $1/6 - 1/10 = 1/15$ bể.", "i": None})
         pool.append({"q": r"Số nghiệm của phương trình $x^4 - 3x^2 - 4 = 0$ là:", "a": "2 nghiệm", "d": ["4 nghiệm", "1 nghiệm", "Vô nghiệm"], "h": r"💡 HD: Đặt $t = x^2 \Rightarrow t=4 \Rightarrow x = \pm 2$.", "i": None})
 
-        # Hình học
+        # --- CHỦ ĐỀ 3: HÌNH HỌC ---
         c17_1 = random.choice([3, 6, 9]); c17_2 = int(c17_1 * 4/3)
         huyen17 = int(math.sqrt(c17_1**2 + c17_2**2))
         pool.append({"q": r"Dựa vào kích thước tam giác $ABC$ vuông tại $A$ trên hình vẽ, độ dài cạnh huyền $BC$ là:", "a": f"{huyen17} cm", "d": [f"{c17_1+c17_2} cm", f"{huyen17**2} cm", f"{huyen17+1} cm"], "h": r"💡 HD: Định lý Pytago.", "i": draw_right_triangle(c17_1, c17_2)})
-        pool.append({"q": r"Trong tam giác $ABC$ vuông tại $A$, tỉ số $\frac{AB}{BC}$ là tỉ số lượng giác nào của góc $C$?", "a": r"$\sin C$", "d": [r"$\cos C$", r"$\tan C$", r"$\cot C$"], "h": "💡 HD: Sin = Đối / Huyền.", "i": None})
+        pool.append({"q": r"Trong tam giác $ABC$ vuông tại $A$, tỉ số $\frac{AB}{BC}$ là tỉ số lượng giác nào của góc $C$?", "a": r"$\sin C$", "d": [r"$\cos C$", r"$\tan C$", r"$\cot C$"], "h": "💡 HD: $\sin$ = Đối / Huyền.", "i": None})
         pool.append({"q": "Cho tam giác vuông có 2 hình chiếu của 2 cạnh góc vuông lên cạnh huyền là 4cm và 9cm. Độ dài đường cao ứng với cạnh huyền là:", "a": "6 cm", "d": ["13 cm", "36 cm", "5 cm"], "h": r"💡 HD: $h^2 = 4 \times 9 = 36 \Rightarrow h = 6$.", "i": None})
         pool.append({"q": r"Cho đường tròn tâm $O$ bán kính 5cm. Khoảng cách từ tâm $O$ đến dây $AB$ bằng 3cm. Độ dài dây $AB$ là:", "a": "8 cm", "d": ["4 cm", "10 cm", "6 cm"], "h": r"💡 HD: Pytago: $(AB/2)^2 = 5^2 - 3^2 = 16 \Rightarrow AB = 8$.", "i": None})
-        pool.append({"q": "Quan sát hình vẽ, dây cung chung của hai đường tròn cắt nhau có tính chất gì?", "a": "Vuông góc với đường nối tâm", "d": ["Song song với đường nối tâm", "Đi qua tâm 2 đường tròn", "Bằng tổng 2 bán kính"], "h": "💡 HD: Đường nối tâm là trung trực của dây chung.", "i": draw_intersecting_circles()})
+        pool.append({"q": "Quan sát hình vẽ, dây cung chung của hai đường tròn cắt nhau có tính chất gì?", "a": "Vuông góc với đường nối tâm", "d": ["Song song với đường nối tâm", "Đi qua tâm của cả hai đường tròn", "Bằng tổng 2 bán kính"], "h": "💡 HD: Đường nối tâm là đường trung trực của dây chung.", "i": draw_intersecting_circles()})
         pool.append({"q": r"Tứ giác $ABCD$ nội tiếp. Biết góc $A = 70^\circ$, góc $B = 100^\circ$. Số đo góc $C$ là:", "a": r"$110^\circ$", "d": [r"$80^\circ$", r"$70^\circ$", r"$100^\circ$"], "h": r"💡 HD: Tổng 2 góc đối diện $= 180^\circ \Rightarrow C = 180^\circ - 70^\circ = 110^\circ$.", "i": None})
-        pool.append({"q": r"Tam giác $ABC$ nội tiếp đường tròn có cạnh $BC$ là đường kính. Khẳng định ĐÚNG là:", "a": r"Tam giác $ABC$ vuông tại $A$", "d": [r"Tam giác $ABC$ đều", r"Tam giác $ABC$ cân tại $A$", r"Góc $A = 60^\circ$"], "h": "💡 HD: Góc nội tiếp chắn nửa đường tròn là góc vuông.", "i": None})
+        pool.append({"q": r"Tam giác $ABC$ nội tiếp đường tròn tâm $O$ có cạnh $BC$ là đường kính. Khẳng định ĐÚNG là:", "a": r"Tam giác $ABC$ vuông tại $A$", "d": [r"Tam giác $ABC$ đều", r"Tam giác $ABC$ cân tại $A$", r"Góc $A = 60^\circ$"], "h": "💡 HD: Góc nội tiếp chắn nửa đường tròn là góc vuông.", "i": None})
         pool.append({"q": r"Diện tích hình quạt tròn bán kính $R=6cm$, góc ở tâm $60^\circ$ là:", "a": r"$6\pi$ cm$^2$", "d": [r"$12\pi$ cm$^2$", r"$36\pi$ cm$^2$", r"$2\pi$ cm$^2$"], "h": r"💡 HD: $S = \frac{\pi R^2 n}{360} = 6\pi$.", "i": None})
         pool.append({"q": r"Độ dài cung $90^\circ$ của đường tròn bán kính 4cm là:", "a": r"$2\pi$ cm", "d": [r"$4\pi$ cm", r"$8\pi$ cm", r"$\pi$ cm"], "h": r"💡 HD: $l = \frac{\pi R n}{180} = 2\pi$.", "i": None})
         pool.append({"q": r"Hình nón có bán kính đáy $r=3$, chiều cao $h=4$. Thể tích là:", "a": r"$12\pi$", "d": [r"$36\pi$", r"$15\pi$", r"$9\pi$"], "h": r"💡 HD: $V = \frac{1}{3}\pi r^2 h = 12\pi$.", "i": None})
+        pool.append({"q": "Nếu tăng bán kính mặt cầu lên 2 lần thì diện tích mặt cầu tăng lên mấy lần?", "a": "4 lần", "d": ["2 lần", "8 lần", "16 lần"], "h": "💡 HD: Diện tích tỷ lệ với bình phương bán kính.", "i": None})
         pool.append({"q": "Một lon sữa bò hình trụ có bán kính đáy 4cm, cao 10cm. Thể tích lon sữa là:", "a": r"$160\pi$ cm$^3$", "d": [r"$40\pi$ cm$^3$", r"$80\pi$ cm$^3$", r"$320\pi$ cm$^3$"], "h": r"💡 HD: $V = \pi r^2 h = 160\pi$.", "i": None})
-        
-        # Thống kê Xác suất
+
+        # --- CHỦ ĐỀ 4: XÁC SUẤT THỐNG KÊ ---
         pool.append({"q": r"Dựa vào Biểu đồ phổ điểm, tổng tỉ lệ học sinh đạt điểm từ 7 trở lên (Nhóm [7;8), [8;9), [9;10]) là:", "a": "65%", "d": ["40%", "75%", "50%"], "h": "💡 HD: Cộng tỉ lệ 3 cột cuối.", "i": draw_histogram()})
         pool.append({"q": "Dựa vào biểu đồ phân loại học lực, nhóm học sinh nào chiếm đa số?", "a": "Khá (45%)", "d": ["Giỏi (25%)", "Trung bình (20%)", "Yếu (10%)"], "h": "💡 HD: Vùng Khá chiếm diện tích lớn nhất.", "i": draw_pie_chart()})
         pool.append({"q": "Gieo 1 con xúc xắc cân đối. Xác suất để được mặt có số chấm là số nguyên tố là:", "a": r"$\frac{1}{2}$", "d": [r"$\frac{1}{3}$", r"$\frac{1}{6}$", r"$\frac{2}{3}$"], "h": "💡 HD: Các số nguyên tố: 2, 3, 5 $\Rightarrow P = 3/6 = 1/2$.", "i": None})
         pool.append({"q": "Rút ngẫu nhiên 1 lá bài từ bộ bài tú lơ khơ 52 lá. Số phần tử của không gian mẫu là:", "a": "52", "d": ["13", "4", "26"], "h": "💡 HD: Không gian mẫu có 52 lá.", "i": None})
         pool.append({"q": "Trong 20 ngày đi học, Nam đi muộn 2 ngày. Xác suất thực nghiệm của biến cố 'Nam đi học đúng giờ' là:", "a": r"$\frac{9}{10}$", "d": [r"$\frac{1}{10}$", r"$\frac{1}{20}$", r"$90$"], "h": r"💡 HD: $(20-2)/20 = 9/10$.", "i": None})
-        pool.append({"q": "Một hộp có thẻ đánh số từ 1 đến 10. Rút 1 thẻ, xác suất rút thẻ là số chia hết cho 3 là:", "a": r"$\frac{3}{10}$", "d": [r"$\frac{1}{3}$", r"$\frac{4}{10}$", r"$\frac{1}{10}$"], "h": "💡 HD: Các số chia hết cho 3: 3, 6, 9 $\Rightarrow P = 3/10$.", "i": None})
+        pool.append({"q": "Một hộp có thẻ đánh số từ 1 đến 10. Rút 1 thẻ, xác suất rút được thẻ là số chia hết cho 3 là:", "a": r"$\frac{3}{10}$", "d": [r"$\frac{1}{3}$", r"$\frac{4}{10}$", r"$\frac{1}{10}$"], "h": "💡 HD: Các số chia hết cho 3: 3, 6, 9 $\Rightarrow P = 3/10$.", "i": None})
+        pool.append({"q": r"Giá trị của biểu thức $\sqrt[3]{-64} + \sqrt[3]{27}$ là:", "a": "-1", "d": ["-7", "1", "7"], "h": r"💡 HD: $-4 + 3 = -1$.", "i": None})
+        pool.append({"q": r"Tập nghiệm của bất phương trình $\frac{x-2}{-3} > 0$ là:", "a": r"$x < 2$", "d": [r"$x > 2$", r"$x < -2$", r"$x > -2$"], "h": r"💡 HD: Nhân 2 vế với số âm (-3) phải đảo chiều.", "i": None})
+        pool.append({"q": r"Điểm nào sau đây thuộc đồ thị hàm số $y = -2x + 5$?", "a": r"$(1; 3)$", "d": [r"$(1; 7)$", r"$(2; -1)$", r"$(0; -5)$"], "h": r"💡 HD: Thay $x=1 \Rightarrow y = 3$.", "i": None})
+        bong_2 = random.choice([15, 20, 25])
+        pool.append({"q": f"Vật thể có bóng dài {bong_2}m. Tia nắng tạo góc Alpha. Chiều cao vật thể là:", "a": f"{bong_2} x tan(Alpha)", "d": [f"{bong_2} x sin(Alpha)", f"{bong_2} x cos(Alpha)", f"{bong_2} x cot(Alpha)"], "h": "💡 HD: Dùng lượng giác Tan.", "i": draw_tower_shadow(bong_2)})
 
-        # Bốc 38 câu ngẫu nhiên từ kho
-        selected_normal = random.sample(pool, min(38, len(pool)))
+        # Chọn 38 câu ngẫu nhiên từ kho
+        selected_normal = random.sample(pool * 3, 38)
 
-        # Kho Vận Dụng Cao (Bốc 2 câu)
+        # --- CHỦ ĐỀ 5: NGÂN HÀNG CÂU HỎI VẬN DỤNG CAO (2 CÂU) ---
         hardcore_bank = [
-            {"q": r"**[Toán Chuyên]** Tìm số cặp nghiệm nguyên dương $(x; y)$ của phương trình: $xy - 2x - 3y + 5 = 0$.", "a": "2 cặp", "d": ["0 cặp", "1 cặp", "Vô số cặp"], "h": r"💡 **HD (Điểm 10):** Phương trình ước số $\Leftrightarrow (x-3)(y-2) = 1$. Giải ra $(4; 3)$ và $(2; 1)$."},
-            {"q": r"**[Toán Chuyên]** Cho $x, y > 0$ thỏa mãn $x+y=1$. Tìm giá trị nhỏ nhất của biểu thức $A = \frac{1}{x^2+y^2} + \frac{1}{xy}$.", "a": "6", "d": ["4", "8", "2"], "h": r"💡 **HD (Điểm 10):** Điểm rơi Cauchy: $A = (\frac{1}{x^2+y^2} + \frac{1}{2xy}) + \frac{1}{2xy} \ge \frac{4}{(x+y)^2} + 2 = 6$."},
-            {"q": r"**[Toán Chuyên]** Giải hệ phương trình đối xứng: $\begin{cases} x^2+y^2+xy=3 \\ x+y+xy=3 \end{cases}$. Có bao nhiêu cặp nghiệm $(x; y)$?", "a": "2 cặp", "d": ["1 cặp", "3 cặp", "0 cặp"], "h": r"💡 **HD (Điểm 10):** Đặt $S=x+y, P=xy$. Giải ra tìm được các nghiệm thỏa mãn."},
-            {"q": r"**[Toán Chuyên]** Giải phương trình vô tỷ: $\sqrt{x-1} + \sqrt{3-x} = x^2 - 4x + 6$. Phương trình có bao nhiêu nghiệm?", "a": "1 nghiệm", "d": ["2 nghiệm", "Vô nghiệm", "3 nghiệm"], "h": r"💡 **HD (Điểm 10):** Đánh giá Bunhiacopxki. $VT \le 2, VP \ge 2 \Rightarrow x=2$."}
+            {"q": r"**[Toán Chuyên]** Tìm số cặp nghiệm nguyên dương $(x; y)$ của phương trình: $xy - 2x - 3y + 5 = 0$.", "a": "2 cặp", "d": ["0 cặp", "1 cặp", "Vô số cặp"], "h": r"💡 **HD (Điểm 10):** Đưa về phương trình ước số: $xy - 2x - 3y + 6 = 1 \Leftrightarrow (x-3)(y-2) = 1$. Giải ra ta được $(4; 3)$ và $(2; 1)$."},
+            {"q": r"**[Toán Chuyên]** Cho $x, y > 0$ thỏa mãn $x+y=1$. Tìm giá trị nhỏ nhất của biểu thức $A = \frac{1}{x^2+y^2} + \frac{1}{xy}$.", "a": "6", "d": ["4", "8", "2"], "h": r"💡 **HD (Điểm 10):** Dùng kỹ thuật Điểm rơi Cauchy: $A = (\frac{1}{x^2+y^2} + \frac{1}{2xy}) + \frac{1}{2xy} \ge \frac{4}{(x+y)^2} + 2 = 6$."},
+            {"q": r"**[Toán Chuyên]** Giải hệ phương trình đối xứng: $\begin{cases} x^2+y^2+xy=3 \\ x+y+xy=3 \end{cases}$. Số cặp nghiệm $(x; y)$ của hệ là:", "a": "2 cặp", "d": ["1 cặp", "3 cặp", "4 cặp"], "h": r"💡 **HD (Điểm 10):** Đặt $S=x+y, P=xy$. Giải ra ta được $x=1, y=1$ hoặc $x, y$ là nghiệm phương trình khác."},
+            {"q": r"**[Toán Chuyên]** Giải phương trình vô tỷ: $\sqrt{x-1} + \sqrt{3-x} = x^2 - 4x + 6$. Phương trình có bao nhiêu nghiệm?", "a": "1 nghiệm", "d": ["2 nghiệm", "Vô nghiệm", "3 nghiệm"], "h": r"💡 **HD (Điểm 10):** Phương pháp Đánh giá. VT $\le 2$, VP $\ge 2$. Dấu bằng xảy ra khi $x=2$."}
         ]
         selected_hardcores = random.sample(hardcore_bank, 2)
 
-        # GỘP TẤT CẢ VÀ XÁO TRỘN ĐỂ CẤU TRÚC ĐỀ MỚI HOÀN TOÀN KHÁC
+        # TRỘN TOÀN BỘ ĐỂ XÁO TRỘN CẤU TRÚC ĐỀ
         final_questions = selected_normal + selected_hardcores
         random.shuffle(final_questions)
 
@@ -868,3 +881,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
