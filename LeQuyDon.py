@@ -234,12 +234,15 @@ class ExamGenerator:
         pool.append({"q": r"Tọa độ giao điểm của parabol $y = x^2$ và đường thẳng $y = " + str(c8**2) + r"$ là:", "a": r"$( " + str(c8) + r"; " + str(c8**2) + r")$ và $(-" + str(c8) + r"; " + str(c8**2) + r")$", "d": [r"$( " + str(c8) + r"; " + str(c8**2) + r")$", r"$(-" + str(c8) + r"; " + str(c8**2) + r")$", r"$(0; 0)$"], "h": "💡 HD: Giải phương trình hoành độ giao điểm.", "i": None})
         
         pool.append({"q": r"Nghiệm của hệ phương trình $\begin{cases} x - y = 1 \\ 2x + y = 5 \end{cases}$ là:", "a": r"$(2; 1)$", "d": [r"$(1; 2)$", r"$(3; -1)$", r"$(2; -1)$"], "h": "💡 HD: Cộng 2 vế: $3x = 6 \Rightarrow x=2$.", "i": None})
-        pool.append({"q": "Giá cước taxi: 10.000đ cho 1km đầu tiên, từ km thứ 2 giá 15.000đ/km. Hỏi đi 5km phải trả bao nhiêu tiền?", "a": "70.000 đ", "d": ["75.000 đ", "50.000 đ", "60.000 đ"], "h": "💡 HD: Tiền = 10.000 + 4 $\\times$ 15.000.", "i": None})
+        pool.append({"q": "Giá cước taxi: 10.000đ cho 1km đầu tiên, từ km thứ 2 giá 15.000đ/km. Hỏi đi 5km phải trả bao nhiêu tiền?", "a": "70.000 đ", "d": ["75.000 đ", "50.000 đ", "60.000 đ"], "h": "💡 HD: Tiền = 10.000 + 4 $\\times$ 15.000 = 70.000đ.", "i": None})
         p11 = random.choice([100, 200, 300])
         pool.append({"q": f"Bác An gửi tiết kiệm {p11} triệu đồng với lãi suất 6%/năm. Sau 1 năm, tổng số tiền nhận được cả gốc và lãi là:", "a": f"{int(p11 * 1.06)} triệu", "d": [f"{int(p11 * 0.06)} triệu", f"{p11 + 6} triệu", f"{int(p11 * 1.6)} triệu"], "h": "💡 HD: Tổng = Gốc $\times (1 + 0.06)$.", "i": None})
         pool.append({"q": r"Tập nghiệm của phương trình $x^2 - 5x + 6 = 0$ là:", "a": r"$\{2; 3\}$", "d": [r"$\{-2; -3\}$", r"$\{1; 6\}$", r"$\{-1; -6\}$"], "h": "💡 HD: $2+3=5$ và $2 \times 3=6$.", "i": None})
         pool.append({"q": r"Cho phương trình $2x^2 - 7x + 3 = 0$. Tổng hai nghiệm $x_1 + x_2$ bằng:", "a": r"$\frac{7}{2}$", "d": [r"$-\frac{7}{2}$", r"$\frac{3}{2}$", "7"], "h": r"💡 HD: Theo Vi-ét: $S = -b/a$.", "i": None})
-        pool.append({"q": r"Giả sử phương trình $x^2 - 4x + 1 = 0$ có 2 nghiệm dương $x_1, x_2$. Giá trị của biểu thức $x_1^2 + x_2^2$ là:", "14", "d": ["16", "18", "12"], "h": r"💡 HD: $x_1^2 + x_2^2 = S^2 - 2P = 4^2 - 2(1) = 14$.", "i": None})
+        
+        # ĐÂY LÀ DÒNG CHỨA LỖI ĐÃ ĐƯỢC SỬA LẠI CHUẨN XÁC ("a": "14")
+        pool.append({"q": r"Giả sử phương trình $x^2 - 4x + 1 = 0$ có 2 nghiệm dương $x_1, x_2$. Giá trị của biểu thức $x_1^2 + x_2^2$ là:", "a": "14", "d": ["16", "18", "12"], "h": r"💡 HD: $x_1^2 + x_2^2 = S^2 - 2P = 4^2 - 2(1) = 14$.", "i": None})
+        
         pool.append({"q": r"Hai vòi nước cùng chảy vào 1 bể cạn thì 6 giờ đầy bể. Nếu vòi 1 chảy một mình 10 giờ đầy bể, thì vòi 2 chảy một mình đầy bể trong bao lâu?", "a": "15 giờ", "d": ["12 giờ", "16 giờ", "4 giờ"], "h": "💡 HD: 1 giờ vòi 2 chảy: $1/6 - 1/10 = 1/15$ bể.", "i": None})
         pool.append({"q": r"Số nghiệm của phương trình $x^4 - 3x^2 - 4 = 0$ là:", "a": "2 nghiệm", "d": ["4 nghiệm", "1 nghiệm", "Vô nghiệm"], "h": r"💡 HD: Đặt $t = x^2 \Rightarrow t=4 \Rightarrow x = \pm 2$.", "i": None})
 
@@ -819,3 +822,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
