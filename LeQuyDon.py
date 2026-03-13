@@ -21,7 +21,7 @@ from datetime import datetime, timedelta, timezone
 
 VN_TZ = timezone(timedelta(hours=7))
 
-# --- HÀM HỖ TRỢ XUẤT EXCEL & TEMPLATE ---
+# Hàm hỗ trợ xuất Excel
 def to_excel(df):
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -36,68 +36,8 @@ def create_excel_template():
         df_template.to_excel(writer, index=False, sheet_name='MauNhapLieu')
     return output.getvalue()
 
-def create_word_template():
-    template = """Câu 1: Thủ đô của Việt Nam là gì?
-A. Thành phố Hồ Chí Minh
-B. Hà Nội
-C. Đà Nẵng
-D. Huế
-Đáp án: B
-Giải thích: Hà Nội là thủ đô của nước CHXHCN Việt Nam.
-
-Câu 2: Nghiệm của phương trình x + 5 = 7 là?
-A. x = 1
-B. x = 2
-C. x = 3
-D. x = 4
-Đáp án: B
-Giải thích: Chuyển vế đổi dấu ta có x = 7 - 5 = 2.
-"""
-    return template.encode('utf-8')
-
-def parse_word_content(text):
-    questions = []
-    blocks = re.split(r'(?i)Câu\s+\d+[\.:]', text)
-    q_id = 1
-    for block in blocks[1:]: 
-        if not block.strip(): continue
-        try:
-            q_text_match = re.search(r'(.*?)(?=A\.)', block, re.DOTALL)
-            opt_A_match = re.search(r'A\.(.*?)(?=B\.)', block, re.DOTALL)
-            opt_B_match = re.search(r'B\.(.*?)(?=C\.)', block, re.DOTALL)
-            opt_C_match = re.search(r'C\.(.*?)(?=D\.)', block, re.DOTALL)
-            opt_D_match = re.search(r'D\.(.*?)(?=Đáp án:)', block, re.DOTALL | re.IGNORECASE)
-            ans_match = re.search(r'Đáp án:\s*([A-D])', block, re.IGNORECASE)
-            hint_match = re.search(r'Giải thích:(.*)', block, re.DOTALL | re.IGNORECASE)
-
-            if q_text_match and opt_A_match and opt_B_match and opt_C_match and opt_D_match and ans_match:
-                q_text = q_text_match.group(1).strip()
-                options = [
-                    opt_A_match.group(1).strip(),
-                    opt_B_match.group(1).strip(),
-                    opt_C_match.group(1).strip(),
-                    opt_D_match.group(1).strip()
-                ]
-                ans_letter = ans_match.group(1).upper()
-                ans_idx = ord(ans_letter) - ord('A')
-                correct_ans = options[ans_idx]
-                hint = hint_match.group(1).strip() if hint_match else "Giáo viên không ghi chú lời giải chi tiết."
-
-                questions.append({
-                    "id": q_id,
-                    "question": q_text,
-                    "options": options,
-                    "answer": correct_ans,
-                    "hint": f"💡 HD: {hint}",
-                    "image": None
-                })
-                q_id += 1
-        except Exception:
-            continue
-    return questions
-
 # ==========================================
-# 2. CƠ SỞ DỮ LIỆU ĐA TẦNG
+# 2. CƠ SỞ DỮ LIỆU ĐA TẦNG (HỖ TRỢ FILE PDF)
 # ==========================================
 def init_db():
     conn = sqlite3.connect('exam_db.sqlite')
@@ -108,9 +48,15 @@ def init_db():
         except: pass
 
     c.execute('''CREATE TABLE IF NOT EXISTS results (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, score REAL, correct_count INTEGER, wrong_count INTEGER, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+    
+    # Bảng giao bài bắt buộc (Thêm tính năng lưu File và Chuỗi đáp án)
     c.execute('''CREATE TABLE IF NOT EXISTS mandatory_exams (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, questions_json TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-    for col in ["start_time", "end_time", "target_class"]:
-        try: c.execute(f"ALTER TABLE mandatory_exams ADD COLUMN {col} TEXT")
+    cols = [
+        ("start_time", "TEXT"), ("end_time", "TEXT"), ("target_class", "TEXT"),
+        ("file_data", "TEXT"), ("file_type", "TEXT"), ("answer_key", "TEXT")
+    ]
+    for col, dtype in cols:
+        try: c.execute(f"ALTER TABLE mandatory_exams ADD COLUMN {col} {dtype}")
         except: pass
 
     c.execute('''CREATE TABLE IF NOT EXISTS mandatory_results (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, exam_id INTEGER, score REAL, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
@@ -130,7 +76,7 @@ def generate_username(fullname, dob):
     return f"{clean_name}{suffix}_{random.randint(10,99)}"
 
 # ==========================================
-# 3. ĐỒ HỌA TOÁN HỌC CHUẨN XÁC
+# 3. ĐỒ HỌA TOÁN HỌC CHUẨN XÁC (DÀNH CHO LUYỆN ĐỀ AI)
 # ==========================================
 def fig_to_base64(fig):
     buf = BytesIO()
@@ -212,7 +158,7 @@ def draw_tower_shadow(bong):
     return fig_to_base64(fig)
 
 # ==========================================
-# 4. BỘ MÁY SINH ĐỀ AI (XÁO TRỘN, CHỐNG LỖI 100%)
+# 4. BỘ MÁY SINH ĐỀ AI LUYỆN TẬP (TRỘN ĐỀ HOÀN TOÀN)
 # ==========================================
 class ExamGenerator:
     def __init__(self):
@@ -225,7 +171,7 @@ class ExamGenerator:
 
     def generate_all(self):
         pool = []
-        
+        # Cơ bản (Rút gọn)
         a1 = random.randint(2, 9)
         pool.append({"q": r"Điều kiện xác định của biểu thức $\sqrt{2x - " + str(2*a1) + r"}$ là:", "a": r"$x \ge " + str(a1) + r"$", "d": [r"$x > " + str(a1) + r"$", r"$x \le " + str(a1) + r"$", r"$x < " + str(a1) + r"$"], "h": "💡 HD: Biểu thức dưới căn $\ge 0$.", "i": None})
         a2 = random.choice([16, 25, 36, 49, 64])
@@ -234,7 +180,7 @@ class ExamGenerator:
         a3 = random.randint(3, 5)
         pool.append({"q": r"Với $a \ge 0$, biểu thức $\sqrt{" + str(a3**2) + r"a^2}$ bằng:", "a": f"{a3}a", "d": [f"-{a3}a", f"{a3**2}a", f"{a3}|a|"], "h": "💡 HD: Đưa ra ngoài dấu căn.", "i": None})
         a4 = random.randint(2, 7)
-        pool.append({"q": r"Trục căn thức ở mẫu của $\frac{1}{\sqrt{" + str(a4) + r"} - 1}$ ta được:", "a": r"$\frac{\sqrt{" + str(a4) + r"} + 1}{" + str(a4-1) + r"}$", "d": [r"$\frac{\sqrt{" + str(a4) + r"} - 1}{" + str(a4-1) + r"}$", r"$\sqrt{" + str(a4) + r"} + 1$", r"$\frac{1}{" + str(a4-1) + r"}$"], "h": "💡 HD: Nhân với lượng liên hợp.", "i": None})
+        pool.append({"q": r"Trục căn thức ở mẫu của biểu thức $\frac{1}{\sqrt{" + str(a4) + r"} - 1}$ ta được:", "a": r"$\frac{\sqrt{" + str(a4) + r"} + 1}{" + str(a4-1) + r"}$", "d": [r"$\frac{\sqrt{" + str(a4) + r"} - 1}{" + str(a4-1) + r"}$", r"$\sqrt{" + str(a4) + r"} + 1$", r"$\frac{1}{" + str(a4-1) + r"}$"], "h": "💡 HD: Nhân với lượng liên hợp.", "i": None})
         m5 = random.randint(2, 5)
         pool.append({"q": r"Để hàm số $y = (m - " + str(m5) + r")x + 3$ đồng biến trên $\mathbb{R}$, thì điều kiện của $m$ là:", "a": r"$m > " + str(m5) + r"$", "d": [r"$m < " + str(m5) + r"$", r"$m \ne " + str(m5) + r"$", r"$m \ge " + str(m5) + r"$"], "h": "💡 HD: Hàm số đồng biến khi $a > 0$.", "i": None})
         pool.append({"q": r"Đường thẳng $y = 2x + 1$ song song với đường thẳng nào dưới đây?", "a": r"$y = 2x - 3$", "d": [r"$y = -2x + 1$", r"$y = \frac{1}{2}x + 1$", r"$y = 2x + 1$"], "h": "💡 HD: Song song khi $a=a'$ và $b \ne b'$.", "i": None})
@@ -242,6 +188,7 @@ class ExamGenerator:
         c8 = random.randint(1, 4)
         pool.append({"q": r"Tọa độ giao điểm của parabol $y = x^2$ và đường thẳng $y = " + str(c8**2) + r"$ là:", "a": r"$( " + str(c8) + r"; " + str(c8**2) + r")$ và $(-" + str(c8) + r"; " + str(c8**2) + r")$", "d": [r"$( " + str(c8) + r"; " + str(c8**2) + r")$", r"$(-" + str(c8) + r"; " + str(c8**2) + r")$", r"$(0; 0)$"], "h": "💡 HD: Giải phương trình hoành độ giao điểm.", "i": None})
         
+        # Phương trình & Thực tế
         pool.append({"q": r"Nghiệm của hệ phương trình $\begin{cases} x - y = 1 \\ 2x + y = 5 \end{cases}$ là:", "a": r"$(2; 1)$", "d": [r"$(1; 2)$", r"$(3; -1)$", r"$(2; -1)$"], "h": "💡 HD: Cộng 2 vế: $3x = 6 \Rightarrow x=2$.", "i": None})
         pool.append({"q": "Giá cước taxi: 10.000đ cho 1km đầu tiên, từ km thứ 2 giá 15.000đ/km. Hỏi đi 5km phải trả bao nhiêu tiền?", "a": "70.000 đ", "d": ["75.000 đ", "50.000 đ", "60.000 đ"], "h": "💡 HD: Tiền = 10.000 + 4 $\\times$ 15.000 = 70.000đ.", "i": None})
         p11 = random.choice([100, 200, 300])
@@ -252,13 +199,14 @@ class ExamGenerator:
         pool.append({"q": r"Hai vòi nước cùng chảy vào 1 bể cạn thì 6 giờ đầy bể. Nếu vòi 1 chảy một mình 10 giờ đầy bể, thì vòi 2 chảy một mình đầy bể trong bao lâu?", "a": "15 giờ", "d": ["12 giờ", "16 giờ", "4 giờ"], "h": "💡 HD: 1 giờ vòi 2 chảy: $1/6 - 1/10 = 1/15$ bể.", "i": None})
         pool.append({"q": r"Số nghiệm của phương trình $x^4 - 3x^2 - 4 = 0$ là:", "a": "2 nghiệm", "d": ["4 nghiệm", "1 nghiệm", "Vô nghiệm"], "h": r"💡 HD: Đặt $t = x^2 \Rightarrow t=4 \Rightarrow x = \pm 2$.", "i": None})
 
+        # Hình học
         c17_1 = random.choice([3, 6, 9]); c17_2 = int(c17_1 * 4/3)
         huyen17 = int(math.sqrt(c17_1**2 + c17_2**2))
         pool.append({"q": r"Dựa vào kích thước tam giác $ABC$ vuông tại $A$ trên hình vẽ, độ dài cạnh huyền $BC$ là:", "a": f"{huyen17} cm", "d": [f"{c17_1+c17_2} cm", f"{huyen17**2} cm", f"{huyen17+1} cm"], "h": r"💡 HD: Định lý Pytago.", "i": draw_right_triangle(c17_1, c17_2)})
         pool.append({"q": r"Trong tam giác $ABC$ vuông tại $A$, tỉ số $\frac{AB}{BC}$ là tỉ số lượng giác nào của góc $C$?", "a": r"$\sin C$", "d": [r"$\cos C$", r"$\tan C$", r"$\cot C$"], "h": "💡 HD: Sin = Đối / Huyền.", "i": None})
         pool.append({"q": "Cho tam giác vuông có 2 hình chiếu của 2 cạnh góc vuông lên cạnh huyền là 4cm và 9cm. Độ dài đường cao ứng với cạnh huyền là:", "a": "6 cm", "d": ["13 cm", "36 cm", "5 cm"], "h": r"💡 HD: $h^2 = 4 \times 9 = 36 \Rightarrow h = 6$.", "i": None})
         pool.append({"q": r"Cho đường tròn tâm $O$ bán kính 5cm. Khoảng cách từ tâm $O$ đến dây $AB$ bằng 3cm. Độ dài dây $AB$ là:", "a": "8 cm", "d": ["4 cm", "10 cm", "6 cm"], "h": r"💡 HD: Pytago: $(AB/2)^2 = 5^2 - 3^2 = 16 \Rightarrow AB = 8$.", "i": None})
-        pool.append({"q": "Quan sát hình vẽ, dây cung chung của hai đường tròn cắt nhau có tính chất gì?", "a": "Vuông góc với đường nối tâm", "d": ["Song song với đường nối tâm", "Đi qua tâm của cả hai đường tròn", "Bằng tổng 2 bán kính"], "h": "💡 HD: Đường nối tâm là đường trung trực của dây chung.", "i": draw_intersecting_circles()})
+        pool.append({"q": "Quan sát hình vẽ, dây cung chung của hai đường tròn cắt nhau có tính chất gì?", "a": "Vuông góc với đường nối tâm", "d": ["Song song với đường nối tâm", "Đi qua tâm 2 đường tròn", "Bằng tổng 2 bán kính"], "h": "💡 HD: Đường nối tâm là trung trực của dây chung.", "i": draw_intersecting_circles()})
         pool.append({"q": r"Tứ giác $ABCD$ nội tiếp. Biết góc $A = 70^\circ$, góc $B = 100^\circ$. Số đo góc $C$ là:", "a": r"$110^\circ$", "d": [r"$80^\circ$", r"$70^\circ$", r"$100^\circ$"], "h": r"💡 HD: Tổng 2 góc đối diện $= 180^\circ \Rightarrow C = 180^\circ - 70^\circ = 110^\circ$.", "i": None})
         pool.append({"q": r"Tam giác $ABC$ nội tiếp đường tròn có cạnh $BC$ là đường kính. Khẳng định ĐÚNG là:", "a": r"Tam giác $ABC$ vuông tại $A$", "d": [r"Tam giác $ABC$ đều", r"Tam giác $ABC$ cân tại $A$", r"Góc $A = 60^\circ$"], "h": "💡 HD: Góc nội tiếp chắn nửa đường tròn là góc vuông.", "i": None})
         pool.append({"q": r"Diện tích hình quạt tròn bán kính $R=6cm$, góc ở tâm $60^\circ$ là:", "a": r"$6\pi$ cm$^2$", "d": [r"$12\pi$ cm$^2$", r"$36\pi$ cm$^2$", r"$2\pi$ cm$^2$"], "h": r"💡 HD: $S = \frac{\pi R^2 n}{360} = 6\pi$.", "i": None})
@@ -266,18 +214,16 @@ class ExamGenerator:
         pool.append({"q": r"Hình nón có bán kính đáy $r=3$, chiều cao $h=4$. Thể tích là:", "a": r"$12\pi$", "d": [r"$36\pi$", r"$15\pi$", r"$9\pi$"], "h": r"💡 HD: $V = \frac{1}{3}\pi r^2 h = 12\pi$.", "i": None})
         pool.append({"q": "Một lon sữa bò hình trụ có bán kính đáy 4cm, cao 10cm. Thể tích lon sữa là:", "a": r"$160\pi$ cm$^3$", "d": [r"$40\pi$ cm$^3$", r"$80\pi$ cm$^3$", r"$320\pi$ cm$^3$"], "h": r"💡 HD: $V = \pi r^2 h = 160\pi$.", "i": None})
         
+        # Thống kê Xác suất
         pool.append({"q": r"Dựa vào Biểu đồ phổ điểm, tổng tỉ lệ học sinh đạt điểm từ 7 trở lên (Nhóm [7;8), [8;9), [9;10]) là:", "a": "65%", "d": ["40%", "75%", "50%"], "h": "💡 HD: Cộng tỉ lệ 3 cột cuối.", "i": draw_histogram()})
         pool.append({"q": "Dựa vào biểu đồ phân loại học lực, nhóm học sinh nào chiếm đa số?", "a": "Khá (45%)", "d": ["Giỏi (25%)", "Trung bình (20%)", "Yếu (10%)"], "h": "💡 HD: Vùng Khá chiếm diện tích lớn nhất.", "i": draw_pie_chart()})
         pool.append({"q": "Gieo 1 con xúc xắc cân đối. Xác suất để được mặt có số chấm là số nguyên tố là:", "a": r"$\frac{1}{2}$", "d": [r"$\frac{1}{3}$", r"$\frac{1}{6}$", r"$\frac{2}{3}$"], "h": "💡 HD: Các số nguyên tố: 2, 3, 5 $\Rightarrow P = 3/6 = 1/2$.", "i": None})
         pool.append({"q": "Rút ngẫu nhiên 1 lá bài từ bộ bài tú lơ khơ 52 lá. Số phần tử của không gian mẫu là:", "a": "52", "d": ["13", "4", "26"], "h": "💡 HD: Không gian mẫu có 52 lá.", "i": None})
         pool.append({"q": "Trong 20 ngày đi học, Nam đi muộn 2 ngày. Xác suất thực nghiệm của biến cố 'Nam đi học đúng giờ' là:", "a": r"$\frac{9}{10}$", "d": [r"$\frac{1}{10}$", r"$\frac{1}{20}$", r"$90$"], "h": r"💡 HD: $(20-2)/20 = 9/10$.", "i": None})
         pool.append({"q": "Một hộp có thẻ đánh số từ 1 đến 10. Rút 1 thẻ, xác suất rút thẻ là số chia hết cho 3 là:", "a": r"$\frac{3}{10}$", "d": [r"$\frac{1}{3}$", r"$\frac{4}{10}$", r"$\frac{1}{10}$"], "h": "💡 HD: Các số chia hết cho 3: 3, 6, 9 $\Rightarrow P = 3/10$.", "i": None})
-        pool.append({"q": r"Giá trị của biểu thức $\sqrt[3]{-64} + \sqrt[3]{27}$ là:", "a": "-1", "d": ["-7", "1", "7"], "h": r"💡 HD: $-4 + 3 = -1$.", "i": None})
-        pool.append({"q": r"Tập nghiệm của bất phương trình $\frac{x-2}{-3} > 0$ là:", "a": r"$x < 2$", "d": [r"$x > 2$", r"$x < -2$", r"$x > -2$"], "h": r"💡 HD: Nhân 2 vế với số âm (-3) phải đảo chiều.", "i": None})
-        pool.append({"q": r"Điểm nào sau đây thuộc đồ thị hàm số $y = -2x + 5$?", "a": r"$(1; 3)$", "d": [r"$(1; 7)$", r"$(2; -1)$", r"$(0; -5)$"], "h": r"💡 HD: Thay $x=1 \Rightarrow y = 3$.", "i": None})
 
-        # Nhân bản danh sách để đủ trộn 38 câu
-        selected_normal = random.sample(pool * 3, 38)
+        # Bốc 38 câu ngẫu nhiên từ kho
+        selected_normal = random.sample(pool, min(38, len(pool)))
 
         # Kho Vận Dụng Cao (Bốc 2 câu)
         hardcore_bank = [
@@ -288,7 +234,7 @@ class ExamGenerator:
         ]
         selected_hardcores = random.sample(hardcore_bank, 2)
 
-        # TRỘN TOÀN BỘ VÀ GÁN ID 1 -> 40
+        # GỘP TẤT CẢ VÀ XÁO TRỘN ĐỂ CẤU TRÚC ĐỀ MỚI HOÀN TOÀN KHÁC
         final_questions = selected_normal + selected_hardcores
         random.shuffle(final_questions)
 
@@ -305,12 +251,13 @@ class ExamGenerator:
 # 5. GIAO DIỆN LMS MANAGER CHÍNH
 # ==========================================
 def main():
-    st.set_page_config(page_title="LMS - Đánh Giá Tuyên Quang", layout="wide", page_icon="🏫")
+    st.set_page_config(page_title="LMS - Quản Lý Giáo Dục", layout="wide", page_icon="🏫")
     init_db()
     
     if 'current_user' not in st.session_state: st.session_state.current_user = None
     if 'role' not in st.session_state: st.session_state.role = None
 
+    # --- CỔNG ĐĂNG NHẬP ---
     if st.session_state.current_user is None:
         st.markdown("<h1 style='text-align: center; color: #2E3B55;'>🎓 HỆ THỐNG QUẢN LÝ HỌC TẬP</h1>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1, 1.5, 1])
@@ -338,13 +285,12 @@ def main():
         role_map = {"core_admin": "👑 Giám Đốc", "sub_admin": "🛡 Admin Thành Viên", "teacher": "👨‍🏫 Giáo viên", "student": "🎓 Học sinh"}
         st.markdown(f"**Vai trò:** {role_map.get(st.session_state.role, '')}")
         
-        # Hiện tên lớp cho Học sinh
+        # Báo cho học sinh biết mình đang ở lớp nào để tránh nhầm lẫn
         if st.session_state.role == 'student':
             conn = sqlite3.connect('exam_db.sqlite')
             c = conn.cursor()
             c.execute("SELECT class_name FROM users WHERE username=?", (st.session_state.current_user,))
-            res_cl = c.fetchone()
-            my_class = res_cl[0] if res_cl and res_cl[0] else "Chưa phân lớp"
+            my_class = c.fetchone()[0]
             st.markdown(f"**Lớp học:** {my_class}")
             conn.close()
 
@@ -356,36 +302,41 @@ def main():
     # GIAO DIỆN HỌC SINH 
     # ==========================
     if st.session_state.role == 'student':
-        tab_mand, tab_ai = st.tabs(["🔥 Bài tập Bắt buộc (Giáo viên giao)", "🤖 Luyện đề Đa dạng"])
+        tab_mand, tab_ai = st.tabs(["🔥 Bài tập Bắt buộc (Giáo viên giao)", "🤖 Luyện đề Đa dạng (AI Sinh)"])
         now_vn = datetime.now(VN_TZ)
         
+        # TAB BÀI TẬP BẮT BUỘC (GIÁO VIÊN GIAO - CÓ BÀI TỰ LUẬN PDF)
         with tab_mand:
-            st.info("📌 Khu vực làm các bài thi chính thức do Admin hoặc Giáo viên phát hành.")
+            st.info("📌 Đây là khu vực chứa các đề thi chính thức do Admin hoặc Giáo viên phân công riêng cho bạn.")
             conn = sqlite3.connect('exam_db.sqlite')
             
-            # Khắc phục Data Schema cũ
+            # --- KIỂM TRA VÀ THÊM CỘT CHO TÍNH NĂNG FILE TẢI LÊN ---
             try:
-                df_exams = pd.read_sql_query("SELECT id, title, start_time, end_time, questions_json, target_class FROM mandatory_exams ORDER BY id DESC", conn)
+                df_exams = pd.read_sql_query("SELECT id, title, start_time, end_time, target_class, file_data, file_type, answer_key, questions_json FROM mandatory_exams ORDER BY id DESC", conn)
             except:
                 c = conn.cursor()
-                c.execute("ALTER TABLE mandatory_exams ADD COLUMN target_class TEXT DEFAULT 'Toàn trường'")
+                cols = [("target_class", "TEXT DEFAULT 'Toàn trường'"), ("file_data", "TEXT"), ("file_type", "TEXT"), ("answer_key", "TEXT")]
+                for col, dtype in cols:
+                    try: c.execute(f"ALTER TABLE mandatory_exams ADD COLUMN {col} {dtype}")
+                    except: pass
                 conn.commit()
-                df_exams = pd.read_sql_query("SELECT id, title, start_time, end_time, questions_json, target_class FROM mandatory_exams ORDER BY id DESC", conn)
+                df_exams = pd.read_sql_query("SELECT id, title, start_time, end_time, target_class, file_data, file_type, answer_key, questions_json FROM mandatory_exams ORDER BY id DESC", conn)
             
-            # Thuật toán lọc bài chuẩn xác
+            # --- LỌC BÀI TẬP ĐÚNG LỚP HỌC SINH (FIX LỖI 100%) ---
             c = conn.cursor()
             c.execute("SELECT class_name FROM users WHERE username=?", (st.session_state.current_user,))
             res_cls = c.fetchone()
             student_class = str(res_cls[0]).strip().lower() if res_cls and res_cls[0] else ""
             
-            if not df_exams.empty:
-                df_exams['target_class'] = df_exams['target_class'].fillna('Toàn trường')
-                def is_target(t):
-                    ts = str(t).strip().lower()
-                    return ts == 'toàn trường' or ts == student_class
-                df_exams = df_exams[df_exams['target_class'].apply(is_target)]
+            valid_exams = []
+            for idx, row in df_exams.iterrows():
+                tc = str(row.get('target_class', '')).strip().lower()
+                # Học sinh nhìn thấy bài nếu Giáo viên giao "Toàn trường", hoặc giao đúng lớp của học sinh, hoặc lớp học sinh rỗng
+                if tc == 'toàn trường' or tc == student_class or tc == 'none' or tc == '':
+                    valid_exams.append(row)
+            df_exams = pd.DataFrame(valid_exams) if valid_exams else pd.DataFrame()
             
-            if df_exams.empty: st.success("Hiện chưa có bài tập bắt buộc nào dành cho lớp của bạn.")
+            if df_exams.empty: st.success("🎉 Hiện tại bạn đã hoàn thành hết các bài tập hoặc Giáo viên chưa giao bài mới.")
             else:
                 for idx, row in df_exams.iterrows():
                     exam_id = row['id']
@@ -402,27 +353,30 @@ def main():
                     st.markdown(f"#### 📜 {row['title']}"); st.markdown(time_display)
                     
                     if res:
-                        st.success("✅ Bạn đã hoàn thành bài này!")
-                        if st.button("👁 Xem lại bài", key=f"rev_{exam_id}"):
+                        st.success("✅ Bạn đã hoàn thành bài thi này!")
+                        if st.button("👁 Xem lại kết quả", key=f"rev_{exam_id}"):
                             st.session_state.active_mand_exam = exam_id
                             st.session_state.mand_mode = 'review'
                             st.rerun()
                     else:
-                        if t_start and now_vn < t_start: st.warning("⏳ Chưa đến thời gian.")
-                        elif t_end and now_vn > t_end: st.error("🔒 Đã hết hạn.")
+                        if t_start and now_vn < t_start: st.warning("⏳ Chưa đến thời gian làm bài.")
+                        elif t_end and now_vn > t_end: st.error("🔒 Bài kiểm tra đã đóng.")
                         else:
-                            if st.button("✍️ BẮT ĐẦU THI", key=f"do_{exam_id}", type="primary"):
+                            if st.button("✍️ BẮT ĐẦU LÀM BÀI", key=f"do_{exam_id}", type="primary"):
                                 st.session_state.active_mand_exam = exam_id
                                 st.session_state.mand_mode = 'do'
                                 st.session_state[f"start_exam_{exam_id}"] = datetime.now().timestamp()
                                 st.rerun()
                     st.markdown("---")
             
+            # --- KHU VỰC THỰC THI LÀM BÀI (HỖ TRỢ CẢ FILE PDF CỦA GIÁO VIÊN) ---
             if 'active_mand_exam' in st.session_state and st.session_state.active_mand_exam is not None:
                 exam_id = st.session_state.active_mand_exam
                 mode = st.session_state.mand_mode
                 exam_row = df_exams[df_exams['id'] == exam_id].iloc[0]
-                mand_exam_data = json.loads(exam_row['questions_json'])
+                
+                # Check xem đây là đề Giáo viên tải lên (có file_data) hay đề AI cũ
+                is_custom_upload = pd.notnull(exam_row.get('file_data')) and exam_row.get('file_data') != ""
                 
                 if mode == 'do':
                     time_limit_sec = 90 * 60
@@ -445,47 +399,110 @@ def main():
                     components.html(js_timer, height=60)
                     
                     st.subheader(f"📝 ĐANG THI: {exam_row['title']}")
-                    if f"mand_ans_{exam_id}" not in st.session_state:
-                        st.session_state[f"mand_ans_{exam_id}"] = {str(q['id']): None for q in mand_exam_data}
-                        
-                    for q in mand_exam_data:
-                        st.markdown(f"**Câu {q['id']}:** {q['question']}", unsafe_allow_html=True)
-                        if q.get('image'): st.markdown(f'<img src="data:image/png;base64,{q["image"]}" style="max-width:350px;">', unsafe_allow_html=True)
-                        ans_val = st.session_state[f"mand_ans_{exam_id}"][str(q['id'])]
-                        selected = st.radio("Chọn đáp án:", options=q['options'], index=q['options'].index(ans_val) if ans_val in q['options'] else None, key=f"m_q_{exam_id}_{q['id']}", label_visibility="collapsed")
-                        st.session_state[f"mand_ans_{exam_id}"][str(q['id'])] = selected
-                        st.markdown("---")
                     
-                    if st.button("📤 NỘP BÀI CHÍNH THỨC", type="primary", use_container_width=True) or remaining <= 0:
-                        correct = sum(1 for q in mand_exam_data if st.session_state[f"mand_ans_{exam_id}"][str(q['id'])] == q['answer'])
-                        score = (correct / len(mand_exam_data)) * 10 if len(mand_exam_data) > 0 else 0
-                        c.execute("INSERT INTO mandatory_results (username, exam_id, score, user_answers_json) VALUES (?, ?, ?, ?)", (st.session_state.current_user, exam_id, score, json.dumps(st.session_state[f"mand_ans_{exam_id}"])))
-                        conn.commit()
-                        st.success("✅ Đã nộp bài!")
-                        st.session_state.active_mand_exam = None
-                        st.rerun()
+                    # NẾU LÀ ĐỀ GIÁO VIÊN TẢI LÊN
+                    if is_custom_upload:
+                        ans_key = json.loads(exam_row['answer_key'])
+                        num_q = len(ans_key)
+                        
+                        if f"mand_ans_{exam_id}" not in st.session_state:
+                            st.session_state[f"mand_ans_{exam_id}"] = {str(i+1): None for i in range(num_q)}
+                            
+                        col_pdf, col_ans = st.columns([2, 1])
+                        with col_pdf:
+                            st.markdown("#### 📄 Nội dung Đề thi")
+                            b64 = exam_row['file_data']
+                            mime = exam_row['file_type']
+                            if 'pdf' in mime:
+                                pdf_display = f'<iframe src="data:application/pdf;base64,{b64}" width="100%" height="800px" type="application/pdf"></iframe>'
+                                st.markdown(pdf_display, unsafe_allow_html=True)
+                            else:
+                                st.markdown(f'<img src="data:{mime};base64,{b64}" width="100%">', unsafe_allow_html=True)
+                                
+                        with col_ans:
+                            st.markdown("#### ✍️ Phiếu trả lời trắc nghiệm")
+                            grid_cols = st.columns(2)
+                            for i in range(num_q):
+                                with grid_cols[i % 2]:
+                                    current_val = st.session_state[f"mand_ans_{exam_id}"][str(i+1)]
+                                    idx = ['A','B','C','D'].index(current_val) if current_val else None
+                                    sel = st.radio(f"Câu {i+1}", ['A','B','C','D'], index=idx, key=f"q_{exam_id}_{i}", horizontal=True)
+                                    st.session_state[f"mand_ans_{exam_id}"][str(i+1)] = sel
+                                    
+                        if st.button("📤 NỘP BÀI CHÍNH THỨC", type="primary", use_container_width=True) or remaining <= 0:
+                            correct = 0
+                            stu_ans = st.session_state[f"mand_ans_{exam_id}"]
+                            for i, correct_ans in enumerate(ans_key):
+                                if stu_ans[str(i+1)] == correct_ans: correct += 1
+                            score = (correct / num_q) * 10
+                            c.execute("INSERT INTO mandatory_results (username, exam_id, score, user_answers_json) VALUES (?, ?, ?, ?)", (st.session_state.current_user, exam_id, score, json.dumps(stu_ans)))
+                            conn.commit()
+                            st.success("✅ Đã nộp bài thành công!")
+                            st.session_state.active_mand_exam = None
+                            st.rerun()
+
+                    # NẾU LÀ ĐỀ AI CŨ
+                    else:
+                        mand_exam_data = json.loads(exam_row['questions_json'])
+                        if f"mand_ans_{exam_id}" not in st.session_state:
+                            st.session_state[f"mand_ans_{exam_id}"] = {str(q['id']): None for q in mand_exam_data}
+                            
+                        for q in mand_exam_data:
+                            st.markdown(f"**Câu {q['id']}:** {q['question']}", unsafe_allow_html=True)
+                            if q['image']: st.markdown(f'<img src="data:image/png;base64,{q["image"]}" style="max-width:350px;">', unsafe_allow_html=True)
+                            ans_val = st.session_state[f"mand_ans_{exam_id}"][str(q['id'])]
+                            selected = st.radio("Chọn đáp án:", options=q['options'], index=q['options'].index(ans_val) if ans_val in q['options'] else None, key=f"m_q_{exam_id}_{q['id']}", label_visibility="collapsed")
+                            st.session_state[f"mand_ans_{exam_id}"][str(q['id'])] = selected
+                            st.markdown("---")
+                        
+                        if st.button("📤 NỘP BÀI CHÍNH THỨC", type="primary", use_container_width=True) or remaining <= 0:
+                            correct = sum(1 for q in mand_exam_data if st.session_state[f"mand_ans_{exam_id}"][str(q['id'])] == q['answer'])
+                            score = (correct / len(mand_exam_data)) * 10
+                            c.execute("INSERT INTO mandatory_results (username, exam_id, score, user_answers_json) VALUES (?, ?, ?, ?)", (st.session_state.current_user, exam_id, score, json.dumps(st.session_state[f"mand_ans_{exam_id}"])))
+                            conn.commit()
+                            st.success("✅ Đã nộp bài!")
+                            st.session_state.active_mand_exam = None
+                            st.rerun()
                         
                 elif mode == 'review':
                     c.execute("SELECT score, user_answers_json FROM mandatory_results WHERE username=? AND exam_id=?", (st.session_state.current_user, exam_id))
                     res_data = c.fetchone()
                     st.markdown(f"<div style='background-color: #e8f5e9; padding: 20px; border-radius: 10px; text-align: center;'><h2 style='color: #2E7D32;'>🏆 ĐIỂM CỦA BẠN: {res_data[0]:.2f} / 10</h2></div>", unsafe_allow_html=True)
                     saved_ans = json.loads(res_data[1])
-                    for q in mand_exam_data:
-                        st.markdown(f"**Câu {q['id']}:** {q['question']}", unsafe_allow_html=True)
-                        if q.get('image'): st.markdown(f'<img src="data:image/png;base64,{q["image"]}" style="max-width:350px;">', unsafe_allow_html=True)
-                        u_ans = saved_ans.get(str(q['id']))
-                        st.radio("Đã chọn:", options=q['options'], index=q['options'].index(u_ans) if u_ans in q['options'] else None, key=f"rev_{exam_id}_{q['id']}", disabled=True, label_visibility="collapsed")
-                        if u_ans == q['answer']: st.success("✅ Chính xác")
-                        else: st.error(f"❌ Sai. Đáp án đúng: {q['answer']}")
-                        with st.expander("📖 Xem Lời Giải Chi Tiết"): st.markdown(q['hint'], unsafe_allow_html=True)
-                        st.markdown("---")
+                    
+                    if is_custom_upload:
+                        ans_key = json.loads(exam_row['answer_key'])
+                        num_q = len(ans_key)
+                        st.markdown("#### 📝 Bảng đối chiếu kết quả")
+                        grid_cols = st.columns(4)
+                        for i in range(num_q):
+                            with grid_cols[i % 4]:
+                                stu_val = saved_ans.get(str(i+1), "Chưa chọn")
+                                correct_val = ans_key[i]
+                                if stu_val == correct_val: st.success(f"Câu {i+1}: {stu_val} ✅")
+                                else: st.error(f"Câu {i+1}: {stu_val} ❌ (Đ/A: {correct_val})")
+                    else:
+                        mand_exam_data = json.loads(exam_row['questions_json'])
+                        for q in mand_exam_data:
+                            st.markdown(f"**Câu {q['id']}:** {q['question']}", unsafe_allow_html=True)
+                            if q['image']: st.markdown(f'<img src="data:image/png;base64,{q["image"]}" style="max-width:350px;">', unsafe_allow_html=True)
+                            u_ans = saved_ans[str(q['id'])]
+                            st.radio("Đã chọn:", options=q['options'], index=q['options'].index(u_ans) if u_ans in q['options'] else None, key=f"rev_{exam_id}_{q['id']}", disabled=True, label_visibility="collapsed")
+                            if u_ans == q['answer']: st.success("✅ Chính xác")
+                            else: st.error(f"❌ Sai. Đáp án đúng: {q['answer']}")
+                            with st.expander("📖 Xem Lời Giải Chi Tiết"): st.markdown(q['hint'], unsafe_allow_html=True)
+                            st.markdown("---")
+                            
                     if st.button("⬅️ Trở lại danh sách"):
                         st.session_state.active_mand_exam = None
                         st.rerun()
             conn.close()
 
+        # TAB LUYỆN ĐỀ ĐA DẠNG (AI SINH TỰ ĐỘNG - XÁO TRỘN 100%)
         with tab_ai:
-            st.title("🤖 Luyện Tập Đề Thi (Ngẫu nhiên & Trộn câu)")
+            st.title("🤖 Luyện Tập Đề Thi AI (Trộn cấu trúc)")
+            st.info("Hệ thống sẽ bốc ngẫu nhiên 40 câu hỏi (Gồm cả Nhận biết, Thông hiểu và Vận dụng cao) và xáo trộn vị trí để đảm bảo mỗi lần luyện là một trải nghiệm mới.")
+            
             if 'exam_data' not in st.session_state: st.session_state.exam_data = None
             if 'user_answers' not in st.session_state: st.session_state.user_answers = {}
             if 'is_submitted' not in st.session_state: st.session_state.is_submitted = False
@@ -498,6 +515,7 @@ def main():
                 st.rerun()
 
             if st.session_state.exam_data:
+                # HIỂN THỊ ĐIỂM SỐ KHI NỘP BÀI TỰ LUYỆN
                 if st.session_state.is_submitted:
                     correct_ans = sum(1 for q in st.session_state.exam_data if st.session_state.user_answers[q['id']] == q['answer'])
                     score_ai = (correct_ans / len(st.session_state.exam_data)) * 10
@@ -505,20 +523,22 @@ def main():
                     st.markdown("---")
 
                 for q in st.session_state.exam_data:
+                    # HIỂN THỊ SỐ THỨ TỰ TỰ ĐỘNG
                     st.markdown(f"**Câu {q['id']}:** {q['question']}", unsafe_allow_html=True)
                     if q['image']: st.markdown(f'<img src="data:image/png;base64,{q["image"]}" style="max-width:350px;">', unsafe_allow_html=True)
                     disabled = st.session_state.is_submitted
                     ans_val = st.session_state.user_answers[q['id']]
                     selected = st.radio("Chọn đáp án:", options=q['options'], index=q['options'].index(ans_val) if ans_val in q['options'] else None, key=f"q_ai_{q['id']}", disabled=disabled, label_visibility="collapsed")
                     if not disabled: st.session_state.user_answers[q['id']] = selected
+                    
                     if st.session_state.is_submitted:
                         if selected == q['answer']: st.success("✅ Đúng")
                         else: st.error(f"❌ Sai. Đáp án đúng: {q['answer']}")
-                        with st.expander("📖 Lời Giải"): st.markdown(q['hint'], unsafe_allow_html=True)
+                        with st.expander("📖 Lời Giải Chi Tiết"): st.markdown(q['hint'], unsafe_allow_html=True)
                     st.markdown("---")
                 
                 if not st.session_state.is_submitted:
-                    if st.button("📤 NỘP BÀI", type="primary", use_container_width=True):
+                    if st.button("📤 NỘP BÀI TỰ LUYỆN", type="primary", use_container_width=True):
                         st.session_state.is_submitted = True
                         st.rerun()
 
@@ -529,10 +549,10 @@ def main():
         st.title("⚙ Bảng Điều Khiển (LMS)")
         
         if st.session_state.role in ['core_admin', 'sub_admin']:
-            tabs = st.tabs(["🏫 Lớp & Học sinh", "🛡️ Quản lý Nhân sự", "📊 Báo cáo Điểm", "⚙️ Phát Đề (Giao Bài)"])
+            tabs = st.tabs(["🏫 Lớp & Học sinh", "🛡️ Quản lý Nhân sự", "📊 Báo cáo Điểm", "⚙️ Phát Đề Thi (Mới)"])
             tab_class, tab_staff, tab_scores, tab_system = tabs
         else:
-            tabs = st.tabs(["🏫 Lớp của tôi", "📊 Báo cáo Điểm", "⚙️ Phát Đề (Giao Bài)"])
+            tabs = st.tabs(["🏫 Lớp của tôi", "📊 Báo cáo Điểm", "⚙️ Phát Đề Thi (Mới)"])
             tab_class, tab_scores, tab_system = tabs
         
         conn = sqlite3.connect('exam_db.sqlite')
@@ -716,7 +736,7 @@ def main():
             else:
                 selected_rep_class = st.selectbox("📌 Chọn Lớp xem báo cáo:", available_classes, key="rep_class")
                 try:
-                    df_all_exams = pd.read_sql_query("SELECT id, title, questions_json FROM mandatory_exams ORDER BY id DESC", conn)
+                    df_all_exams = pd.read_sql_query("SELECT id, title, questions_json, file_data, answer_key FROM mandatory_exams ORDER BY id DESC", conn)
                 except:
                     df_all_exams = pd.DataFrame()
                     
@@ -725,7 +745,8 @@ def main():
                     selected_exam_title = st.selectbox("📝 Chọn Bài:", df_all_exams['title'].tolist())
                     exam_row = df_all_exams[df_all_exams['title'] == selected_exam_title].iloc[0]
                     exam_id = exam_row['id']
-                    exam_questions = json.loads(exam_row['questions_json'])
+                    
+                    is_upload = pd.notnull(exam_row.get('file_data')) and exam_row.get('file_data') != ""
                     
                     df_class_students = pd.read_sql_query(f"SELECT username, fullname FROM users WHERE role='student' AND class_name='{selected_rep_class}'", conn)
                     df_submitted = pd.read_sql_query(f"SELECT u.username, u.fullname, mr.score, mr.user_answers_json, mr.timestamp FROM mandatory_results mr JOIN users u ON mr.username = u.username WHERE mr.exam_id={exam_id} AND u.class_name='{selected_rep_class}'", conn)
@@ -736,7 +757,7 @@ def main():
                     c2.metric("Đã nộp", len(df_submitted))
                     c3.metric("Chưa nộp", len(df_class_students) - len(df_submitted))
                     
-                    t1, t2, t3 = st.tabs(["✅ Bảng Điểm", "❌ HS Chưa Làm Bài", "📈 Thống kê Độ Khó Câu Hỏi"])
+                    t1, t2, t3 = st.tabs(["✅ Bảng Điểm", "❌ HS Chưa Làm Bài", "📈 Thống kê Câu Sai Nhiều"])
                     with t1:
                         if not df_submitted.empty: st.dataframe(df_submitted[['fullname', 'score', 'timestamp']].rename(columns={'fullname': 'Họ Tên', 'score': 'Điểm', 'timestamp': 'Nộp lúc'}), use_container_width=True)
                         else: st.info("Chưa có ai nộp.")
@@ -747,12 +768,22 @@ def main():
                         else: st.success("100% HS đã nộp bài.")
                     with t3:
                         if not df_submitted.empty:
-                            wrong_stats = {str(q['id']): {'text': q['question'], 'wrong_count': 0} for q in exam_questions}
-                            for _, row in df_submitted.iterrows():
-                                ans_dict = json.loads(row['user_answers_json'])
-                                for q in exam_questions:
-                                    q_id = str(q['id'])
-                                    if ans_dict.get(q_id) != q['answer']: wrong_stats[q_id]['wrong_count'] += 1
+                            if is_upload:
+                                ans_key = json.loads(exam_row['answer_key'])
+                                wrong_stats = {str(i+1): {'text': f"Câu hỏi số {i+1} (Trong File Đề)", 'wrong_count': 0} for i in range(len(ans_key))}
+                                for _, row in df_submitted.iterrows():
+                                    stu_ans = json.loads(row['user_answers_json'])
+                                    for i, correct_val in enumerate(ans_key):
+                                        q_id = str(i+1)
+                                        if stu_ans.get(q_id) != correct_val: wrong_stats[q_id]['wrong_count'] += 1
+                            else:
+                                exam_questions = json.loads(exam_row['questions_json'])
+                                wrong_stats = {str(q['id']): {'text': q['question'], 'wrong_count': 0} for q in exam_questions}
+                                for _, row in df_submitted.iterrows():
+                                    stu_ans = json.loads(row['user_answers_json'])
+                                    for q in exam_questions:
+                                        q_id = str(q['id'])
+                                        if stu_ans.get(q_id) != q['answer']: wrong_stats[q_id]['wrong_count'] += 1
                             
                             stats_list = [{'Câu': k, 'Nội dung': v['text'], 'Số HS làm sai': v['wrong_count']} for k, v in wrong_stats.items()]
                             df_stats = pd.DataFrame(stats_list).sort_values(by='Số HS làm sai', ascending=False)
@@ -770,21 +801,23 @@ def main():
                             st.dataframe(df_clean, use_container_width=True)
                         else: st.info("Cần có HS nộp bài để AI phân tích.")
             
-        # --- TAB 4: PHÁT ĐỀ THI ---
+        # --- TAB 4: PHÁT ĐỀ THI MỚI (TÍCH HỢP TẢI FILE CỦA GIÁO VIÊN) ---
         with tab_system:
-            st.subheader("📤 Phát Bài Tập Cho Học Sinh")
+            st.subheader("📤 Giao Bài Tập Cho Học Sinh")
             
-            if st.session_state.role in ['core_admin', 'sub_admin']: 
+            # PHÂN QUYỀN DROP-DOWN THEO TÀI KHOẢN
+            if st.session_state.role in ['core_admin', 'sub_admin']:
                 assign_options = ["Toàn trường"] + all_system_classes
-                st.success("👑 BẠN ĐANG DÙNG QUYỀN ADMIN: Có thể giao đề cho 'Toàn trường' hoặc một lớp cụ thể.")
-            else: 
-                assign_options = available_classes
-                st.info("👨‍🏫 BẠN ĐANG DÙNG QUYỀN GIÁO VIÊN: Có thể giao đề cho lớp mình quản lý.")
-            
-            if not assign_options: st.warning("Bạn chưa được cấp quyền quản lý lớp nào.")
             else:
+                c.execute("SELECT managed_classes FROM users WHERE username=?", (st.session_state.current_user,))
+                m_cls_raw = c.fetchone()[0]
+                assign_options = [x.strip() for x in m_cls_raw.split(',')] if m_cls_raw else []
+            
+            if not assign_options: st.warning("Bạn chưa được cấp quyền quản lý lớp nào để giao bài.")
+            else:
+                st.markdown("---")
                 target_class = st.selectbox("🎯 Giao bài cho đối tượng:", assign_options)
-                exam_title = st.text_input("Tên bài kiểm tra (VD: Thi Giữa Kỳ Toán 9)")
+                exam_title = st.text_input("Tên bài kiểm tra (VD: Thi Khảo sát Chất lượng)")
                 
                 c1, c2 = st.columns(2)
                 s_date = c1.date_input("Ngày giao")
@@ -792,32 +825,36 @@ def main():
                 e_date = c2.date_input("Ngày thu")
                 e_time = c2.time_input("Giờ thu", value=datetime.strptime("23:59", "%H:%M").time())
                 
-                st.markdown("---")
-                exam_type = st.radio("Hình thức tạo đề:", ["📤 Số hóa đề thi từ file Word (Của Giáo viên)", "🤖 Dùng Ngân hàng Đề AI Tự Sinh"])
+                exam_type = st.radio("Hình thức tạo đề:", ["📤 Tải lên đề thi của tôi (PDF/Ảnh)", "🤖 Dùng Đề AI Tự Sinh"])
                 
-                if exam_type == "📤 Số hóa đề thi từ file Word (Của Giáo viên)":
-                    st.info("💡 Copy nội dung từ file Word của bạn và dán vào ô bên dưới. Hệ thống sẽ tự động biến nó thành bài thi tương tác trên máy tính cho học sinh!")
-                    word_template = create_word_template()
-                    st.download_button("⬇️ TẢI BIỂU MẪU WORD CHUẨN", data=word_template, file_name="Mau_De_Thi.txt", mime="text/plain")
+                # OPTION 1: GIÁO VIÊN TẢI FILE ĐỀ LÊN
+                if exam_type == "📤 Tải lên đề thi của tôi (PDF/Ảnh)":
+                    st.info("Học sinh sẽ nhìn thấy File đề bạn tải lên và điền đáp án A, B, C, D vào hệ thống.")
+                    uploaded_file = st.file_uploader("1. Tải File Đề (Hỗ trợ PDF, JPG, PNG)", type=['pdf', 'jpg', 'png', 'jpeg'])
+                    ans_input = st.text_input("2. Nhập chuỗi Đáp án Đúng (Viết liền nhau, VD: ABCDABCD)")
                     
-                    raw_text = st.text_area("📋 Dán nội dung đề thi Word vào đây:", height=300, placeholder="Câu 1: ...\nA. ...\nB. ...\nC. ...\nD. ...\nĐáp án: A\nGiải thích: ...")
-                    
-                    if st.button("🚀 Xử lý & Phát Đề (Word)", type="primary"):
+                    if st.button("🚀 Phát Đề (Tải file)", type="primary"):
                         if not exam_title: st.error("Vui lòng nhập tên bài!")
-                        elif not raw_text: st.error("Vui lòng dán nội dung đề thi!")
+                        elif not uploaded_file: st.error("Vui lòng tải file lên!")
+                        elif not ans_input: st.error("Vui lòng nhập chuỗi đáp án!")
                         else:
-                            parsed_questions = parse_word_content(raw_text)
-                            if len(parsed_questions) == 0:
-                                st.error("❌ Không tìm thấy câu hỏi nào! Vui lòng kiểm tra lại định dạng (Phải có chữ 'Câu X:', 'A.', 'B.', 'C.', 'D.', 'Đáp án:').")
+                            ans_clean = list(ans_input.upper().replace(" ", "").replace(",", ""))
+                            valid_chars = all(char in ['A', 'B', 'C', 'D'] for char in ans_clean)
+                            if not valid_chars: st.error("Chuỗi đáp án bị lỗi! Chỉ được chứa các chữ A, B, C, D.")
                             else:
+                                file_bytes = uploaded_file.read()
+                                b64 = base64.b64encode(file_bytes).decode('utf-8')
+                                mime_type = uploaded_file.type
                                 s_str = f"{s_date} {s_time.strftime('%H:%M:%S')}"
                                 e_str = f"{e_date} {e_time.strftime('%H:%M:%S')}"
-                                c.execute("INSERT INTO mandatory_exams (title, questions_json, start_time, end_time, target_class) VALUES (?, ?, ?, ?, ?)", (exam_title.strip(), json.dumps(parsed_questions), s_str, e_str, target_class))
+                                
+                                c.execute("INSERT INTO mandatory_exams (title, start_time, end_time, target_class, file_data, file_type, answer_key) VALUES (?, ?, ?, ?, ?, ?, ?)", (exam_title.strip(), s_str, e_str, target_class, b64, mime_type, json.dumps(ans_clean)))
                                 conn.commit()
-                                st.success(f"✅ Đã số hóa thành công {len(parsed_questions)} câu hỏi và phát tới {target_class}!")
+                                st.success(f"✅ Đã phát đề thành công! Gồm {len(ans_clean)} câu hỏi trắc nghiệm.")
                 
+                # OPTION 2: DÙNG ĐỀ AI
                 else:
-                    if st.button("🚀 Phát Đề AI (Trộn Ngẫu Nhiên)", type="primary"):
+                    if st.button("🚀 Phát Đề (Dùng AI)", type="primary"):
                         if exam_title:
                             gen = ExamGenerator()
                             fixed_exam = gen.generate_all()
@@ -825,7 +862,7 @@ def main():
                             e_str = f"{e_date} {e_time.strftime('%H:%M:%S')}"
                             c.execute("INSERT INTO mandatory_exams (title, questions_json, start_time, end_time, target_class) VALUES (?, ?, ?, ?, ?)", (exam_title.strip(), json.dumps(fixed_exam), s_str, e_str, target_class))
                             conn.commit()
-                            st.success(f"✅ Đã phát đề AI chuẩn 40 câu tới {target_class}!")
+                            st.success(f"✅ Đã phát đề AI chuẩn {len(fixed_exam)} câu tới {target_class}!")
                         else: st.error("Cần nhập tên bài!")
         conn.close()
 
