@@ -56,11 +56,12 @@ def extract_text_from_pdf(file_bytes):
 def call_gemini_to_solve(pdf_text, num_questions, api_key):
     """
     Não bộ: Gửi nội dung PDF lên máy chủ Google Gemini để nhờ AI giải trực tiếp.
+    ĐÃ FIX LỖI 404: Sử dụng model 'gemini-pro' cực kỳ ổn định.
     """
     try:
         genai.configure(api_key=api_key)
-        # Sử dụng mô hình flash để giải nhanh và mượt
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # Chuyển sang dùng gemini-pro (phiên bản chuẩn mực nhất cho xử lý Text/JSON)
+        model = genai.GenerativeModel('gemini-pro')
         
         prompt = f"""
         Bạn là một Chuyên gia Giáo dục. Dưới đây là nội dung trích xuất từ một đề thi trắc nghiệm PDF:
@@ -85,14 +86,20 @@ def call_gemini_to_solve(pdf_text, num_questions, api_key):
         
         response = model.generate_content(prompt)
         
-        # Xóa các tag markdown rác nếu AI lỡ chèn vào
-        clean_text = response.text.replace("```json", "").replace("```", "").strip()
-        data = json.loads(clean_text)
+        # Bộ lọc bọc thép: Dọn dẹp rác markdown để lấy JSON chuẩn
+        clean_text = response.text.strip()
+        if clean_text.startswith("```json"):
+            clean_text = clean_text[7:]
+        if clean_text.startswith("```"):
+            clean_text = clean_text[3:]
+        if clean_text.endswith("```"):
+            clean_text = clean_text[:-3]
+            
+        data = json.loads(clean_text.strip())
         
         return data.get("answer_key", []), data.get("ai_hints", {})
         
     except Exception as e:
-        # Fallback (Dự phòng) nếu API lỗi hoặc hết hạn
         st.error(f"Lỗi kết nối AI: {str(e)}")
         return [], {}
 
@@ -425,3 +432,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
