@@ -791,4 +791,34 @@ def main():
                     word_template = create_word_template()
                     st.download_button("⬇️ TẢI BIỂU MẪU WORD CHUẨN", data=word_template, file_name="Mau_De_Thi.txt", mime="text/plain")
                     
-                    raw_text = st.text_area("📋 Dán nội dung đề thi Word vào đây:", height=300, placeholder="Câu 1: ...\nA. ...\n
+                    raw_text = st.text_area("📋 Dán nội dung đề thi Word vào đây:", height=300, placeholder="Câu 1: ...\nA. ...\nB. ...\nC. ...\nD. ...\nĐáp án: A\nGiải thích: ...")
+                    
+                    if st.button("🚀 Xử lý & Phát Đề (Word)", type="primary"):
+                        if not exam_title: st.error("Vui lòng nhập tên bài!")
+                        elif not raw_text: st.error("Vui lòng dán nội dung đề thi!")
+                        else:
+                            parsed_questions = parse_word_content(raw_text)
+                            if len(parsed_questions) == 0:
+                                st.error("❌ Không tìm thấy câu hỏi nào! Vui lòng kiểm tra lại định dạng (Phải có chữ 'Câu X:', 'A.', 'B.', 'C.', 'D.', 'Đáp án:').")
+                            else:
+                                s_str = f"{s_date} {s_time.strftime('%H:%M:%S')}"
+                                e_str = f"{e_date} {e_time.strftime('%H:%M:%S')}"
+                                c.execute("INSERT INTO mandatory_exams (title, questions_json, start_time, end_time, target_class) VALUES (?, ?, ?, ?, ?)", (exam_title.strip(), json.dumps(parsed_questions), s_str, e_str, target_class))
+                                conn.commit()
+                                st.success(f"✅ Đã số hóa thành công {len(parsed_questions)} câu hỏi và phát tới {target_class}!")
+                
+                else:
+                    if st.button("🚀 Phát Đề AI (Trộn Ngẫu Nhiên)", type="primary"):
+                        if exam_title:
+                            gen = ExamGenerator()
+                            fixed_exam = gen.generate_all()
+                            s_str = f"{s_date} {s_time.strftime('%H:%M:%S')}"
+                            e_str = f"{e_date} {e_time.strftime('%H:%M:%S')}"
+                            c.execute("INSERT INTO mandatory_exams (title, questions_json, start_time, end_time, target_class) VALUES (?, ?, ?, ?, ?)", (exam_title.strip(), json.dumps(fixed_exam), s_str, e_str, target_class))
+                            conn.commit()
+                            st.success(f"✅ Đã phát đề AI chuẩn 40 câu tới {target_class}!")
+                        else: st.error("Cần nhập tên bài!")
+        conn.close()
+
+if __name__ == "__main__":
+    main()
