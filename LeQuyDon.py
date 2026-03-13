@@ -21,6 +21,7 @@ from datetime import datetime, timedelta, timezone
 
 VN_TZ = timezone(timedelta(hours=7))
 
+# Hàm hỗ trợ xuất Excel
 def to_excel(df):
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -47,6 +48,8 @@ def init_db():
         except: pass
 
     c.execute('''CREATE TABLE IF NOT EXISTS results (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, score REAL, correct_count INTEGER, wrong_count INTEGER, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+    
+    # Bảng giao bài bắt buộc
     c.execute('''CREATE TABLE IF NOT EXISTS mandatory_exams (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, questions_json TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     for col in ["start_time", "end_time", "target_class"]:
         try: c.execute(f"ALTER TABLE mandatory_exams ADD COLUMN {col} TEXT")
@@ -69,7 +72,7 @@ def generate_username(fullname, dob):
     return f"{clean_name}{suffix}_{random.randint(10,99)}"
 
 # ==========================================
-# 3. HỆ THỐNG VẼ HÌNH HỌC TỰ ĐỘNG CHUẨN XÁC
+# 3. ĐỒ HỌA TOÁN HỌC CHUẨN (KHÔNG ĐÈ CHỮ)
 # ==========================================
 def fig_to_base64(fig):
     buf = BytesIO()
@@ -109,11 +112,12 @@ def draw_right_triangle(a, b):
     ax.set_aspect('equal')
     ax.plot([0, b, 0, 0], [0, 0, a, 0], color='#2c3e50', lw=2)
     ax.plot([0, 0.3, 0.3], [0.3, 0.3, 0], color='red', lw=1)
+    # PADDING - Đẩy chữ ra ngoài để không bị đè nét vẽ
     ax.text(-0.3, -0.3, 'A', fontweight='bold', ha='center', va='center')
     ax.text(b + 0.3, -0.3, 'B', fontweight='bold', ha='center', va='center')
     ax.text(-0.3, a + 0.3, 'C', fontweight='bold', ha='center', va='center')
-    ax.text(b/2, -0.6, f'{b} cm', color='blue', ha='center')
-    ax.text(-0.8, a/2, f'{a} cm', color='blue', va='center')
+    ax.text(b/2, -0.7, f'{b} cm', color='blue', ha='center')
+    ax.text(-0.9, a/2, f'{a} cm', color='blue', va='center')
     ax.set_xlim(-1.5, b + 1.5); ax.set_ylim(-1.5, a + 1.5); ax.axis('off')
     return fig_to_base64(fig)
 
@@ -138,138 +142,146 @@ def draw_histogram():
     ax.set_ylim(0, 50)
     return fig_to_base64(fig)
 
+def draw_tower_shadow(bong):
+    fig, ax = plt.subplots(figsize=(3, 2))
+    ax.set_aspect('equal')
+    ax.plot([-1, 4], [0, 0], color='#27ae60', lw=3) 
+    ax.plot([0, 0], [0, 3], color='#7f8c8d', lw=4)
+    ax.plot([2.5, 0], [0, 3], color='#f39c12', lw=1.5, linestyle='--')
+    ax.text(-0.8, 1.5, 'Tháp', rotation=90, fontsize=8)
+    ax.text(0.5, -0.5, f'Bóng: {bong}m', fontsize=8)
+    ax.text(1.8, 0.1, r'$\alpha$', fontsize=10, color='blue')
+    ax.set_xlim(-1, 3); ax.set_ylim(-1, 3.5); ax.axis('off')
+    return fig_to_base64(fig)
+
 # ==========================================
-# 4. BỘ MÁY SINH ĐỀ CHUẨN MA TRẬN 40 CÂU
+# 4. BỘ MÁY SINH ĐỀ AI (XÁO TRỘN 100%)
 # ==========================================
 class ExamGenerator:
     def __init__(self):
         self.exam = []
-        self.q_count = 1
+        # Xóa q_count ở đây vì sẽ gán ID sau khi trộn
 
-    def build_q(self, text, correct, distractors, hint, img_b64=None):
-        correct_str = str(correct)
-        unique_options = [correct_str]
-        for d in distractors:
-            d_str = str(d)
-            if d_str not in unique_options: unique_options.append(d_str)
-                
-        fallbacks = ["0", "1", "-1", "2", "Vô nghiệm", "Không xác định"]
-        for fb in fallbacks:
-            if len(unique_options) == 4: break
-            if fb not in unique_options: unique_options.append(fb)
-                
-        final_options = unique_options[:4]
-        random.shuffle(final_options)
-        self.exam.append({"id": self.q_count, "question": text, "options": final_options, "answer": correct_str, "hint": hint, "image": img_b64})
-        self.q_count += 1
+    def format_options(self, correct, distractors):
+        opts = [correct] + distractors[:3]
+        random.shuffle(opts)
+        return opts
 
     def generate_all(self):
-        # --- CHỦ ĐỀ 1: ĐẠI SỐ (8 Câu) ---
+        pool = []
+        
+        # --- NGÂN HÀNG CÂU HỎI CƠ BẢN VÀ VẬN DỤNG ---
         a1 = random.randint(2, 9)
-        self.build_q(r"Điều kiện xác định của biểu thức $\sqrt{2x - " + str(2*a1) + r"}$ là:", r"$x \ge " + str(a1) + r"$", [r"$x > " + str(a1) + r"$", r"$x \le " + str(a1) + r"$", r"$x < " + str(a1) + r"$"], r"💡 **HD:** Biểu thức dưới căn không âm: $2x - " + str(2*a1) + r" \ge 0 \Leftrightarrow x \ge " + str(a1) + r"$.")
-
-        self.build_q(r"Giá trị của biểu thức $\sqrt{12} - 2\sqrt{3}$ bằng:", "0", [r"$\sqrt{9}$", r"$2\sqrt{3}$", "3"], r"💡 **HD:** $\sqrt{12} = \sqrt{4 \cdot 3} = 2\sqrt{3}$. Vậy $2\sqrt{3} - 2\sqrt{3} = 0$.")
-
+        pool.append({"q": r"Điều kiện xác định của biểu thức $\sqrt{2x - " + str(2*a1) + r"}$ là:", "a": r"$x \ge " + str(a1) + r"$", "d": [r"$x > " + str(a1) + r"$", r"$x \le " + str(a1) + r"$", r"$x < " + str(a1) + r"$"], "h": "💡 HD: Biểu thức dưới căn $\ge 0$.", "i": None})
+        
+        a2 = random.choice([16, 25, 36, 49, 64])
+        pool.append({"q": f"Căn bậc hai số học của {a2} là:", "a": str(int(math.sqrt(a2))), "d": [f"-{int(math.sqrt(a2))}", f"{a2**2}", "Cả âm và dương"], "h": "💡 HD: Căn số học luôn là số không âm.", "i": None})
+        
+        pool.append({"q": r"Giá trị của biểu thức $\sqrt{12} - 2\sqrt{3}$ bằng:", "a": "0", "d": [r"$\sqrt{9}$", r"$2\sqrt{3}$", "3"], "h": r"💡 HD: $\sqrt{12} = 2\sqrt{3}$.", "i": None})
+        
         a3 = random.randint(3, 5)
-        self.build_q(r"Với $a \ge 0$, biểu thức $\sqrt{" + str(a3**2) + r"a^2}$ bằng:", str(a3) + "a", [r"$-" + str(a3) + r"a$", str(a3**2) + "a", str(a3) + "|a|"], r"💡 **HD:** Đưa ra ngoài dấu căn, với $a \ge 0 \Rightarrow " + str(a3) + r"a$.")
-
+        pool.append({"q": r"Với $a \ge 0$, biểu thức $\sqrt{" + str(a3**2) + r"a^2}$ bằng:", "a": f"{a3}a", "d": [f"-{a3}a", f"{a3**2}a", f"{a3}|a|"], "h": "💡 HD: Đưa ra ngoài dấu căn.", "i": None})
+        
         a4 = random.randint(2, 7)
-        self.build_q(r"Trục căn thức ở mẫu của biểu thức $\frac{1}{\sqrt{" + str(a4) + r"} - 1}$ ta được:", r"$\frac{\sqrt{" + str(a4) + r"} + 1}{" + str(a4-1) + r"}$", [r"$\frac{\sqrt{" + str(a4) + r"} - 1}{" + str(a4-1) + r"}$", r"$\sqrt{" + str(a4) + r"} + 1$", r"$\frac{\sqrt{" + str(a4) + r"} + 1}{" + str(a4+1) + r"}$"], r"💡 **HD:** Nhân tử và mẫu với lượng liên hợp $(\sqrt{" + str(a4) + r"} + 1)$.")
-
+        pool.append({"q": r"Trục căn thức ở mẫu của biểu thức $\frac{1}{\sqrt{" + str(a4) + r"} - 1}$ ta được:", "a": r"$\frac{\sqrt{" + str(a4) + r"} + 1}{" + str(a4-1) + r"}$", "d": [r"$\frac{\sqrt{" + str(a4) + r"} - 1}{" + str(a4-1) + r"}$", r"$\sqrt{" + str(a4) + r"} + 1$", r"$\frac{1}{" + str(a4-1) + r"}$"], "h": "💡 HD: Nhân với lượng liên hợp.", "i": None})
+        
         m5 = random.randint(2, 5)
-        self.build_q(r"Để hàm số $y = (m - " + str(m5) + r")x + 3$ đồng biến trên tập số thực, thì điều kiện của $m$ là:", r"$m > " + str(m5) + r"$", [r"$m < " + str(m5) + r"$", r"$m \ne " + str(m5) + r"$", r"$m \ge " + str(m5) + r"$"], r"💡 **HD:** Hàm số đồng biến khi hệ số $a > 0 \Leftrightarrow m - " + str(m5) + r" > 0$.")
-
-        self.build_q(r"Đường thẳng $y = 2x + 1$ song song với đường thẳng nào dưới đây?", r"$y = 2x - 3$", [r"$y = -2x + 1$", r"$y = \frac{1}{2}x + 1$", r"$y = 2x + 1$"], r"💡 **HD:** Song song khi $a=a'$ và $b \ne b'$.")
-
-        self.build_q(r"Quan sát đồ thị Parabol trong hình vẽ. Khẳng định nào sau đây ĐÚNG?", r"Hệ số $a > 0$", [r"Hệ số $a < 0$", r"Hàm số luôn nghịch biến", r"Đồ thị nhận trục $Ox$ làm trục đối xứng"], r"💡 **HD:** Bề lõm hướng lên trên $\Rightarrow a > 0$.", draw_real_parabola())
-
+        pool.append({"q": r"Để hàm số $y = (m - " + str(m5) + r")x + 3$ đồng biến trên tập số thực, thì điều kiện của $m$ là:", "a": r"$m > " + str(m5) + r"$", "d": [r"$m < " + str(m5) + r"$", r"$m \ne " + str(m5) + r"$", r"$m \ge " + str(m5) + r"$"], "h": "💡 HD: Hàm số đồng biến khi $a > 0$.", "i": None})
+        
+        pool.append({"q": r"Đường thẳng $y = 2x + 1$ song song với đường thẳng nào dưới đây?", "a": r"$y = 2x - 3$", "d": [r"$y = -2x + 1$", r"$y = \frac{1}{2}x + 1$", r"$y = 2x + 1$"], "h": "💡 HD: Song song khi $a=a'$ và $b \ne b'$.", "i": None})
+        
+        pool.append({"q": "Quan sát đồ thị Parabol trong hình vẽ. Khẳng định nào sau đây ĐÚNG?", "a": r"Hệ số $a > 0$", "d": [r"Hệ số $a < 0$", "Hàm số luôn nghịch biến", "Đồ thị nhận $Ox$ làm trục đối xứng"], "h": "💡 HD: Bề lõm hướng lên trên $\Rightarrow a > 0$.", "i": draw_real_parabola()})
+        
         c8 = random.randint(1, 4)
-        self.build_q(r"Tọa độ giao điểm của parabol $y = x^2$ và đường thẳng $y = " + str(c8**2) + r"$ là:", r"$( " + str(c8) + r"; " + str(c8**2) + r")$ và $(-" + str(c8) + r"; " + str(c8**2) + r")$", [r"$( " + str(c8) + r"; " + str(c8**2) + r")$", r"$(-" + str(c8) + r"; " + str(c8**2) + r")$", r"$(0; 0)$"], r"💡 **HD:** Giải phương trình hoành độ giao điểm.")
-
-        # --- CHỦ ĐỀ 2: PHƯƠNG TRÌNH & THỰC TẾ (8 Câu) ---
-        self.build_q(r"Nghiệm của hệ phương trình $\begin{cases} x - y = 1 \\ 2x + y = 5 \end{cases}$ là:", r"$(2; 1)$", [r"$(1; 2)$", r"$(3; -1)$", r"$(2; -1)$"], r"💡 **HD:** Cộng 2 vế: $3x = 6 \Rightarrow x=2$.")
-
-        self.build_q(r"Giá cước taxi: 10.000đ cho 1km đầu tiên, từ km thứ 2 giá 15.000đ/km. Hỏi đi 5km phải trả bao nhiêu tiền?", "70.000 đ", ["75.000 đ", "50.000 đ", "60.000 đ"], r"💡 **HD:** Tiền = 10.000 + 4 $\times$ 15.000 = 70.000đ.")
-
+        pool.append({"q": r"Tọa độ giao điểm của parabol $y = x^2$ và đường thẳng $y = " + str(c8**2) + r"$ là:", "a": r"$( " + str(c8) + r"; " + str(c8**2) + r")$ và $(-" + str(c8) + r"; " + str(c8**2) + r")$", "d": [r"$( " + str(c8) + r"; " + str(c8**2) + r")$", r"$(-" + str(c8) + r"; " + str(c8**2) + r")$", r"$(0; 0)$"], "h": "💡 HD: Giải phương trình hoành độ giao điểm.", "i": None})
+        
+        pool.append({"q": r"Nghiệm của hệ phương trình $\begin{cases} x - y = 1 \\ 2x + y = 5 \end{cases}$ là:", "a": r"$(2; 1)$", "d": [r"$(1; 2)$", r"$(3; -1)$", r"$(2; -1)$"], "h": "💡 HD: Cộng 2 vế: $3x = 6 \Rightarrow x=2$.", "i": None})
+        
+        pool.append({"q": "Giá cước taxi: 10.000đ cho 1km đầu tiên, từ km thứ 2 giá 15.000đ/km. Hỏi đi 5km phải trả bao nhiêu tiền?", "a": "70.000 đ", "d": ["75.000 đ", "50.000 đ", "60.000 đ"], "h": "💡 HD: Tiền = 10.000 + 4 $\\times$ 15.000 = 70.000đ.", "i": None})
+        
         p11 = random.choice([100, 200, 300])
-        self.build_q(r"Bác An gửi tiết kiệm " + str(p11) + r" triệu đồng với lãi suất 6%/năm. Sau 1 năm, tổng số tiền bác An nhận được cả gốc và lãi là:", str(int(p11 * 1.06)) + r" triệu", [str(int(p11 * 0.06)) + r" triệu", str(p11 + 6) + r" triệu", str(int(p11 * 1.6)) + r" triệu"], r"💡 **HD:** Tổng = Gốc $\times (1 + 0.06)$.")
+        pool.append({"q": f"Bác An gửi tiết kiệm {p11} triệu đồng với lãi suất 6%/năm. Sau 1 năm, tổng số tiền nhận được cả gốc và lãi là:", "a": f"{int(p11 * 1.06)} triệu", "d": [f"{int(p11 * 0.06)} triệu", f"{p11 + 6} triệu", f"{int(p11 * 1.6)} triệu"], "h": "💡 HD: Gốc + Lãi.", "i": None})
+        
+        pool.append({"q": r"Tập nghiệm của phương trình $x^2 - 5x + 6 = 0$ là:", "a": r"$\{2; 3\}$", "d": [r"$\{-2; -3\}$", r"$\{1; 6\}$", r"$\{-1; -6\}$"], "h": "💡 HD: $2+3=5$ và $2 \times 3=6$.", "i": None})
+        
+        pool.append({"q": r"Cho phương trình $2x^2 - 7x + 3 = 0$. Tổng hai nghiệm $x_1 + x_2$ bằng:", "a": r"$\frac{7}{2}$", "d": [r"$-\frac{7}{2}$", r"$\frac{3}{2}$", "7"], "h": r"💡 HD: Theo Vi-ét: $S = -b/a$.", "i": None})
+        
+        pool.append({"q": r"Hai vòi nước cùng chảy vào 1 bể cạn thì 6 giờ đầy bể. Nếu vòi 1 chảy một mình 10 giờ đầy bể, thì vòi 2 chảy một mình đầy bể trong bao lâu?", "a": "15 giờ", "d": ["12 giờ", "16 giờ", "4 giờ"], "h": "💡 HD: 1 giờ vòi 2 chảy: $1/6 - 1/10 = 1/15$ bể.", "i": None})
+        
+        pool.append({"q": r"Số nghiệm của phương trình $x^4 - 3x^2 - 4 = 0$ là:", "a": "2 nghiệm", "d": ["4 nghiệm", "1 nghiệm", "Vô nghiệm"], "h": r"💡 HD: Đặt $t = x^2 \Rightarrow t=4 \Rightarrow x = \pm 2$.", "i": None})
 
-        self.build_q(r"Tập nghiệm của phương trình $x^2 - 5x + 6 = 0$ là:", r"$\{2; 3\}$", [r"$\{-2; -3\}$", r"$\{1; 6\}$", r"$\{-1; -6\}$"], r"💡 **HD:** $2+3=5$ và $2 \times 3=6$.")
-
-        self.build_q(r"Cho phương trình $2x^2 - 7x + 3 = 0$. Tổng hai nghiệm $x_1 + x_2$ bằng:", r"$\frac{7}{2}$", [r"$-\frac{7}{2}$", r"$\frac{3}{2}$", r"$7$"], r"💡 **HD:** Theo Vi-ét: $S = -\frac{b}{a}$.")
-
-        self.build_q(r"Giả sử phương trình $x^2 - 4x + 1 = 0$ có 2 nghiệm dương $x_1, x_2$. Giá trị của biểu thức $x_1^2 + x_2^2$ là:", "14", ["16", "18", "12"], r"💡 **HD:** $x_1^2 + x_2^2 = S^2 - 2P = 4^2 - 2(1) = 14$.")
-
-        self.build_q(r"Hai vòi nước cùng chảy vào 1 bể cạn thì 6 giờ đầy bể. Nếu vòi 1 chảy một mình 10 giờ đầy bể, thì vòi 2 chảy một mình đầy bể trong bao lâu?", "15 giờ", ["12 giờ", "16 giờ", "4 giờ"], r"💡 **HD:** 1 giờ vòi 2 chảy: $1/6 - 1/10 = 1/15$ bể.")
-
-        self.build_q(r"Số nghiệm của phương trình $x^4 - 3x^2 - 4 = 0$ là:", "2 nghiệm", ["4 nghiệm", "1 nghiệm", "Vô nghiệm"], r"💡 **HD:** Đặt $t = x^2 (t \ge 0) \Rightarrow t=4 \Rightarrow x = \pm 2$.")
-
-        # --- CHỦ ĐỀ 3: HÌNH HỌC (12 Câu) ---
         c17_1 = random.choice([3, 6, 9]); c17_2 = int(c17_1 * 4/3)
         huyen17 = int(math.sqrt(c17_1**2 + c17_2**2))
-        self.build_q(r"Dựa vào kích thước tam giác $ABC$ vuông tại $A$ trên hình vẽ, độ dài cạnh huyền $BC$ là:", str(huyen17) + " cm", [str(c17_1+c17_2) + " cm", str(huyen17**2) + " cm", str(huyen17+1) + " cm"], r"💡 **HD:** Định lý Pytago: $BC = \sqrt{AB^2 + AC^2}$.", draw_right_triangle(c17_1, c17_2))
+        pool.append({"q": r"Dựa vào kích thước tam giác $ABC$ vuông tại $A$ trên hình vẽ, độ dài cạnh huyền $BC$ là:", "a": f"{huyen17} cm", "d": [f"{c17_1+c17_2} cm", f"{huyen17**2} cm", f"{huyen17+1} cm"], "h": r"💡 HD: Định lý Pytago: $BC = \sqrt{AB^2 + AC^2}$.", "i": draw_right_triangle(c17_1, c17_2)})
 
-        self.build_q(r"Trong tam giác $ABC$ vuông tại $A$, tỉ số $\frac{AB}{BC}$ là tỉ số lượng giác nào của góc $C$?", r"$\sin C$", [r"$\cos C$", r"$\tan C$", r"$\cot C$"], r"💡 **HD:** $\sin$ = Đối / Huyền.")
-
-        self.build_q(r"Cho tam giác vuông có 2 hình chiếu của 2 cạnh góc vuông lên cạnh huyền là 4cm và 9cm. Độ dài đường cao ứng với cạnh huyền là:", "6 cm", ["13 cm", "36 cm", "5 cm"], r"💡 **HD:** $h^2 = b' \cdot c' = 4 \times 9 = 36 \Rightarrow h = 6$.")
-
-        self.build_q(r"Cho đường tròn tâm $O$ bán kính 5cm. Khoảng cách từ tâm $O$ đến dây $AB$ bằng 3cm. Độ dài dây $AB$ là:", "8 cm", ["4 cm", "10 cm", "6 cm"], r"💡 **HD:** Pytago: $(AB/2)^2 = R^2 - d^2 = 5^2 - 3^2 = 16 \Rightarrow AB = 8$.")
-
-        self.build_q(r"Quan sát hình vẽ, dây cung chung của hai đường tròn cắt nhau có tính chất gì?", "Vuông góc với đường nối tâm", ["Song song với đường nối tâm", "Đi qua tâm của cả hai đường tròn", "Bằng tổng 2 bán kính"], r"💡 **HD:** Đường nối tâm là đường trung trực của dây chung.", draw_intersecting_circles())
-
-        self.build_q(r"Tứ giác $ABCD$ nội tiếp. Biết góc $A = 70^\circ$, góc $B = 100^\circ$. Số đo góc $C$ là:", r"$110^\circ$", [r"$80^\circ$", r"$70^\circ$", r"$100^\circ$"], r"💡 **HD:** Tổng 2 góc đối diện $= 180^\circ \Rightarrow C = 180^\circ - 70^\circ = 110^\circ$.")
-
-        self.build_q(r"Tam giác $ABC$ nội tiếp đường tròn tâm $O$ có cạnh $BC$ là đường kính. Khẳng định ĐÚNG là:", r"Tam giác $ABC$ vuông tại $A$", [r"Tam giác $ABC$ đều", r"Tam giác $ABC$ cân tại $A$", r"Góc $A = 60^\circ$"], r"💡 **HD:** Góc nội tiếp chắn nửa đường tròn là góc vuông.")
-
-        self.build_q(r"Diện tích hình quạt tròn bán kính $R=6cm$, góc ở tâm $60^\circ$ là:", r"$6\pi$ cm$^2$", [r"$12\pi$ cm$^2$", r"$36\pi$ cm$^2$", r"$2\pi$ cm$^2$"], r"💡 **HD:** $S = \frac{\pi R^2 n}{360} = 6\pi$.")
-
-        self.build_q(r"Độ dài cung $90^\circ$ của đường tròn bán kính 4cm là:", r"$2\pi$ cm", [r"$4\pi$ cm", r"$8\pi$ cm", r"$\pi$ cm"], r"💡 **HD:** $l = \frac{\pi R n}{180} = 2\pi$.")
-
-        self.build_q(r"Hình nón có bán kính đáy $r=3$, chiều cao $h=4$. Thể tích là:", r"$12\pi$", [r"$36\pi$", r"$15\pi$", r"$9\pi$"], r"💡 **HD:** $V = \frac{1}{3}\pi r^2 h = 12\pi$.")
-
-        self.build_q(r"Nếu tăng bán kính mặt cầu lên 2 lần thì diện tích mặt cầu tăng lên mấy lần?", "4 lần", ["2 lần", "8 lần", "16 lần"], r"💡 **HD:** Diện tích tỷ lệ với bình phương bán kính.")
-
-        self.build_q(r"Một lon sữa bò hình trụ có bán kính đáy 4cm, cao 10cm. Thể tích lon sữa là:", r"$160\pi$ cm$^3$", [r"$40\pi$ cm$^3$", r"$80\pi$ cm$^3$", r"$320\pi$ cm$^3$"], r"💡 **HD:** $V = \pi r^2 h = 160\pi$.")
-
-        # --- CHỦ ĐỀ 4: XÁC SUẤT THỐNG KÊ (6 Câu) ---
-        self.build_q(r"Dựa vào Biểu đồ phổ điểm, tổng tỉ lệ học sinh đạt điểm từ 7 trở lên (Nhóm [7;8), [8;9), [9;10]) là:", "65%", ["40%", "75%", "50%"], r"💡 **HD:** Cộng tỉ lệ 3 cột cuối: $40\% + 15\% + 10\% = 65\%$.", draw_histogram())
-
-        self.build_q(r"Dựa vào biểu đồ phân loại học lực, nhóm học sinh nào chiếm đa số?", "Khá (45%)", ["Giỏi (25%)", "Trung bình (20%)", "Yếu (10%)"], r"💡 **HD:** Khá chiếm 45%.", draw_pie_chart())
-
-        self.build_q(r"Gieo 1 con xúc xắc cân đối. Xác suất để được mặt có số chấm là số nguyên tố là:", r"$\frac{1}{2}$", [r"$\frac{1}{3}$", r"$\frac{1}{6}$", r"$\frac{2}{3}$"], r"💡 **HD:** Các số nguyên tố: 2, 3, 5 (3 kết quả) $\Rightarrow P = 3/6 = 1/2$.")
-
-        self.build_q(r"Rút ngẫu nhiên 1 lá bài từ bộ bài tú lơ khơ 52 lá. Số phần tử của không gian mẫu là:", "52", ["13", "4", "26"], r"💡 **HD:** Không gian mẫu có 52 lá.")
-
-        self.build_q(r"Trong 20 ngày đi học, Nam đi muộn 2 ngày. Xác suất thực nghiệm của biến cố 'Nam đi học đúng giờ' là:", r"$\frac{9}{10}$", [r"$\frac{1}{10}$", r"$\frac{1}{20}$", r"$90$"], r"💡 **HD:** $(20-2)/20 = 9/10$.")
-
-        self.build_q(r"Một hộp có thẻ đánh số từ 1 đến 10. Rút 1 thẻ, xác suất rút được thẻ là số chia hết cho 3 là:", r"$\frac{3}{10}$", [r"$\frac{1}{3}$", r"$\frac{4}{10}$", r"$\frac{1}{10}$"], r"💡 **HD:** Các số chia hết cho 3: 3, 6, 9 $\Rightarrow P = 3/10$.")
+        pool.append({"q": r"Trong tam giác $ABC$ vuông tại $A$, tỉ số $\frac{AB}{BC}$ là tỉ số lượng giác nào của góc $C$?", "a": r"$\sin C$", "d": [r"$\cos C$", r"$\tan C$", r"$\cot C$"], "h": "💡 HD: Sin = Đối / Huyền.", "i": None})
         
-        # --- CHỦ ĐỀ 5: NGÂN HÀNG CÂU HỎI VẬN DỤNG CAO (2 CÂU) ---
+        pool.append({"q": "Cho tam giác vuông có 2 hình chiếu của 2 cạnh góc vuông lên cạnh huyền là 4cm và 9cm. Độ dài đường cao ứng với cạnh huyền là:", "a": "6 cm", "d": ["13 cm", "36 cm", "5 cm"], "h": r"💡 HD: $h^2 = b' \cdot c' = 4 \times 9 = 36 \Rightarrow h = 6$.", "i": None})
+        
+        pool.append({"q": r"Cho đường tròn tâm $O$ bán kính 5cm. Khoảng cách từ tâm $O$ đến dây $AB$ bằng 3cm. Độ dài dây $AB$ là:", "a": "8 cm", "d": ["4 cm", "10 cm", "6 cm"], "h": r"💡 HD: Pytago: $(AB/2)^2 = 5^2 - 3^2 = 16 \Rightarrow AB = 8$.", "i": None})
+        
+        pool.append({"q": "Quan sát hình vẽ, dây cung chung của hai đường tròn cắt nhau có tính chất gì?", "a": "Vuông góc với đường nối tâm", "d": ["Song song với đường nối tâm", "Đi qua tâm của cả hai đường tròn", "Bằng tổng 2 bán kính"], "h": "💡 HD: Đường nối tâm là đường trung trực của dây chung.", "i": draw_intersecting_circles()})
+        
+        pool.append({"q": r"Tứ giác $ABCD$ nội tiếp. Biết góc $A = 70^\circ$, góc $B = 100^\circ$. Số đo góc $C$ là:", "a": r"$110^\circ$", "d": [r"$80^\circ$", r"$70^\circ$", r"$100^\circ$"], "h": r"💡 HD: Tổng 2 góc đối diện $= 180^\circ \Rightarrow C = 180^\circ - 70^\circ = 110^\circ$.", "i": None})
+        
+        pool.append({"q": r"Tam giác $ABC$ nội tiếp đường tròn tâm $O$ có cạnh $BC$ là đường kính. Khẳng định ĐÚNG là:", "a": r"Tam giác $ABC$ vuông tại $A$", "d": [r"Tam giác $ABC$ đều", r"Tam giác $ABC$ cân tại $A$", r"Góc $A = 60^\circ$"], "h": "💡 HD: Góc nội tiếp chắn nửa đường tròn là góc vuông.", "i": None})
+        
+        pool.append({"q": r"Diện tích hình quạt tròn bán kính $R=6cm$, góc ở tâm $60^\circ$ là:", "a": r"$6\pi$ cm$^2$", "d": [r"$12\pi$ cm$^2$", r"$36\pi$ cm$^2$", r"$2\pi$ cm$^2$"], "h": r"💡 HD: $S = \frac{\pi R^2 n}{360} = 6\pi$.", "i": None})
+        
+        pool.append({"q": r"Độ dài cung $90^\circ$ của đường tròn bán kính 4cm là:", "a": r"$2\pi$ cm", "d": [r"$4\pi$ cm", r"$8\pi$ cm", r"$\pi$ cm"], "h": r"💡 HD: $l = \frac{\pi R n}{180} = 2\pi$.", "i": None})
+        
+        pool.append({"q": r"Hình nón có bán kính đáy $r=3$, chiều cao $h=4$. Thể tích là:", "a": r"$12\pi$", "d": [r"$36\pi$", r"$15\pi$", r"$9\pi$"], "h": r"💡 HD: $V = \frac{1}{3}\pi r^2 h = 12\pi$.", "i": None})
+        
+        pool.append({"q": "Nếu tăng bán kính mặt cầu lên 2 lần thì diện tích mặt cầu tăng lên mấy lần?", "a": "4 lần", "d": ["2 lần", "8 lần", "16 lần"], "h": "💡 HD: Diện tích tỷ lệ với bình phương bán kính.", "i": None})
+        
+        pool.append({"q": "Một lon sữa bò hình trụ có bán kính đáy 4cm, cao 10cm. Thể tích lon sữa là:", "a": r"$160\pi$ cm$^3$", "d": [r"$40\pi$ cm$^3$", r"$80\pi$ cm$^3$", r"$320\pi$ cm$^3$"], "h": r"💡 HD: $V = \pi r^2 h = 160\pi$.", "i": None})
+        
+        pool.append({"q": r"Dựa vào Biểu đồ phổ điểm, tổng tỉ lệ học sinh đạt điểm từ 7 trở lên (Nhóm [7;8), [8;9), [9;10]) là:", "a": "65%", "d": ["40%", "75%", "50%"], "h": "💡 HD: Cộng tỉ lệ 3 cột cuối.", "i": draw_histogram()})
+        
+        pool.append({"q": "Dựa vào biểu đồ phân loại học lực, nhóm học sinh nào chiếm đa số?", "a": "Khá (45%)", "d": ["Giỏi (25%)", "Trung bình (20%)", "Yếu (10%)"], "h": "💡 HD: Vùng Khá chiếm diện tích lớn nhất.", "i": draw_pie_chart()})
+        
+        pool.append({"q": "Gieo 1 con xúc xắc cân đối. Xác suất để được mặt có số chấm là số nguyên tố là:", "a": r"$\frac{1}{2}$", "d": [r"$\frac{1}{3}$", r"$\frac{1}{6}$", r"$\frac{2}{3}$"], "h": "💡 HD: Các số nguyên tố: 2, 3, 5 $\Rightarrow P = 3/6 = 1/2$.", "i": None})
+        
+        pool.append({"q": "Rút ngẫu nhiên 1 lá bài từ bộ bài tú lơ khơ 52 lá. Số phần tử của không gian mẫu là:", "a": "52", "d": ["13", "4", "26"], "h": "💡 HD: Không gian mẫu có 52 lá.", "i": None})
+        
+        pool.append({"q": "Trong 20 ngày đi học, Nam đi muộn 2 ngày. Xác suất thực nghiệm của biến cố 'Nam đi học đúng giờ' là:", "a": r"$\frac{9}{10}$", "d": [r"$\frac{1}{10}$", r"$\frac{1}{20}$", r"$90$"], "h": r"💡 HD: $(20-2)/20 = 9/10$.", "i": None})
+        
+        pool.append({"q": "Một hộp có thẻ đánh số từ 1 đến 10. Rút 1 thẻ, xác suất rút được thẻ là số chia hết cho 3 là:", "a": r"$\frac{3}{10}$", "d": [r"$\frac{1}{3}$", r"$\frac{4}{10}$", r"$\frac{1}{10}$"], "h": "💡 HD: Các số chia hết cho 3: 3, 6, 9 $\Rightarrow P = 3/10$.", "i": None})
+
+        pool.append({"q": r"Giá trị của biểu thức $\sqrt[3]{-64} + \sqrt[3]{27}$ là:", "a": "-1", "d": ["-7", "1", "7"], "h": r"💡 HD: $-4 + 3 = -1$.", "i": None})
+        
+        pool.append({"q": r"Tập nghiệm của bất phương trình $\frac{x-2}{-3} > 0$ là:", "a": r"$x < 2$", "d": [r"$x > 2$", r"$x < -2$", r"$x > -2$"], "h": r"💡 HD: Nhân 2 vế với số âm (-3) phải đảo chiều.", "i": None})
+        
+        pool.append({"q": r"Điểm nào sau đây thuộc đồ thị hàm số $y = -2x + 5$?", "a": r"$(1; 3)$", "d": [r"$(1; 7)$", r"$(2; -1)$", r"$(0; -5)$"], "h": r"💡 HD: Thay $x=1 \Rightarrow y = 3$.", "i": None})
+        
+        bong_2 = random.choice([15, 20, 25])
+        pool.append({"q": f"Vật thể có bóng dài {bong_2}m. Tia nắng tạo góc Alpha. Chiều cao vật thể là:", "a": f"{bong_2} x tan(Alpha)", "d": [f"{bong_2} x sin(Alpha)", f"{bong_2} x cos(Alpha)", f"{bong_2} x cot(Alpha)"], "h": "💡 HD: Dùng lượng giác Tan.", "i": draw_tower_shadow(bong_2)})
+
+        # Bốc ngẫu nhiên 38 câu cơ bản từ Pool
+        selected_normal = random.sample(pool, min(38, len(pool)))
+
+        # --- NGÂN HÀNG CÂU HỎI VẬN DỤNG CAO (SIÊU KHÓ) ---
         hardcore_bank = [
-            {
-                "q": r"**[Toán Chuyên]** Tìm số cặp nghiệm nguyên dương $(x; y)$ của phương trình: $xy - 2x - 3y + 5 = 0$.",
-                "a": "2 cặp", "d": ["0 cặp", "1 cặp", "Vô số cặp"],
-                "h": r"💡 **HD (Điểm 10):** Đưa về phương trình ước số: $xy - 2x - 3y + 6 = 1 \Leftrightarrow (x-3)(y-2) = 1$. Giải ra ta được $(4; 3)$ và $(2; 1)$."
-            },
-            {
-                "q": r"**[Toán Chuyên]** Cho $x, y > 0$ thỏa mãn $x+y=1$. Tìm giá trị nhỏ nhất của biểu thức $A = \frac{1}{x^2+y^2} + \frac{1}{xy}$.",
-                "a": "6", "d": ["4", "8", "2"],
-                "h": r"💡 **HD (Điểm 10):** Dùng kỹ thuật Điểm rơi Cauchy: $A = (\frac{1}{x^2+y^2} + \frac{1}{2xy}) + \frac{1}{2xy} \ge \frac{4}{(x+y)^2} + 2 = 6$."
-            },
-            {
-                "q": r"**[Toán Chuyên]** Giải hệ phương trình đối xứng: $\begin{cases} x^2+y^2+xy=3 \\ x+y+xy=3 \end{cases}$. Số cặp nghiệm $(x; y)$ của hệ là:",
-                "a": "2 cặp", "d": ["1 cặp", "3 cặp", "4 cặp"],
-                "h": r"💡 **HD (Điểm 10):** Đặt $S=x+y, P=xy$. Giải ra ta được $x=1, y=1$ hoặc $x, y$ là nghiệm phương trình khác."
-            },
-            {
-                "q": r"**[Toán Chuyên]** Giải phương trình vô tỷ: $\sqrt{x-1} + \sqrt{3-x} = x^2 - 4x + 6$. Phương trình có bao nhiêu nghiệm?",
-                "a": "1 nghiệm", "d": ["2 nghiệm", "Vô nghiệm", "3 nghiệm"],
-                "h": r"💡 **HD (Điểm 10):** Phương pháp Đánh giá. VT $\le 2$, VP $\ge 2$. Dấu bằng xảy ra khi $x=2$."
-            }
+            {"q": r"**[Toán Chuyên]** Tìm số cặp nghiệm nguyên dương $(x; y)$ của phương trình: $xy - 2x - 3y + 5 = 0$.", "a": "2 cặp", "d": ["0 cặp", "1 cặp", "Vô số cặp"], "h": r"💡 **HD (Điểm 10):** Phương trình ước số $\Leftrightarrow (x-3)(y-2) = 1$. Giải ra $(4; 3)$ và $(2; 1)$."},
+            {"q": r"**[Toán Chuyên]** Cho $x, y > 0$ thỏa mãn $x+y=1$. Tìm giá trị nhỏ nhất của biểu thức $A = \frac{1}{x^2+y^2} + \frac{1}{xy}$.", "a": "6", "d": ["4", "8", "2"], "h": r"💡 **HD (Điểm 10):** Điểm rơi Cauchy: $A = (\frac{1}{x^2+y^2} + \frac{1}{2xy}) + \frac{1}{2xy} \ge \frac{4}{(x+y)^2} + 2 = 6$."},
+            {"q": r"**[Toán Chuyên]** Giải hệ phương trình đối xứng: $\begin{cases} x^2+y^2+xy=3 \\ x+y+xy=3 \end{cases}$. Có bao nhiêu cặp nghiệm $(x; y)$?", "a": "2 cặp", "d": ["1 cặp", "3 cặp", "0 cặp"], "h": r"💡 **HD (Điểm 10):** Đặt $S=x+y, P=xy$. Giải ra tìm được các nghiệm thỏa mãn."},
+            {"q": r"**[Toán Chuyên]** Giải phương trình vô tỷ: $\sqrt{x-1} + \sqrt{3-x} = x^2 - 4x + 6$. Phương trình có bao nhiêu nghiệm?", "a": "1 nghiệm", "d": ["2 nghiệm", "Vô nghiệm", "3 nghiệm"], "h": r"💡 **HD (Điểm 10):** Đánh giá Bunhiacopxki. $VT \le 2, VP \ge 2 \Rightarrow x=2$."}
         ]
+        
+        # Bốc ngẫu nhiên 2 câu khó
         selected_hardcores = random.sample(hardcore_bank, 2)
-        for hc in selected_hardcores:
-            self.build_q(hc["q"], hc["a"], hc["d"], hc["h"])
+
+        # GỘP TẤT CẢ VÀ XÁO TRỘN VỊ TRÍ ĐỂ CẤU TRÚC ĐỀ ĐA DẠNG 100%
+        final_questions = selected_normal + selected_hardcores
+        random.shuffle(final_questions)
+
+        # Gán ID thứ tự từ 1 đến 40 sau khi đã trộn
+        for i, hc in enumerate(final_questions):
+            opts = self.format_options(hc["a"], hc["d"])
+            self.exam.append({
+                "id": i + 1, "question": hc["q"], "options": opts,
+                "answer": hc["a"], "hint": hc["h"], "image": hc.get("i", None)
+            })
 
         return self.exam
 
@@ -322,15 +334,31 @@ def main():
         
         with tab_mand:
             conn = sqlite3.connect('exam_db.sqlite')
+            
+            # --- KIỂM TRA VÀ THÊM CỘT TARGET_CLASS CHO DATABASE CŨ ---
+            try:
+                df_exams = pd.read_sql_query("SELECT id, title, start_time, end_time, questions_json, target_class FROM mandatory_exams ORDER BY id DESC", conn)
+            except:
+                c = conn.cursor()
+                c.execute("ALTER TABLE mandatory_exams ADD COLUMN target_class TEXT DEFAULT 'Toàn trường'")
+                conn.commit()
+                df_exams = pd.read_sql_query("SELECT id, title, start_time, end_time, questions_json, target_class FROM mandatory_exams ORDER BY id DESC", conn)
+            
+            # --- THUẬT TOÁN ĐỒNG BỘ BÀI TẬP VÀ HỌC SINH (FIX LỖI 100%) ---
             c = conn.cursor()
             c.execute("SELECT class_name FROM users WHERE username=?", (st.session_state.current_user,))
             res_cls = c.fetchone()
-            student_class = res_cls[0] if res_cls else ""
+            # Xóa khoảng trắng và đưa về chữ thường để tránh lỗi gõ nhầm '9A ' và '9a'
+            student_class = str(res_cls[0]).strip().lower() if res_cls and res_cls[0] else ""
             
-            query_exams = "SELECT id, title, start_time, end_time, questions_json FROM mandatory_exams WHERE target_class='Toàn trường' OR target_class=? ORDER BY id DESC"
-            df_exams = pd.read_sql_query(query_exams, conn, params=(student_class,))
+            if not df_exams.empty:
+                df_exams['target_class'] = df_exams['target_class'].fillna('Toàn trường')
+                def is_target(t):
+                    ts = str(t).strip().lower()
+                    return ts == 'toàn trường' or ts == student_class
+                df_exams = df_exams[df_exams['target_class'].apply(is_target)]
             
-            if df_exams.empty: st.info("Hiện chưa có bài tập bắt buộc nào.")
+            if df_exams.empty: st.info("Hiện chưa có bài tập bắt buộc nào dành cho lớp của bạn.")
             else:
                 for idx, row in df_exams.iterrows():
                     exam_id = row['id']
@@ -394,6 +422,7 @@ def main():
                         st.session_state[f"mand_ans_{exam_id}"] = {str(q['id']): None for q in mand_exam_data}
                         
                     for q in mand_exam_data:
+                        # THÊM SỐ THỨ TỰ CÂU HỎI
                         st.markdown(f"**Câu {q['id']}:** {q['question']}", unsafe_allow_html=True)
                         if q['image']: st.markdown(f'<img src="data:image/png;base64,{q["image"]}" style="max-width:350px;">', unsafe_allow_html=True)
                         ans_val = st.session_state[f"mand_ans_{exam_id}"][str(q['id'])]
@@ -403,7 +432,7 @@ def main():
                     
                     if st.button("📤 NỘP BÀI CHÍNH THỨC", type="primary", use_container_width=True) or remaining <= 0:
                         correct = sum(1 for q in mand_exam_data if st.session_state[f"mand_ans_{exam_id}"][str(q['id'])] == q['answer'])
-                        score = (correct / 40) * 10
+                        score = (correct / len(mand_exam_data)) * 10
                         c.execute("INSERT INTO mandatory_results (username, exam_id, score, user_answers_json) VALUES (?, ?, ?, ?)", (st.session_state.current_user, exam_id, score, json.dumps(st.session_state[f"mand_ans_{exam_id}"])))
                         conn.commit()
                         st.success("✅ Đã nộp bài!")
@@ -430,12 +459,12 @@ def main():
             conn.close()
 
         with tab_ai:
-            st.title("Luyện Tập Đề Thi (Cấu trúc Chuẩn Tuyên Quang)")
+            st.title("Luyện Tập Đề Thi (Cấu trúc Đa dạng VN)")
             if 'exam_data' not in st.session_state: st.session_state.exam_data = None
             if 'user_answers' not in st.session_state: st.session_state.user_answers = {}
             if 'is_submitted' not in st.session_state: st.session_state.is_submitted = False
 
-            if st.button("🔄 TẠO ĐỀ MỚI AI", use_container_width=True):
+            if st.button("🔄 TẠO ĐỀ MỚI AI (Xáo trộn cấu trúc)", use_container_width=True):
                 gen = ExamGenerator()
                 st.session_state.exam_data = gen.generate_all()
                 st.session_state.user_answers = {q['id']: None for q in st.session_state.exam_data}
@@ -443,6 +472,7 @@ def main():
                 st.rerun()
 
             if st.session_state.exam_data:
+                # HIỂN THỊ ĐIỂM SỐ KHI NỘP BÀI TỰ LUYỆN
                 if st.session_state.is_submitted:
                     correct_ans = sum(1 for q in st.session_state.exam_data if st.session_state.user_answers[q['id']] == q['answer'])
                     score_ai = (correct_ans / len(st.session_state.exam_data)) * 10
@@ -450,6 +480,7 @@ def main():
                     st.markdown("---")
 
                 for q in st.session_state.exam_data:
+                    # HIỂN THỊ SỐ THỨ TỰ
                     st.markdown(f"**Câu {q['id']}:** {q['question']}", unsafe_allow_html=True)
                     if q['image']: st.markdown(f'<img src="data:image/png;base64,{q["image"]}" style="max-width:350px;">', unsafe_allow_html=True)
                     disabled = st.session_state.is_submitted
@@ -475,10 +506,10 @@ def main():
         st.title("⚙ Bảng Điều Khiển (LMS)")
         
         if st.session_state.role in ['core_admin', 'sub_admin']:
-            tabs = st.tabs(["🏫 Lớp & Học sinh", "🛡️ Quản lý Nhân sự", "📊 Báo cáo Điểm", "⚙️ Nạp dữ liệu"])
+            tabs = st.tabs(["🏫 Lớp & Học sinh", "🛡️ Quản lý Nhân sự", "📊 Báo cáo Điểm", "⚙️ Nạp dữ liệu (Giao bài)"])
             tab_class, tab_staff, tab_scores, tab_system = tabs
         else:
-            tabs = st.tabs(["🏫 Lớp của tôi", "📊 Báo cáo Điểm", "⚙️ Nạp dữ liệu"])
+            tabs = st.tabs(["🏫 Lớp của tôi", "📊 Báo cáo Điểm", "⚙️ Nạp dữ liệu (Giao bài)"])
             tab_class, tab_scores, tab_system = tabs
         
         conn = sqlite3.connect('exam_db.sqlite')
@@ -655,7 +686,7 @@ def main():
                     conn.commit()
                     st.rerun()
 
-        # --- TAB 3: BÁO CÁO PHÂN TÍCH (ĐÃ FIX LỖI LATEX) ---
+        # --- TAB 3: BÁO CÁO PHÂN TÍCH ---
         with tab_scores:
             st.subheader("📊 Báo cáo & Thống kê Chuyên sâu")
             if not available_classes: st.info("Chưa có lớp nào.")
@@ -698,29 +729,30 @@ def main():
                             stats_list = [{'Câu': k, 'Nội dung': v['text'], 'Số HS làm sai': v['wrong_count']} for k, v in wrong_stats.items()]
                             df_stats = pd.DataFrame(stats_list).sort_values(by='Số HS làm sai', ascending=False)
                             
-                            # 1. RENDER TOP 5 BẰNG MARKDOWN ĐỂ CHUẨN LATEX
-                            st.markdown("### 🚨 TOP 5 CÂU SAI NHIỀU NHẤT (Cần ôn tập):")
+                            st.markdown("### 🚨 TOP 5 CÂU SAI NHIỀU NHẤT:")
                             top5 = df_stats.head(5)
                             for _, r in top5.iterrows():
                                 if r['Số HS làm sai'] > 0:
                                     st.error(f"**Câu {r['Câu']}** ({r['Số HS làm sai']} Học sinh sai)  \n{r['Nội dung']}")
                             
                             st.markdown("---")
-                            st.markdown("**Chi tiết toàn bộ (Dạng bảng thô):**")
-                            # 2. LÀM SẠCH BẢNG DATAFRAME BÊN DƯỚI CHO DỄ NHÌN
+                            st.markdown("**Chi tiết toàn bộ:**")
                             df_clean = df_stats.copy()
-                            df_clean['Nội dung'] = df_clean['Nội dung'].str.replace("$", "", regex=False)
-                            df_clean['Nội dung'] = df_clean['Nội dung'].str.replace(r"\sqrt", "căn", regex=False)
-                            df_clean['Nội dung'] = df_clean['Nội dung'].str.replace(r"\frac", "phân số ", regex=False)
-                            df_clean['Nội dung'] = df_clean['Nội dung'].str.replace(r"\{", "{", regex=False).str.replace(r"\}", "}", regex=False)
+                            df_clean['Nội dung'] = df_clean['Nội dung'].str.replace("$", "", regex=False).str.replace(r"\sqrt", "căn", regex=False).str.replace(r"\frac", "phân số ", regex=False).str.replace(r"\{", "{", regex=False).str.replace(r"\}", "}", regex=False)
                             st.dataframe(df_clean, use_container_width=True)
                         else: st.info("Cần có HS nộp bài để AI phân tích.")
             
         # --- TAB 4: NẠP DỮ LIỆU & GIAO BÀI ---
         with tab_system:
-            st.subheader("📤 Giao bài AI (Theo Lớp)")
-            assign_options = ["Toàn trường"] if st.session_state.role in ['core_admin', 'sub_admin'] else []
-            assign_options.extend(available_classes)
+            st.subheader("📤 Giao bài AI (Phân Quyền Chuẩn)")
+            
+            # CHỈ ADMIN MỚI CÓ QUYỀN GIAO TOÀN TRƯỜNG
+            if st.session_state.role in ['core_admin', 'sub_admin']:
+                assign_options = ["Toàn trường"] + all_system_classes
+            else:
+                c.execute("SELECT managed_classes FROM users WHERE username=?", (st.session_state.current_user,))
+                m_cls_raw = c.fetchone()[0]
+                assign_options = [x.strip() for x in m_cls_raw.split(',')] if m_cls_raw else []
             
             if not assign_options: st.warning("Bạn chưa được cấp quyền quản lý lớp nào.")
             else:
@@ -741,7 +773,7 @@ def main():
                         e_str = f"{e_date} {e_time.strftime('%H:%M:%S')}"
                         c.execute("INSERT INTO mandatory_exams (title, questions_json, start_time, end_time, target_class) VALUES (?, ?, ?, ?, ?)", (exam_title.strip(), json.dumps(fixed_exam), s_str, e_str, target_class))
                         conn.commit()
-                        st.success(f"✅ Đã phát đề thành công tới {target_class}!")
+                        st.success(f"✅ Đã phát đề thành công tới {target_class}! (Học sinh sẽ nhận được bài trên hệ thống)")
                     else: st.error("Cần nhập tên bài!")
         conn.close()
 
