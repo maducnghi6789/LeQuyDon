@@ -1,5 +1,5 @@
 # ==========================================
-# 1. KHỞI TẠO ĐỒ HỌA & THƯ VIỆN (CORE V18)
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V18 CORE TỐI ƯU
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
@@ -67,6 +67,7 @@ def init_db():
     conn.commit()
     conn.close()
 
+# --- THUẬT TOÁN TẠO USERNAME CHUẨN QUỐC TẾ ---
 def generate_username(fullname, dob):
     s = str(fullname)
     s = re.sub(r'[đĐ]', 'd', s)
@@ -152,7 +153,7 @@ def draw_tower_shadow(bong):
     return fig_to_base64(fig)
 
 # ==========================================
-# 4. BỘ MÁY SINH ĐỀ AI 40 CÂU (ĐÃ FIX ALL LỖI CÚ PHÁP)
+# 4. BỘ MÁY SINH ĐỀ AI 40 CÂU TỰ LUYỆN
 # ==========================================
 class ExamGenerator:
     def __init__(self):
@@ -166,6 +167,7 @@ class ExamGenerator:
     def generate_all(self):
         pool = []
         
+        # --- CHỦ ĐỀ 1: ĐẠI SỐ ---
         a1 = random.randint(2, 9)
         pool.append({"q": r"Điều kiện xác định của biểu thức $\sqrt{2x - " + str(2*a1) + r"}$ là:", "a": r"$x \ge " + str(a1) + r"$", "d": [r"$x > " + str(a1) + r"$", r"$x \le " + str(a1) + r"$", r"$x < " + str(a1) + r"$"], "h": "💡 HD: Biểu thức dưới căn $\ge 0$.", "i": None})
         a2 = random.choice([16, 25, 36, 49, 64])
@@ -182,6 +184,7 @@ class ExamGenerator:
         c8 = random.randint(1, 4)
         pool.append({"q": r"Tọa độ giao điểm của parabol $y = x^2$ và đường thẳng $y = " + str(c8**2) + r"$ là:", "a": r"$( " + str(c8) + r"; " + str(c8**2) + r")$ và $(-" + str(c8) + r"; " + str(c8**2) + r")$", "d": [r"$( " + str(c8) + r"; " + str(c8**2) + r")$", r"$(-" + str(c8) + r"; " + str(c8**2) + r")$", r"$(0; 0)$"], "h": "💡 HD: Giải phương trình hoành độ giao điểm.", "i": None})
 
+        # --- CHỦ ĐỀ 2: PHƯƠNG TRÌNH & THỰC TẾ ---
         pool.append({"q": r"Nghiệm của hệ phương trình $\begin{cases} x - y = 1 \\ 2x + y = 5 \end{cases}$ là:", "a": r"$(2; 1)$", "d": [r"$(1; 2)$", r"$(3; -1)$", r"$(2; -1)$"], "h": "💡 HD: Cộng 2 vế: $3x = 6 \Rightarrow x=2$.", "i": None})
         pool.append({"q": "Giá cước taxi: 10.000đ cho 1km đầu tiên, từ km thứ 2 giá 15.000đ/km. Hỏi đi 5km phải trả bao nhiêu tiền?", "a": "70.000 đ", "d": ["75.000 đ", "50.000 đ", "60.000 đ"], "h": "💡 HD: Tiền = 10.000 + 4 $\\times$ 15.000 = 70.000đ.", "i": None})
         p11 = random.choice([100, 200, 300])
@@ -195,7 +198,9 @@ class ExamGenerator:
         pool.append({"q": r"Hai vòi nước cùng chảy vào 1 bể cạn thì 6 giờ đầy bể. Nếu vòi 1 chảy một mình 10 giờ đầy bể, thì vòi 2 chảy một mình đầy bể trong bao lâu?", "a": "15 giờ", "d": ["12 giờ", "16 giờ", "4 giờ"], "h": "💡 HD: 1 giờ vòi 2 chảy: $1/6 - 1/10 = 1/15$ bể.", "i": None})
         pool.append({"q": r"Số nghiệm của phương trình $x^4 - 3x^2 - 4 = 0$ là:", "a": "2 nghiệm", "d": ["4 nghiệm", "1 nghiệm", "Vô nghiệm"], "h": r"💡 HD: Đặt $t = x^2 \Rightarrow t=4 \Rightarrow x = \pm 2$.", "i": None})
 
-        c17_1 = random.choice([3, 6, 9]); c17_2 = int(c17_1 * 4/3); huyen17 = int(math.sqrt(c17_1**2 + c17_2**2))
+        # --- CHỦ ĐỀ 3: HÌNH HỌC ---
+        c17_1 = random.choice([3, 6, 9]); c17_2 = int(c17_1 * 4/3)
+        huyen17 = int(math.sqrt(c17_1**2 + c17_2**2))
         pool.append({"q": r"Dựa vào kích thước tam giác $ABC$ vuông tại $A$ trên hình vẽ, độ dài cạnh huyền $BC$ là:", "a": f"{huyen17} cm", "d": [f"{c17_1+c17_2} cm", f"{huyen17**2} cm", f"{huyen17+1} cm"], "h": r"💡 HD: Định lý Pytago.", "i": draw_right_triangle(c17_1, c17_2)})
         pool.append({"q": r"Trong tam giác $ABC$ vuông tại $A$, tỉ số $\frac{AB}{BC}$ là tỉ số lượng giác nào của góc $C$?", "a": r"$\sin C$", "d": [r"$\cos C$", r"$\tan C$", r"$\cot C$"], "h": "💡 HD: $\sin$ = Đối / Huyền.", "i": None})
         pool.append({"q": "Cho tam giác vuông có 2 hình chiếu của 2 cạnh góc vuông lên cạnh huyền là 4cm và 9cm. Độ dài đường cao ứng với cạnh huyền là:", "a": "6 cm", "d": ["13 cm", "36 cm", "5 cm"], "h": r"💡 HD: $h^2 = 4 \times 9 = 36 \Rightarrow h = 6$.", "i": None})
@@ -209,6 +214,7 @@ class ExamGenerator:
         pool.append({"q": "Nếu tăng bán kính mặt cầu lên 2 lần thì diện tích mặt cầu tăng lên mấy lần?", "a": "4 lần", "d": ["2 lần", "8 lần", "16 lần"], "h": "💡 HD: Diện tích tỷ lệ với bình phương bán kính.", "i": None})
         pool.append({"q": "Một lon sữa bò hình trụ có bán kính đáy 4cm, cao 10cm. Thể tích lon sữa là:", "a": r"$160\pi$ cm$^3$", "d": [r"$40\pi$ cm$^3$", r"$80\pi$ cm$^3$", r"$320\pi$ cm$^3$"], "h": r"💡 HD: $V = \pi r^2 h = 160\pi$.", "i": None})
 
+        # --- CHỦ ĐỀ 4: XÁC SUẤT THỐNG KÊ ---
         pool.append({"q": r"Dựa vào Biểu đồ phổ điểm, tổng tỉ lệ học sinh đạt điểm từ 7 trở lên (Nhóm [7;8), [8;9), [9;10]) là:", "a": "65%", "d": ["40%", "75%", "50%"], "h": "💡 HD: Cộng tỉ lệ 3 cột cuối.", "i": draw_histogram()})
         pool.append({"q": "Dựa vào biểu đồ phân loại học lực, nhóm học sinh nào chiếm đa số?", "a": "Khá (45%)", "d": ["Giỏi (25%)", "Trung bình (20%)", "Yếu (10%)"], "h": "💡 HD: Vùng Khá chiếm diện tích lớn nhất.", "i": draw_pie_chart()})
         pool.append({"q": "Gieo 1 con xúc xắc cân đối. Xác suất để được mặt có số chấm là số nguyên tố là:", "a": r"$\frac{1}{2}$", "d": [r"$\frac{1}{3}$", r"$\frac{1}{6}$", r"$\frac{2}{3}$"], "h": "💡 HD: Các số nguyên tố: 2, 3, 5 $\Rightarrow P = 3/6 = 1/2$.", "i": None})
@@ -223,13 +229,13 @@ class ExamGenerator:
 
         selected_normal = random.sample(pool * 4, 38)
 
+        # --- CHỦ ĐỀ 5: CÂU HỎI VẬN DỤNG CAO (2 CÂU) ---
         hardcore_bank = [
             {"q": r"**[Toán Chuyên]** Tìm số cặp nghiệm nguyên dương $(x; y)$ của phương trình: $xy - 2x - 3y + 5 = 0$.", "a": "2 cặp", "d": ["0 cặp", "1 cặp", "Vô số cặp"], "h": r"💡 **HD (Điểm 10):** Đưa về phương trình ước số: $xy - 2x - 3y + 6 = 1 \Leftrightarrow (x-3)(y-2) = 1$. Giải ra ta được $(4; 3)$ và $(2; 1)$."},
             {"q": r"**[Toán Chuyên]** Cho $x, y > 0$ thỏa mãn $x+y=1$. Tìm giá trị nhỏ nhất của biểu thức $A = \frac{1}{x^2+y^2} + \frac{1}{xy}$.", "a": "6", "d": ["4", "8", "2"], "h": r"💡 **HD (Điểm 10):** Dùng kỹ thuật Điểm rơi Cauchy: $A = (\frac{1}{x^2+y^2} + \frac{1}{2xy}) + \frac{1}{2xy} \ge \frac{4}{(x+y)^2} + 2 = 6$."},
             {"q": r"**[Toán Chuyên]** Giải hệ phương trình đối xứng: $\begin{cases} x^2+y^2+xy=3 \\ x+y+xy=3 \end{cases}$. Số cặp nghiệm $(x; y)$ của hệ là:", "a": "2 cặp", "d": ["1 cặp", "3 cặp", "4 cặp"], "h": r"💡 **HD (Điểm 10):** Đặt $S=x+y, P=xy$. Giải ra ta được $x=1, y=1$ hoặc $x, y$ là nghiệm phương trình khác."},
             {"q": r"**[Toán Chuyên]** Giải phương trình vô tỷ: $\sqrt{x-1} + \sqrt{3-x} = x^2 - 4x + 6$. Phương trình có bao nhiêu nghiệm?", "a": "1 nghiệm", "d": ["2 nghiệm", "Vô nghiệm", "3 nghiệm"], "h": r"💡 **HD (Điểm 10):** Phương pháp Đánh giá. VT $\le 2$, VP $\ge 2$. Dấu bằng xảy ra khi $x=2$."}
         ]
-        
         selected_hardcores = random.sample(hardcore_bank, 2)
 
         final_questions = selected_normal + selected_hardcores
@@ -241,20 +247,20 @@ class ExamGenerator:
                 "id": i + 1, "question": hc["q"], "options": opts,
                 "answer": hc["a"], "hint": hc["h"], "image": hc.get("i", None)
             })
-            
         return self.exam
 
 # ==========================================
 # 5. GIAO DIỆN LÕI HỆ THỐNG LMS
 # ==========================================
 def main():
-    st.set_page_config(page_title="Hệ Thống LMS Pro", layout="wide", page_icon="🏫")
+    st.set_page_config(page_title="Hệ Thống LMS V18", layout="wide", page_icon="🏫")
     init_db()
     
     if 'current_user' not in st.session_state: st.session_state.current_user = None
     if 'role' not in st.session_state: st.session_state.role = None
     if 'fullname' not in st.session_state: st.session_state.fullname = None
 
+    # --- TRANG ĐĂNG NHẬP ---
     if st.session_state.current_user is None:
         st.markdown("<h1 style='text-align: center; color: #2c3e50;'>🎓 HỆ THỐNG KIỂM TRA TRỰC TUYẾN</h1>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1, 1.5, 1])
@@ -278,6 +284,7 @@ def main():
                         st.error("❌ Sai tài khoản hoặc mật khẩu!")
         return
 
+    # --- SIDEBAR TÀI KHOẢN ---
     with st.sidebar:
         st.markdown(f"### 👤 {st.session_state.fullname}")
         role_map = {"core_admin": "👑 Giám Đốc", "sub_admin": "🛡 Admin", "teacher": "👨‍🏫 Giáo viên", "student": "🎓 Học sinh"}
@@ -359,6 +366,7 @@ def main():
                                 st.rerun()
                     st.markdown("---")
             
+            # --- VÀO PHÒNG THI THỰC TẾ ---
             if 'active_mand_exam' in st.session_state and st.session_state.active_mand_exam is not None:
                 exam_id = st.session_state.active_mand_exam
                 mode = st.session_state.mand_mode
@@ -388,6 +396,7 @@ def main():
                     
                     st.subheader(f"📝 ĐANG THI: {exam_row['title']}")
                     
+                    # 1. NẾU LÀ ĐỀ PDF TẢI LÊN
                     if is_pdf_upload:
                         ans_key = []
                         try: ans_key = json.loads(exam_row['answer_key'])
@@ -432,6 +441,7 @@ def main():
                             st.session_state.active_mand_exam = None
                             st.rerun()
 
+                    # 2. NẾU LÀ ĐỀ TEXT (AI SINH TỪ NGÂN HÀNG)
                     else:
                         mand_exam_data = json.loads(exam_row['questions_json'])
                         num_q = len(mand_exam_data)
@@ -490,6 +500,7 @@ def main():
                         st.rerun()
             conn.close()
 
+        # --- TAB LUYỆN TẬP AI ---
         with tab_ai:
             st.title("🤖 Luyện Tập Đề Thi Tự Động")
             st.info("Hệ thống sẽ trộn ngẫu nhiên 40 câu hỏi (Nhận biết, Thông hiểu, Vận dụng) để bạn luyện tập.")
@@ -784,7 +795,6 @@ def main():
                 st.markdown("---")
                 exam_type = st.radio("Lựa chọn phương thức giao bài:", ["📤 Tải lên đề thi của tôi (File PDF/Ảnh)", "🤖 Sinh ngẫu nhiên từ Ngân hàng Đề AI"])
                 
-                # --- PHƯƠNG THỨC 1: GIÁO VIÊN TẢI FILE PDF LÊN VÀ NHẬP ĐÁP ÁN ---
                 if exam_type == "📤 Tải lên đề thi của tôi (File PDF/Ảnh)":
                     st.info("💡 Học sinh sẽ nhìn thấy File đề của bạn ở nửa màn hình bên trái và điền phiếu trắc nghiệm A B C D ở nửa màn hình bên phải.")
                     uploaded_file = st.file_uploader("1. Tải File Đề (Hỗ trợ PDF, JPG, PNG)", type=['pdf', 'jpg', 'png', 'jpeg'])
@@ -811,7 +821,6 @@ def main():
                                 conn.commit()
                                 st.success(f"✅ Đã phát đề thành công! Hệ thống tự động tạo phiếu tô {len(ans_clean)} câu trắc nghiệm.")
                 
-                # --- PHƯƠNG THỨC 2: AI TỰ ĐỘNG SINH ĐỀ TOÁN HỌC ---
                 else:
                     if st.button("🚀 Phát Đề AI (Trộn Ngẫu Nhiên 40 Câu)", type="primary"):
                         if exam_title:
