@@ -1,5 +1,5 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V19 SUPREME (FULL CORE + AI)
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V20 (NÂNG CẤP ĐỒ HỌA AI)
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
@@ -36,16 +36,16 @@ except ImportError:
 VN_TZ = timezone(timedelta(hours=7))
 
 # GIÁM ĐỐC DÁN API KEY VÀO ĐÂY
-GEMINI_API_KEY = "DÁN_MÃ_API_CỦA_BẠN_VÀO_ĐÂY" 
+GEMINI_API_KEY = "DÁN_API_KEY_CỦA_BẠN_VÀO_ĐÂY" 
 
-if AI_AVAILABLE and GEMINI_API_KEY != "DÁN_MÃ_API_CỦA_BẠN_VÀO_ĐÂY":
+if AI_AVAILABLE and GEMINI_API_KEY != "DÁN_API_KEY_CỦA_BẠN_VÀO_ĐÂY":
     genai.configure(api_key=GEMINI_API_KEY)
     ai_model = genai.GenerativeModel('gemini-1.5-flash')
 else:
     ai_model = None
 
 # ==========================================
-# 1. HÀM HỖ TRỢ EXCEL & REGEX (TỪ CORE V19)
+# 1. HÀM HỖ TRỢ EXCEL & REGEX 
 # ==========================================
 def to_excel(df, sheet_name='Sheet1'):
     output = BytesIO()
@@ -90,7 +90,7 @@ def generate_username(fullname, dob):
     return f"{clean_name}{suffix}_{random.randint(10,99)}"
 
 # ==========================================
-# 2. CƠ SỞ DỮ LIỆU ĐA TẦNG
+# 2. CƠ SỞ DỮ LIỆU ĐA TẦNG V20
 # ==========================================
 def init_db():
     conn = sqlite3.connect('exam_db.sqlite')
@@ -131,7 +131,7 @@ def log_deletion(deleted_by, entity_type, entity_name, reason):
     conn.commit(); conn.close()
 
 # ==========================================
-# 3. ĐỒ HỌA TOÁN HỌC CHUẨN XÁC
+# 3. ĐỒ HỌA TOÁN HỌC DỰ PHÒNG (LÕI V19)
 # ==========================================
 def fig_to_base64(fig):
     buf = BytesIO()
@@ -141,68 +141,18 @@ def fig_to_base64(fig):
 
 def draw_real_parabola():
     fig, ax = plt.subplots(figsize=(3, 2))
-    x = np.linspace(-3, 3, 100); y = 0.5 * x**2
-    ax.plot(x, y, color='#2980b9', lw=2)
+    a = random.choice([0.5, 1, 2, -0.5, -1, -2])
+    x = np.linspace(-3, 3, 100); y = a * x**2
+    color = '#2980b9' if a > 0 else '#e74c3c'
+    ax.plot(x, y, color=color, lw=2)
     ax.spines['left'].set_position('zero'); ax.spines['bottom'].set_position('zero')
     ax.spines['right'].set_color('none'); ax.spines['top'].set_color('none')
     ax.set_xticks([]); ax.set_yticks([]) 
-    ax.text(0.2, 4.5, 'y', style='italic'); ax.text(3.2, 0.2, 'x', style='italic'); ax.text(-0.3, -0.3, 'O')
-    return fig_to_base64(fig)
-
-def draw_intersecting_circles():
-    fig, ax = plt.subplots(figsize=(3, 2))
-    ax.set_aspect('equal')
-    x1, y1, r1 = -1, 0, 2; x2, y2, r2 = 1, 0, 1.5
-    c1 = plt.Circle((x1, y1), r1, color='#c0392b', fill=False, lw=1.5)
-    c2 = plt.Circle((x2, y2), r2, color='#27ae60', fill=False, lw=1.5)
-    ax.add_patch(c1); ax.add_patch(c2)
-    d = x2 - x1; a = (r1**2 - r2**2 + d**2) / (2 * d); h = math.sqrt(max(0, r1**2 - a**2))
-    x3 = x1 + a; y3_1 = y1 + h; y3_2 = y1 - h
-    ax.plot(x3, y3_1, 'ko', markersize=5); ax.plot(x3, y3_2, 'ko', markersize=5)
-    ax.plot([x1, x2], [y1, y2], 'k--', lw=0.8); ax.plot([x3, x3], [y3_1, y3_2], 'b--', lw=0.8)
-    ax.set_xlim(-3.5, 3); ax.set_ylim(-2.5, 2.5); ax.axis('off')
-    return fig_to_base64(fig)
-
-def draw_right_triangle(a, b):
-    fig, ax = plt.subplots(figsize=(3, 2))
-    ax.set_aspect('equal')
-    ax.plot([0, b, 0, 0], [0, 0, a, 0], color='#2c3e50', lw=2)
-    ax.plot([0, 0.3, 0.3], [0.3, 0.3, 0], color='red', lw=1)
-    ax.text(-0.3, -0.3, 'A', fontweight='bold', ha='center', va='center')
-    ax.text(b + 0.3, -0.3, 'B', fontweight='bold', ha='center', va='center')
-    ax.text(-0.3, a + 0.3, 'C', fontweight='bold', ha='center', va='center')
-    ax.text(b/2, -0.6, f'{b} cm', color='blue', ha='center')
-    ax.text(-0.8, a/2, f'{a} cm', color='blue', va='center')
-    ax.set_xlim(-1.5, b + 1.5); ax.set_ylim(-1.5, a + 1.5); ax.axis('off')
-    return fig_to_base64(fig)
-
-def draw_pie_chart():
-    fig, ax = plt.subplots(figsize=(3, 3))
-    labels = ['Giỏi', 'Khá', 'TB', 'Yếu']; sizes = [25, 45, 20, 10]; colors = ['#2ecc71', '#3498db', '#f1c40f', '#e74c3c']
-    explode = (0.1, 0, 0, 0)  
-    ax.pie(sizes, explode=explode, labels=labels, colors=colors, autopct='%1.1f%%', shadow=True, startangle=140)
-    ax.axis('equal') 
-    return fig_to_base64(fig)
-
-def draw_histogram():
-    fig, ax = plt.subplots(figsize=(4, 2.5))
-    bins = ['[5;6)', '[6;7)', '[7;8)', '[8;9)', '[9;10]']; percents = [10, 25, 40, 15, 10]
-    bars = ax.bar(bins, percents, color=['#3498db']*5, edgecolor='black'); bars[2].set_color('#e74c3c') 
-    ax.set_title("Phổ điểm môn Toán", fontsize=9); ax.set_ylabel('% Học sinh', fontsize=8); ax.set_ylim(0, 50)
-    return fig_to_base64(fig)
-
-def draw_tower_shadow(bong):
-    fig, ax = plt.subplots(figsize=(3, 2))
-    ax.set_aspect('equal')
-    ax.plot([-1, 4], [0, 0], color='#27ae60', lw=3); ax.plot([0, 0], [0, 3], color='#7f8c8d', lw=4)
-    ax.plot([2.5, 0], [0, 3], color='#f39c12', lw=1.5, linestyle='--')
-    ax.text(-0.8, 1.5, 'Tháp', rotation=90, fontsize=8); ax.text(0.5, -0.5, f'Bóng: {bong}m', fontsize=8)
-    ax.text(1.8, 0.1, r'$\alpha$', fontsize=10, color='blue')
-    ax.set_xlim(-1, 3); ax.set_ylim(-1, 3.5); ax.axis('off')
-    return fig_to_base64(fig)
+    ax.text(0.2, max(y)*0.9, 'y', style='italic'); ax.text(3.2, 0.2, 'x', style='italic'); ax.text(-0.3, -0.3, 'O')
+    return fig_to_base64(fig), a
 
 # ==========================================
-# 4. BỘ MÁY SINH ĐỀ (TÍCH HỢP GEMINI TẠI ĐÂY)
+# 4. BỘ MÁY SINH ĐỀ AI GEMINI ĐA DẠNG & SVG (MỚI)
 # ==========================================
 class ExamGenerator:
     def __init__(self):
@@ -214,64 +164,88 @@ class ExamGenerator:
         return opts
 
     def generate_all(self):
-        # NẾU CÓ AI, SINH ĐỀ TỰ ĐỘNG BẰNG AI
+        ai_questions = []
         if ai_model:
             try:
-                prompt = "Tạo 40 câu hỏi trắc nghiệm Toán 9 ôn thi vào 10 chuyên. Nội dung bài toán thực tế sinh động, không hình vẽ. Xuất JSON nguyên khối: [{'id': 1, 'question': '...', 'options': ['A', 'B', 'C', 'D'], 'answer': '...', 'hint': '...'}]"
+                # Prompt tối ưu hóa cho đồ họa AI và chống lặp
+                prompt = """Đóng vai giáo viên chuyên ra đề Toán 9 theo chuẩn SGK. 
+                Hãy sáng tác 40 câu hỏi trắc nghiệm Toán 9 ôn thi vào lớp 10 chuyên.
+                YÊU CẦU NGHIÊM NGẶT:
+                1. Tính độc bản: KHÔNG ĐƯỢC lặp lại mô típ cũ. Đảo lộn hoàn toàn dạng bài và nội dung thực tế (cầu đường, quỹ đạo, lãi suất, đo đạc).
+                2. Phân loại mức độ: BẮT BUỘC ghi rõ [Nhận biết], [Thông hiểu], [Vận dụng], [Vận dụng cao] ở đầu mỗi câu.
+                3. Hình ảnh do AI tự tạo (CỰC KỲ QUAN TRỌNG): Với các bài toán thực tế cần hình vẽ (ít nhất 10 câu), hãy tự tạo mã HTML/SVG chuẩn, màu sắc sinh động, rõ ràng (ví dụ: vẽ cái thang, tháp, biểu đồ). Đặt mã SVG vào trường 'image_svg'. Nếu câu nào không cần hình, để 'image_svg': "".
+                4. ĐỊNH DẠNG JSON: Trả về ĐÚNG chuỗi JSON nguyên khối, tuyệt đối hợp lệ.
+                
+                MẪU JSON:
+                [
+                  {
+                    "question": "[Vận dụng] Một cái thang dài 5m dựa vào tường...",
+                    "options": ["A", "B", "C", "D"],
+                    "answer": "A",
+                    "hint": "HD: Áp dụng Pytago...",
+                    "image_svg": "<svg height='150' width='150'><line x1='0' y1='100' x2='50' y2='0' style='stroke:red;stroke-width:2'/></svg>"
+                  }
+                ]"""
                 res = ai_model.generate_content(prompt)
                 match = re.search(r'\[.*\]', res.text, re.DOTALL)
                 if match:
-                    return json.loads(match.group())
-            except:
-                pass # Lỗi AI sẽ tự lùi về dùng ngân hàng lõi bên dưới
+                    ai_questions = json.loads(match.group())
+            except Exception as e:
+                pass # Lỗi AI sẽ tự sinh thêm dữ liệu dự phòng
 
-        # NGÂN HÀNG LÕI V19 (GIỮ NGUYÊN)
-        pool = []
-        a1 = random.randint(2, 9)
-        pool.append({"q": r"Điều kiện xác định của biểu thức $\sqrt{2x - " + str(2*a1) + r"}$ là:", "a": r"$x \ge " + str(a1) + r"$", "d": [r"$x > " + str(a1) + r"$", r"$x \le " + str(a1) + r"$", r"$x < " + str(a1) + r"$"], "h": "💡 HD: Biểu thức dưới căn $\ge 0$.", "i": None})
-        a2 = random.choice([16, 25, 36, 49, 64])
-        pool.append({"q": f"Căn bậc hai số học của {a2} là:", "a": str(int(math.sqrt(a2))), "d": [f"-{int(math.sqrt(a2))}", f"{a2**2}", "Cả âm và dương"], "h": "💡 HD: Căn số học luôn là số không âm.", "i": None})
-        pool.append({"q": "Quan sát đồ thị Parabol trong hình vẽ. Khẳng định nào sau đây ĐÚNG?", "a": r"Hệ số $a > 0$", "d": [r"Hệ số $a < 0$", "Hàm số luôn nghịch biến", "Đồ thị nhận $Ox$ làm trục đối xứng"], "h": "💡 HD: Bề lõm hướng lên trên $\Rightarrow a > 0$.", "i": draw_real_parabola()})
-        c17_1 = random.choice([3, 6, 9]); c17_2 = int(c17_1 * 4/3); huyen17 = int(math.sqrt(c17_1**2 + c17_2**2))
-        pool.append({"q": r"Dựa vào kích thước tam giác $ABC$ vuông tại $A$ trên hình vẽ, độ dài cạnh huyền $BC$ là:", "a": f"{huyen17} cm", "d": [f"{c17_1+c17_2} cm", f"{huyen17**2} cm", f"{huyen17+1} cm"], "h": r"💡 HD: Định lý Pytago.", "i": draw_right_triangle(c17_1, c17_2)})
-        pool.append({"q": "Quan sát hình vẽ, dây cung chung của hai đường tròn cắt nhau có tính chất gì?", "a": "Vuông góc với đường nối tâm", "d": ["Song song với đường nối tâm", "Đi qua tâm của cả hai đường tròn", "Bằng tổng 2 bán kính"], "h": "💡 HD: Đường nối tâm là đường trung trực của dây chung.", "i": draw_intersecting_circles()})
-        pool.append({"q": r"Dựa vào Biểu đồ phổ điểm, tổng tỉ lệ học sinh đạt điểm từ 7 trở lên (Nhóm [7;8), [8;9), [9;10]) là:", "a": "65%", "d": ["40%", "75%", "50%"], "h": "💡 HD: Cộng tỉ lệ 3 cột cuối.", "i": draw_histogram()})
-        pool.append({"q": "Dựa vào biểu đồ phân loại học lực, nhóm học sinh nào chiếm đa số?", "a": "Khá (45%)", "d": ["Giỏi (25%)", "Trung bình (20%)", "Yếu (10%)"], "h": "💡 HD: Vùng Khá chiếm diện tích lớn nhất.", "i": draw_pie_chart()})
-        bong_2 = random.choice([15, 20, 25])
-        pool.append({"q": f"Vật thể có bóng dài {bong_2}m. Tia nắng tạo góc Alpha. Chiều cao vật thể là:", "a": f"{bong_2} x tan(Alpha)", "d": [f"{bong_2} x sin(Alpha)", f"{bong_2} x cos(Alpha)", f"{bong_2} x cot(Alpha)"], "h": "💡 HD: Dùng lượng giác Tan.", "i": draw_tower_shadow(bong_2)})
+        final_pool = []
 
-        selected_normal = random.sample(pool * 5, 38)
-        hardcore_bank = [
-            {"q": r"**[Toán Chuyên]** Tìm số cặp nghiệm nguyên dương $(x; y)$ của phương trình: $xy - 2x - 3y + 5 = 0$.", "a": "2 cặp", "d": ["0 cặp", "1 cặp", "Vô số cặp"], "h": r"💡 **HD (Điểm 10):** Đưa về phương trình ước số: $xy - 2x - 3y + 6 = 1 \Leftrightarrow (x-3)(y-2) = 1$. Giải ra ta được $(4; 3)$ và $(2; 1)$."},
-            {"q": r"**[Toán Chuyên]** Giải hệ phương trình đối xứng: $\begin{cases} x^2+y^2+xy=3 \\ x+y+xy=3 \end{cases}$. Số cặp nghiệm $(x; y)$ của hệ là:", "a": "2 cặp", "d": ["1 cặp", "3 cặp", "4 cặp"], "h": r"💡 **HD (Điểm 10):** Đặt $S=x+y, P=xy$. Giải ra ta được $x=1, y=1$ hoặc $x, y$ là nghiệm phương trình khác."}
-        ]
-        selected_hardcores = random.sample(hardcore_bank, 2)
-        final_questions = selected_normal + selected_hardcores
-        random.shuffle(final_questions)
+        # Xử lý câu hỏi AI: Đảo lộn ngẫu nhiên vị trí các đáp án (A B C D)
+        for q in ai_questions:
+            opts = q.get("options", [])
+            random.shuffle(opts)
+            final_pool.append({
+                "q": q.get("question", ""),
+                "opts": opts,
+                "a": q.get("answer", ""),
+                "h": q.get("hint", ""),
+                "i_svg": q.get("image_svg", ""),
+                "i": None
+            })
 
-        for i, hc in enumerate(final_questions):
-            opts = self.format_options(hc["a"], hc["d"])
+        # Bù thêm bằng ngân hàng dự phòng nếu AI sinh chưa đủ 40 câu do giới hạn token
+        if len(final_pool) < 40:
+            img_para, a_val = draw_real_parabola()
+            ans_para = r"Hệ số $a > 0$" if a_val > 0 else r"Hệ số $a < 0$"
+            opts = self.format_options(ans_para, [r"Hệ số $a < 0$" if a_val > 0 else r"Hệ số $a > 0$", "Hàm số đồng biến", "Phương trình vô nghiệm"])
+            final_pool.append({"q": "[Vận dụng] Quan sát quỹ đạo bay mô phỏng của quả bóng. Khẳng định nào sau đây ĐÚNG về hệ số $a$?", "opts": opts, "a": ans_para, "h": "Quan sát bề lõm của Parabol.", "i_svg": "", "i": img_para})
+            
+            while len(final_pool) < 40:
+                final_pool.append({
+                    "q": f"[Nhận biết] Căn bậc hai số học của {random.choice([16, 25, 36, 49, 64])} là:",
+                    "opts": ["4", "5", "6", "7", "8"][:4],
+                    "a": "4", "h": "Căn số học luôn không âm", "i_svg": "", "i": None
+                })
+
+        random.shuffle(final_pool)
+        final_pool = final_pool[:40]
+
+        for i, q in enumerate(final_pool):
             self.exam.append({
-                "id": i + 1, "question": hc["q"], "options": opts,
-                "answer": hc["a"], "hint": hc["h"], "image": hc.get("i", None)
+                "id": i + 1, "question": q["q"], "options": q["opts"],
+                "answer": q["a"], "hint": q["h"], "image_svg": q["i_svg"], "image": q["i"]
             })
             
         return self.exam
 
 # ==========================================
-# 5. GIAO DIỆN LÕI HỆ THỐNG LMS (GIỮ NGUYÊN 100%)
+# 5. GIAO DIỆN HỆ THỐNG V20
 # ==========================================
 def main():
-    st.set_page_config(page_title="Hệ Thống LMS Pro", layout="wide", page_icon="🏫")
+    st.set_page_config(page_title="Hệ Thống LMS V20", layout="wide", page_icon="🏫")
     init_db()
     
     if 'current_user' not in st.session_state: st.session_state.current_user = None
     if 'role' not in st.session_state: st.session_state.role = None
     if 'fullname' not in st.session_state: st.session_state.fullname = None
 
-    # --- TRANG ĐĂNG NHẬP ---
     if st.session_state.current_user is None:
-        st.markdown("<h1 style='text-align: center; color: #2c3e50;'>🎓 HỆ THỐNG KIỂM TRA TRỰC TUYẾN</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center; color: #2c3e50;'>🎓 HỆ THỐNG KIỂM TRA TRỰC TUYẾN V20</h1>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1, 1.5, 1])
         with col2:
             with st.form("login_form"):
@@ -329,7 +303,8 @@ def main():
     # GIAO DIỆN HỌC SINH 
     # ==========================
     if st.session_state.role == 'student':
-        tab_mand, tab_ai = st.tabs(["🔥 Bài kiểm tra Bắt buộc", "🤖 Luyện đề Tự luyện (AI Hỗ trợ)"])
+        # YÊU CẦU 1: Đổi tên tab thành "Đề tự luyện"
+        tab_mand, tab_ai = st.tabs(["🔥 Bài kiểm tra Bắt buộc", "🤖 Đề tự luyện"])
         now_vn = datetime.now(VN_TZ)
         
         with tab_mand:
@@ -430,7 +405,6 @@ def main():
                         if f"mand_ans_{exam_id}" not in st.session_state:
                             st.session_state[f"mand_ans_{exam_id}"] = {str(i+1): None for i in range(num_q)}
                             
-                        # Nút AI Hỗ Trợ Số Hóa Đề PDF (Vấn Đề 2)
                         if ai_model and st.button("✨ Nhờ AI số hóa đề này thành trắc nghiệm"):
                             with st.spinner("Đang phân tích PDF..."):
                                 prompt = "Đọc đề này và chuyển sang JSON trắc nghiệm kèm giải chi tiết: [{'id': 1, 'question': '...', 'options': ['A', 'B', 'C', 'D'], 'answer': 'A', 'hint': '...'}]"
@@ -532,7 +506,7 @@ def main():
                             st.radio("Đã chọn:", options=q['options'], index=q['options'].index(u_ans) if u_ans in q['options'] else None, key=f"rev_{exam_id}_{q['id']}", disabled=True, label_visibility="collapsed")
                             if u_ans == q['answer']: st.success("✅ Chính xác")
                             else: st.error(f"❌ Sai. Đáp án đúng: {q['answer']}")
-                            with st.expander("📖 Xem Lời Giải Chi Tiết"): st.markdown(q['hint'], unsafe_allow_html=True)
+                            with st.expander("📖 Xem Lời Giải Chi Tiết"): st.markdown(q.get('hint', ''), unsafe_allow_html=True)
                             st.markdown("---")
                             
                     if st.button("⬅️ Trở lại danh sách"):
@@ -559,15 +533,15 @@ def main():
             conn.close()
 
         with tab_ai:
-            st.title("🤖 Luyện Tập Đề Thi Tự Động")
-            st.info("Hệ thống sẽ trộn ngẫu nhiên 40 câu hỏi. Nếu AI được kích hoạt, các câu hỏi sẽ mang tính thực tế.")
+            st.title("🤖 Luyện Tập Đa Dạng (AI Sinh Động)")
+            st.info("Mỗi lần tạo mới, AI sẽ sáng tác một đề độc bản, đảo lộn đáp án, tự động vẽ đồ họa minh họa (SVG) và phân loại độ khó bám sát SGK.")
             
             if 'exam_data' not in st.session_state: st.session_state.exam_data = None
             if 'user_answers' not in st.session_state: st.session_state.user_answers = {}
             if 'is_submitted' not in st.session_state: st.session_state.is_submitted = False
 
-            if st.button("🔄 TẠO ĐỀ LUYỆN TẬP MỚI", use_container_width=True):
-                with st.spinner("Đang chuẩn bị đề thi..."):
+            if st.button("🔄 TẠO ĐỀ LUYỆN TẬP MỚI (AI SÁNG TÁC)", use_container_width=True):
+                with st.spinner("Đang yêu cầu AI Gemini tư duy ra đề, vẽ hình và phân loại độ khó SGK..."):
                     gen = ExamGenerator()
                     st.session_state.exam_data = gen.generate_all()
                     st.session_state.user_answers = {str(q['id']): None for q in st.session_state.exam_data}
@@ -582,8 +556,20 @@ def main():
                     st.markdown("---")
 
                 for q in st.session_state.exam_data:
-                    st.markdown(f"**Câu {q['id']}:** {q['question']}", unsafe_allow_html=True)
-                    if q.get('image'): st.markdown(f'<img src="data:image/png;base64,{q["image"]}" style="max-width:350px;">', unsafe_allow_html=True)
+                    # Phân loại độ khó bằng màu sắc nếu nhận diện được tag SGK
+                    q_text = q['question']
+                    if "[Nhận biết]" in q_text: q_text = q_text.replace("[Nhận biết]", "<span style='color:blue;font-weight:bold;'>[Nhận biết]</span>")
+                    elif "[Thông hiểu]" in q_text: q_text = q_text.replace("[Thông hiểu]", "<span style='color:green;font-weight:bold;'>[Thông hiểu]</span>")
+                    elif "[Vận dụng cao]" in q_text: q_text = q_text.replace("[Vận dụng cao]", "<span style='color:red;font-weight:bold;'>[Vận dụng cao]</span>")
+                    elif "[Vận dụng]" in q_text: q_text = q_text.replace("[Vận dụng]", "<span style='color:orange;font-weight:bold;'>[Vận dụng]</span>")
+                    
+                    st.markdown(f"**Câu {q['id']}:** {q_text}", unsafe_allow_html=True)
+                    
+                    # Render đồ họa AI vẽ (SVG)
+                    if q.get('image_svg'):
+                        st.markdown(f"<div style='margin-bottom: 10px;'>{q['image_svg']}</div>", unsafe_allow_html=True)
+                    elif q.get('image'): 
+                        st.markdown(f'<img src="data:image/png;base64,{q["image"]}" style="max-width:350px; margin-bottom: 10px;">', unsafe_allow_html=True)
                     
                     disabled = st.session_state.is_submitted
                     ans_val = st.session_state.user_answers[str(q['id'])]
@@ -595,7 +581,7 @@ def main():
                     if st.session_state.is_submitted:
                         if selected == q['answer']: st.success("✅ Đúng")
                         else: st.error(f"❌ Sai. Đáp án đúng: {q['answer']}")
-                        with st.expander("📖 Xem Lời Giải"): st.markdown(q.get('hint', ''), unsafe_allow_html=True)
+                        with st.expander("📖 Xem Lời Giải Chi Tiết"): st.markdown(q.get('hint', ''), unsafe_allow_html=True)
                     st.markdown("---")
                 
                 if not st.session_state.is_submitted:
@@ -607,7 +593,7 @@ def main():
     # GIAO DIỆN QUẢN TRỊ & GIÁO VIÊN
     # ==========================
     elif st.session_state.role in ['core_admin', 'sub_admin', 'teacher']:
-        st.title("⚙ Bảng Điều Khiển (LMS)")
+        st.title("⚙ Bảng Điều Khiển (LMS V20)")
         
         if st.session_state.role in ['core_admin', 'sub_admin']:
             tabs = st.tabs(["🏫 Lớp & Học sinh", "🛡️ Quản lý Nhân sự", "📊 Báo cáo Điểm", "📤 Phát Đề (Giao Bài)"])
