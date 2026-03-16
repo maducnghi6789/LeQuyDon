@@ -1,5 +1,5 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V18 CORE TỐI ƯU
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V18 (CÓ LƯU VẾT XÓA)
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
@@ -38,7 +38,7 @@ def create_excel_template():
     return output.getvalue()
 
 # ==========================================
-# 2. CƠ SỞ DỮ LIỆU ĐA TẦNG
+# 2. CƠ SỞ DỮ LIỆU ĐA TẦNG (TÍCH HỢP BẢNG LƯU VẾT)
 # ==========================================
 def init_db():
     conn = sqlite3.connect('exam_db.sqlite')
@@ -63,7 +63,27 @@ def init_db():
     try: c.execute("ALTER TABLE mandatory_results ADD COLUMN user_answers_json TEXT")
     except: pass
     
+    # --- BẢNG LƯU VẾT LỊCH SỬ XÓA ---
+    c.execute('''CREATE TABLE IF NOT EXISTS deletion_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        deleted_by TEXT,
+        entity_type TEXT,
+        entity_name TEXT,
+        reason TEXT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
+    
     c.execute("INSERT OR IGNORE INTO users (username, password, role, fullname) VALUES ('maducnghi6789@gmail.com', 'admin123', 'core_admin', 'Giám Đốc Hệ Thống')")
+    conn.commit()
+    conn.close()
+
+# --- HÀM GHI LOG XÓA ---
+def log_deletion(deleted_by, entity_type, entity_name, reason):
+    conn = sqlite3.connect('exam_db.sqlite')
+    c = conn.cursor()
+    vn_time = datetime.now(VN_TZ).strftime("%Y-%m-%d %H:%M:%S")
+    c.execute("INSERT INTO deletion_logs (deleted_by, entity_type, entity_name, reason, timestamp) VALUES (?, ?, ?, ?, ?)", 
+              (deleted_by, entity_type, entity_name, reason, vn_time))
     conn.commit()
     conn.close()
 
@@ -131,7 +151,8 @@ def draw_right_triangle(a, b):
 def draw_pie_chart():
     fig, ax = plt.subplots(figsize=(3, 3))
     labels = ['Giỏi', 'Khá', 'TB', 'Yếu']; sizes = [25, 45, 20, 10]; colors = ['#2ecc71', '#3498db', '#f1c40f', '#e74c3c']
-    ax.pie(sizes, explode=(0.1, 0, 0, 0), labels=labels, colors=colors, autopct='%1.1f%%', shadow=True, startangle=140)
+    explode = (0.1, 0, 0, 0)  
+    ax.pie(sizes, explode=explode, labels=labels, colors=colors, autopct='%1.1f%%', shadow=True, startangle=140)
     ax.axis('equal') 
     return fig_to_base64(fig)
 
@@ -167,7 +188,6 @@ class ExamGenerator:
     def generate_all(self):
         pool = []
         
-        # --- CHỦ ĐỀ 1: ĐẠI SỐ ---
         a1 = random.randint(2, 9)
         pool.append({"q": r"Điều kiện xác định của biểu thức $\sqrt{2x - " + str(2*a1) + r"}$ là:", "a": r"$x \ge " + str(a1) + r"$", "d": [r"$x > " + str(a1) + r"$", r"$x \le " + str(a1) + r"$", r"$x < " + str(a1) + r"$"], "h": "💡 HD: Biểu thức dưới căn $\ge 0$.", "i": None})
         a2 = random.choice([16, 25, 36, 49, 64])
@@ -184,23 +204,17 @@ class ExamGenerator:
         c8 = random.randint(1, 4)
         pool.append({"q": r"Tọa độ giao điểm của parabol $y = x^2$ và đường thẳng $y = " + str(c8**2) + r"$ là:", "a": r"$( " + str(c8) + r"; " + str(c8**2) + r")$ và $(-" + str(c8) + r"; " + str(c8**2) + r")$", "d": [r"$( " + str(c8) + r"; " + str(c8**2) + r")$", r"$(-" + str(c8) + r"; " + str(c8**2) + r")$", r"$(0; 0)$"], "h": "💡 HD: Giải phương trình hoành độ giao điểm.", "i": None})
 
-        # --- CHỦ ĐỀ 2: PHƯƠNG TRÌNH & THỰC TẾ ---
         pool.append({"q": r"Nghiệm của hệ phương trình $\begin{cases} x - y = 1 \\ 2x + y = 5 \end{cases}$ là:", "a": r"$(2; 1)$", "d": [r"$(1; 2)$", r"$(3; -1)$", r"$(2; -1)$"], "h": "💡 HD: Cộng 2 vế: $3x = 6 \Rightarrow x=2$.", "i": None})
         pool.append({"q": "Giá cước taxi: 10.000đ cho 1km đầu tiên, từ km thứ 2 giá 15.000đ/km. Hỏi đi 5km phải trả bao nhiêu tiền?", "a": "70.000 đ", "d": ["75.000 đ", "50.000 đ", "60.000 đ"], "h": "💡 HD: Tiền = 10.000 + 4 $\\times$ 15.000 = 70.000đ.", "i": None})
         p11 = random.choice([100, 200, 300])
         pool.append({"q": f"Bác An gửi tiết kiệm {p11} triệu đồng với lãi suất 6%/năm. Sau 1 năm, tổng số tiền bác An nhận được cả gốc và lãi là:", "a": f"{int(p11 * 1.06)} triệu", "d": [f"{int(p11 * 0.06)} triệu", f"{p11 + 6} triệu", f"{int(p11 * 1.6)} triệu"], "h": "💡 HD: Tổng = Gốc $\times (1 + 0.06)$.", "i": None})
         pool.append({"q": r"Tập nghiệm của phương trình $x^2 - 5x + 6 = 0$ là:", "a": r"$\{2; 3\}$", "d": [r"$\{-2; -3\}$", r"$\{1; 6\}$", r"$\{-1; -6\}$"], "h": "💡 HD: $2+3=5$ và $2 \times 3=6$.", "i": None})
         pool.append({"q": r"Cho phương trình $2x^2 - 7x + 3 = 0$. Tổng hai nghiệm $x_1 + x_2$ bằng:", "a": r"$\frac{7}{2}$", "d": [r"$-\frac{7}{2}$", r"$\frac{3}{2}$", "7"], "h": r"💡 HD: Theo Vi-ét: $S = -b/a$.", "i": None})
-        
-        # Đã vá lỗi cứu pháp Dictionary Key
         pool.append({"q": r"Giả sử phương trình $x^2 - 4x + 1 = 0$ có 2 nghiệm dương $x_1, x_2$. Giá trị của biểu thức $x_1^2 + x_2^2$ là:", "a": "14", "d": ["16", "18", "12"], "h": r"💡 HD: $x_1^2 + x_2^2 = S^2 - 2P = 4^2 - 2(1) = 14$.", "i": None})
-        
         pool.append({"q": r"Hai vòi nước cùng chảy vào 1 bể cạn thì 6 giờ đầy bể. Nếu vòi 1 chảy một mình 10 giờ đầy bể, thì vòi 2 chảy một mình đầy bể trong bao lâu?", "a": "15 giờ", "d": ["12 giờ", "16 giờ", "4 giờ"], "h": "💡 HD: 1 giờ vòi 2 chảy: $1/6 - 1/10 = 1/15$ bể.", "i": None})
         pool.append({"q": r"Số nghiệm của phương trình $x^4 - 3x^2 - 4 = 0$ là:", "a": "2 nghiệm", "d": ["4 nghiệm", "1 nghiệm", "Vô nghiệm"], "h": r"💡 HD: Đặt $t = x^2 \Rightarrow t=4 \Rightarrow x = \pm 2$.", "i": None})
 
-        # --- CHỦ ĐỀ 3: HÌNH HỌC ---
-        c17_1 = random.choice([3, 6, 9]); c17_2 = int(c17_1 * 4/3)
-        huyen17 = int(math.sqrt(c17_1**2 + c17_2**2))
+        c17_1 = random.choice([3, 6, 9]); c17_2 = int(c17_1 * 4/3); huyen17 = int(math.sqrt(c17_1**2 + c17_2**2))
         pool.append({"q": r"Dựa vào kích thước tam giác $ABC$ vuông tại $A$ trên hình vẽ, độ dài cạnh huyền $BC$ là:", "a": f"{huyen17} cm", "d": [f"{c17_1+c17_2} cm", f"{huyen17**2} cm", f"{huyen17+1} cm"], "h": r"💡 HD: Định lý Pytago.", "i": draw_right_triangle(c17_1, c17_2)})
         pool.append({"q": r"Trong tam giác $ABC$ vuông tại $A$, tỉ số $\frac{AB}{BC}$ là tỉ số lượng giác nào của góc $C$?", "a": r"$\sin C$", "d": [r"$\cos C$", r"$\tan C$", r"$\cot C$"], "h": "💡 HD: $\sin$ = Đối / Huyền.", "i": None})
         pool.append({"q": "Cho tam giác vuông có 2 hình chiếu của 2 cạnh góc vuông lên cạnh huyền là 4cm và 9cm. Độ dài đường cao ứng với cạnh huyền là:", "a": "6 cm", "d": ["13 cm", "36 cm", "5 cm"], "h": r"💡 HD: $h^2 = 4 \times 9 = 36 \Rightarrow h = 6$.", "i": None})
@@ -214,7 +228,6 @@ class ExamGenerator:
         pool.append({"q": "Nếu tăng bán kính mặt cầu lên 2 lần thì diện tích mặt cầu tăng lên mấy lần?", "a": "4 lần", "d": ["2 lần", "8 lần", "16 lần"], "h": "💡 HD: Diện tích tỷ lệ với bình phương bán kính.", "i": None})
         pool.append({"q": "Một lon sữa bò hình trụ có bán kính đáy 4cm, cao 10cm. Thể tích lon sữa là:", "a": r"$160\pi$ cm$^3$", "d": [r"$40\pi$ cm$^3$", r"$80\pi$ cm$^3$", r"$320\pi$ cm$^3$"], "h": r"💡 HD: $V = \pi r^2 h = 160\pi$.", "i": None})
 
-        # --- CHỦ ĐỀ 4: XÁC SUẤT THỐNG KÊ ---
         pool.append({"q": r"Dựa vào Biểu đồ phổ điểm, tổng tỉ lệ học sinh đạt điểm từ 7 trở lên (Nhóm [7;8), [8;9), [9;10]) là:", "a": "65%", "d": ["40%", "75%", "50%"], "h": "💡 HD: Cộng tỉ lệ 3 cột cuối.", "i": draw_histogram()})
         pool.append({"q": "Dựa vào biểu đồ phân loại học lực, nhóm học sinh nào chiếm đa số?", "a": "Khá (45%)", "d": ["Giỏi (25%)", "Trung bình (20%)", "Yếu (10%)"], "h": "💡 HD: Vùng Khá chiếm diện tích lớn nhất.", "i": draw_pie_chart()})
         pool.append({"q": "Gieo 1 con xúc xắc cân đối. Xác suất để được mặt có số chấm là số nguyên tố là:", "a": r"$\frac{1}{2}$", "d": [r"$\frac{1}{3}$", r"$\frac{1}{6}$", r"$\frac{2}{3}$"], "h": "💡 HD: Các số nguyên tố: 2, 3, 5 $\Rightarrow P = 3/6 = 1/2$.", "i": None})
@@ -229,7 +242,6 @@ class ExamGenerator:
 
         selected_normal = random.sample(pool * 4, 38)
 
-        # --- CHỦ ĐỀ 5: CÂU HỎI VẬN DỤNG CAO (2 CÂU) ---
         hardcore_bank = [
             {"q": r"**[Toán Chuyên]** Tìm số cặp nghiệm nguyên dương $(x; y)$ của phương trình: $xy - 2x - 3y + 5 = 0$.", "a": "2 cặp", "d": ["0 cặp", "1 cặp", "Vô số cặp"], "h": r"💡 **HD (Điểm 10):** Đưa về phương trình ước số: $xy - 2x - 3y + 6 = 1 \Leftrightarrow (x-3)(y-2) = 1$. Giải ra ta được $(4; 3)$ và $(2; 1)$."},
             {"q": r"**[Toán Chuyên]** Cho $x, y > 0$ thỏa mãn $x+y=1$. Tìm giá trị nhỏ nhất của biểu thức $A = \frac{1}{x^2+y^2} + \frac{1}{xy}$.", "a": "6", "d": ["4", "8", "2"], "h": r"💡 **HD (Điểm 10):** Dùng kỹ thuật Điểm rơi Cauchy: $A = (\frac{1}{x^2+y^2} + \frac{1}{2xy}) + \frac{1}{2xy} \ge \frac{4}{(x+y)^2} + 2 = 6$."},
@@ -247,6 +259,7 @@ class ExamGenerator:
                 "id": i + 1, "question": hc["q"], "options": opts,
                 "answer": hc["a"], "hint": hc["h"], "image": hc.get("i", None)
             })
+            
         return self.exam
 
 # ==========================================
@@ -406,6 +419,7 @@ def main():
                         if f"mand_ans_{exam_id}" not in st.session_state:
                             st.session_state[f"mand_ans_{exam_id}"] = {str(i+1): None for i in range(num_q)}
                             
+                        # Chia đôi màn hình
                         col_pdf, col_ans = st.columns([1.5, 1])
                         with col_pdf:
                             st.markdown("#### 📄 NỘI DUNG ĐỀ THI")
@@ -500,7 +514,7 @@ def main():
                         st.rerun()
             conn.close()
 
-        # --- TAB LUYỆN TẬP AI ---
+        # --- TAB LUYỆN TẬP AI ĐA DẠNG ---
         with tab_ai:
             st.title("🤖 Luyện Tập Đề Thi Tự Động")
             st.info("Hệ thống sẽ trộn ngẫu nhiên 40 câu hỏi (Nhận biết, Thông hiểu, Vận dụng) để bạn luyện tập.")
@@ -578,7 +592,7 @@ def main():
             m_cls = c.fetchone()[0]
             available_classes = [x.strip() for x in m_cls.split(',')] if m_cls else []
         
-        # --- TAB 1: QUẢN LÝ LỚP & HỌC SINH ---
+        # --- TAB 1: QUẢN LÝ LỚP & HỌC SINH (TÍCH HỢP LÝ DO XÓA) ---
         with tab_class:
             if not available_classes: st.info("Chưa có lớp học nào được tạo hoặc được phân công cho bạn.")
             else:
@@ -638,7 +652,7 @@ def main():
                 
                 if not df_students.empty:
                     st.markdown("#### ✏️ Chỉnh sửa / Xóa Học sinh")
-                    user_to_edit = st.selectbox("Chọn Học sinh cần sửa:", ["-- Chọn --"] + df_students['Tài khoản'].tolist())
+                    user_to_edit = st.selectbox("Chọn Học sinh cần thao tác:", ["-- Chọn --"] + df_students['Tài khoản'].tolist())
                     if user_to_edit != "-- Chọn --":
                         c.execute("SELECT fullname, password, dob, class_name FROM users WHERE username=?", (user_to_edit,))
                         u_data = c.fetchone()
@@ -648,18 +662,42 @@ def main():
                             edit_pwd = c2.text_input("Mật khẩu", value=u_data[1])
                             edit_dob = c1.text_input("Ngày sinh", value=u_data[2] if u_data[2] else "")
                             edit_class = c2.text_input("Đổi Lớp", value=u_data[3])
-                            if st.form_submit_button("💾 Cập nhật"):
+                            del_reason_stu = st.text_input("Lý do xóa (Bắt buộc nếu muốn xóa Học sinh này):")
+                            
+                            col_save, col_del = st.columns(2)
+                            if col_save.form_submit_button("💾 Cập nhật Thông tin"):
                                 c.execute("UPDATE users SET fullname=?, password=?, dob=?, class_name=? WHERE username=?", (edit_name, edit_pwd, edit_dob, edit_class, user_to_edit))
                                 conn.commit()
                                 st.success("✅ Cập nhật thành công!")
                                 st.rerun()
-                        if st.button("🗑 XÓA TÀI KHOẢN NÀY", type="secondary"):
-                            c.execute("DELETE FROM users WHERE username=?", (user_to_edit,))
-                            c.execute("DELETE FROM mandatory_results WHERE username=?", (user_to_edit,))
-                            conn.commit()
-                            st.rerun()
+                            if col_del.form_submit_button("🗑 XÓA TÀI KHOẢN NÀY"):
+                                if not del_reason_stu: st.error("❌ Vui lòng nhập Lý do xóa trước khi thao tác!")
+                                else:
+                                    log_deletion(st.session_state.current_user, "Học sinh", f"{user_to_edit} ({u_data[0]})", del_reason_stu)
+                                    c.execute("DELETE FROM users WHERE username=?", (user_to_edit,))
+                                    c.execute("DELETE FROM mandatory_results WHERE username=?", (user_to_edit,))
+                                    conn.commit()
+                                    st.rerun()
+                st.markdown("---")
+                
+                # Tính năng xóa cả lớp có lưu vết
+                with st.expander("🚨 Dọn dẹp Cuối năm (Xóa toàn bộ lớp)"):
+                    st.warning(f"Hành động này sẽ xóa vĩnh viễn toàn bộ học sinh và kết quả thi của lớp {selected_class}.")
+                    del_reason_class = st.text_input("Lý do xóa toàn bộ lớp (Bắt buộc):")
+                    if st.checkbox("Tôi xác nhận muốn xóa vĩnh viễn dữ liệu lớp này."):
+                        if st.button("🗑 TIẾN HÀNH XÓA LỚP", type="primary"):
+                            if not del_reason_class: 
+                                st.error("❌ Vui lòng nhập Lý do xóa lớp!")
+                            else:
+                                log_deletion(st.session_state.current_user, "Lớp học", selected_class, del_reason_class)
+                                for u in df_students['Tài khoản'].tolist():
+                                    c.execute("DELETE FROM users WHERE username=?", (u,))
+                                    c.execute("DELETE FROM mandatory_results WHERE username=?", (u,))
+                                conn.commit()
+                                st.success(f"✅ Đã xóa thành công lớp {selected_class}!")
+                                st.rerun()
 
-        # --- TAB 2: QUẢN LÝ NHÂN SỰ ---
+        # --- TAB 2: QUẢN LÝ NHÂN SỰ & LỊCH SỬ XÓA ---
         if st.session_state.role in ['core_admin', 'sub_admin']:
             with tab_staff:
                 if st.session_state.role == 'core_admin':
@@ -676,8 +714,22 @@ def main():
                                 conn.commit()
                                 st.rerun()
                             except: st.error("❌ Tên tồn tại!")
+                            
                     df_sa = pd.read_sql_query("SELECT username as 'Tài khoản', fullname as 'Họ tên', managed_classes as 'Lớp QL' FROM users WHERE role='sub_admin'", conn)
                     st.dataframe(df_sa, use_container_width=True)
+                    
+                    st.markdown("**Xóa Admin Thành viên:**")
+                    c_del1, c_del2 = st.columns(2)
+                    sa_to_del = c_del1.selectbox("Chọn Admin cần xóa:", ["-- Chọn --"] + df_sa['Tài khoản'].tolist())
+                    sa_del_reason = c_del2.text_input("Lý do xóa Admin này (Bắt buộc):")
+                    if sa_to_del != "-- Chọn --" and st.button("🗑 Xác nhận Xóa Admin"):
+                        if not sa_del_reason: st.error("❌ Vui lòng nhập Lý do xóa!")
+                        else:
+                            log_deletion(st.session_state.current_user, "Admin", sa_to_del, sa_del_reason)
+                            c.execute("DELETE FROM users WHERE username=?", (sa_to_del,))
+                            conn.commit()
+                            st.rerun()
+                    st.markdown("---")
 
                 st.subheader("👨‍🏫 Quản lý Giáo viên")
                 with st.form("add_gv"):
@@ -692,8 +744,31 @@ def main():
                             conn.commit()
                             st.rerun()
                         except: st.error("❌ Tồn tại!")
+                        
                 df_teach = pd.read_sql_query("SELECT username as 'Tài khoản', fullname as 'Họ tên', managed_classes as 'Lớp QL' FROM users WHERE role='teacher'", conn)
                 st.dataframe(df_teach, use_container_width=True)
+                
+                st.markdown("**Xóa Giáo viên:**")
+                c_delt1, c_delt2 = st.columns(2)
+                t_to_del = c_delt1.selectbox("Chọn GV cần xóa:", ["-- Chọn --"] + df_teach['Tài khoản'].tolist())
+                t_del_reason = c_delt2.text_input("Lý do xóa Giáo viên này (Bắt buộc):")
+                if t_to_del != "-- Chọn --" and st.button("🗑 Xác nhận Xóa GV"):
+                    if not t_del_reason: st.error("❌ Vui lòng nhập Lý do xóa!")
+                    else:
+                        log_deletion(st.session_state.current_user, "Giáo viên", t_to_del, t_del_reason)
+                        c.execute("DELETE FROM users WHERE username=?", (t_to_del,))
+                        conn.commit()
+                        st.rerun()
+
+                # HIỂN THỊ LỊCH SỬ XÓA (CHỈ GIÁM ĐỐC MỚI THẤY)
+                if st.session_state.role == 'core_admin':
+                    st.markdown("---")
+                    st.subheader("📜 Lịch Sử Xóa / Dọn Dẹp Hệ Thống")
+                    try:
+                        df_logs = pd.read_sql_query("SELECT deleted_by as 'Người thao tác', entity_type as 'Loại dữ liệu', entity_name as 'Tên dữ liệu', reason as 'Lý do xóa', timestamp as 'Thời gian' FROM deletion_logs ORDER BY id DESC", conn)
+                        if df_logs.empty: st.info("Chưa có lịch sử xóa dữ liệu nào.")
+                        else: st.dataframe(df_logs, use_container_width=True)
+                    except: pass
 
         # --- TAB 3: BÁO CÁO PHÂN TÍCH ---
         with tab_scores:
