@@ -1,5 +1,5 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V18 (CÓ LƯU VẾT XÓA)
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V18 CORE TỐI ƯU
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
@@ -38,7 +38,7 @@ def create_excel_template():
     return output.getvalue()
 
 # ==========================================
-# 2. CƠ SỞ DỮ LIỆU ĐA TẦNG (TÍCH HỢP BẢNG LƯU VẾT)
+# 2. CƠ SỞ DỮ LIỆU ĐA TẦNG
 # ==========================================
 def init_db():
     conn = sqlite3.connect('exam_db.sqlite')
@@ -379,7 +379,6 @@ def main():
                                 st.rerun()
                     st.markdown("---")
             
-            # --- VÀO PHÒNG THI THỰC TẾ ---
             if 'active_mand_exam' in st.session_state and st.session_state.active_mand_exam is not None:
                 exam_id = st.session_state.active_mand_exam
                 mode = st.session_state.mand_mode
@@ -409,7 +408,6 @@ def main():
                     
                     st.subheader(f"📝 ĐANG THI: {exam_row['title']}")
                     
-                    # 1. NẾU LÀ ĐỀ PDF TẢI LÊN
                     if is_pdf_upload:
                         ans_key = []
                         try: ans_key = json.loads(exam_row['answer_key'])
@@ -419,7 +417,6 @@ def main():
                         if f"mand_ans_{exam_id}" not in st.session_state:
                             st.session_state[f"mand_ans_{exam_id}"] = {str(i+1): None for i in range(num_q)}
                             
-                        # Chia đôi màn hình
                         col_pdf, col_ans = st.columns([1.5, 1])
                         with col_pdf:
                             st.markdown("#### 📄 NỘI DUNG ĐỀ THI")
@@ -455,7 +452,6 @@ def main():
                             st.session_state.active_mand_exam = None
                             st.rerun()
 
-                    # 2. NẾU LÀ ĐỀ TEXT (AI SINH TỪ NGÂN HÀNG)
                     else:
                         mand_exam_data = json.loads(exam_row['questions_json'])
                         num_q = len(mand_exam_data)
@@ -514,7 +510,6 @@ def main():
                         st.rerun()
             conn.close()
 
-        # --- TAB LUYỆN TẬP AI ĐA DẠNG ---
         with tab_ai:
             st.title("🤖 Luyện Tập Đề Thi Tự Động")
             st.info("Hệ thống sẽ trộn ngẫu nhiên 40 câu hỏi (Nhận biết, Thông hiểu, Vận dụng) để bạn luyện tập.")
@@ -565,12 +560,15 @@ def main():
     elif st.session_state.role in ['core_admin', 'sub_admin', 'teacher']:
         st.title("⚙ Bảng Điều Khiển (LMS)")
         
+        # --- PHÂN QUYỀN HIỂN THỊ TABS ---
         if st.session_state.role in ['core_admin', 'sub_admin']:
             tabs = st.tabs(["🏫 Lớp & Học sinh", "🛡️ Quản lý Nhân sự", "📊 Báo cáo Điểm", "📤 Phát Đề (Giao Bài)"])
             tab_class, tab_staff, tab_scores, tab_system = tabs
         else:
-            tabs = st.tabs(["🏫 Lớp của tôi", "📊 Báo cáo Điểm", "📤 Phát Đề (Giao Bài)"])
-            tab_class, tab_scores, tab_system = tabs
+            tabs = st.tabs(["🏫 Lớp của tôi", "📊 Báo cáo Điểm"])
+            tab_class, tab_scores = tabs
+            tab_staff = None
+            tab_system = None
         
         conn = sqlite3.connect('exam_db.sqlite')
         c = conn.cursor()
@@ -592,7 +590,7 @@ def main():
             m_cls = c.fetchone()[0]
             available_classes = [x.strip() for x in m_cls.split(',')] if m_cls else []
         
-        # --- TAB 1: QUẢN LÝ LỚP & HỌC SINH (TÍCH HỢP LÝ DO XÓA) ---
+        # --- TAB 1: QUẢN LÝ LỚP & HỌC SINH ---
         with tab_class:
             if not available_classes: st.info("Chưa có lớp học nào được tạo hoặc được phân công cho bạn.")
             else:
@@ -680,7 +678,6 @@ def main():
                                     st.rerun()
                 st.markdown("---")
                 
-                # Tính năng xóa cả lớp có lưu vết
                 with st.expander("🚨 Dọn dẹp Cuối năm (Xóa toàn bộ lớp)"):
                     st.warning(f"Hành động này sẽ xóa vĩnh viễn toàn bộ học sinh và kết quả thi của lớp {selected_class}.")
                     del_reason_class = st.text_input("Lý do xóa toàn bộ lớp (Bắt buộc):")
@@ -697,8 +694,8 @@ def main():
                                 st.success(f"✅ Đã xóa thành công lớp {selected_class}!")
                                 st.rerun()
 
-        # --- TAB 2: QUẢN LÝ NHÂN SỰ & LỊCH SỬ XÓA ---
-        if st.session_state.role in ['core_admin', 'sub_admin']:
+        # --- TAB 2: QUẢN LÝ NHÂN SỰ ---
+        if tab_staff:
             with tab_staff:
                 if st.session_state.role == 'core_admin':
                     st.subheader("🛡️ Quản lý Admin Thành viên")
@@ -760,7 +757,6 @@ def main():
                         conn.commit()
                         st.rerun()
 
-                # HIỂN THỊ LỊCH SỬ XÓA (CHỈ GIÁM ĐỐC MỚI THẤY)
                 if st.session_state.role == 'core_admin':
                     st.markdown("---")
                     st.subheader("📜 Lịch Sử Xóa / Dọn Dẹp Hệ Thống")
@@ -845,19 +841,13 @@ def main():
                             st.dataframe(df_stats[['Câu', 'Số HS làm sai']], use_container_width=True)
                         else: st.info("Cần có dữ liệu nộp bài để hệ thống phân tích.")
 
-        # --- TAB 4: PHÁT ĐỀ ---
-        with tab_system:
-            st.subheader("📤 Phát Bài Tập Cho Học Sinh")
-            
-            if st.session_state.role in ['core_admin', 'sub_admin']: 
+        # --- TAB 4: PHÁT ĐỀ (CHỈ DÀNH CHO ADMIN) ---
+        if tab_system:
+            with tab_system:
+                st.subheader("📤 Phát Bài Tập Cho Học Sinh")
                 assign_options = ["Toàn trường"] + all_system_classes
-                st.success("👑 BẠN ĐANG DÙNG QUYỀN ADMIN: Có thể giao chung cho 'Toàn trường' hoặc chỉ định lớp cụ thể.")
-            else: 
-                assign_options = available_classes
-                st.info("👨‍🏫 BẠN ĐANG DÙNG QUYỀN GIÁO VIÊN: Chỉ được phép giao đề cho lớp do bạn quản lý.")
-            
-            if not assign_options: st.warning("Bạn chưa được phân quyền quản lý lớp nào.")
-            else:
+                st.success("👑 BẠN ĐANG DÙNG QUYỀN ADMIN: Tính năng Giao bài chỉ dành cho Ban giám đốc hoặc Admin thành viên.")
+                
                 target_class = st.selectbox("🎯 Giao bài cho đối tượng:", assign_options)
                 exam_title = st.text_input("Tên bài kiểm tra (VD: Thi Giữa Kỳ Toán 9)")
                 
