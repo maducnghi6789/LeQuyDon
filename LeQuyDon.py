@@ -1,6 +1,6 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V20 SUPREME ULTIMATE
-# Cải tiến: Xóa text thừa, Đồ họa Toán học Động chuẩn SGK
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V20 SUPREME ULTIMATE (FIXED ERROR 46)
+# Động cơ: 38 Dạng toán độc lập, Không lặp lại, Đồ họa chuẩn
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
@@ -36,7 +36,7 @@ except ImportError:
 
 VN_TZ = timezone(timedelta(hours=7))
 
-# GIÁM ĐỐC DÁN API KEY VÀO ĐÂY (BẮT BUỘC ĐỂ CÓ CÂU HỎI MỚI TỪ AI)
+# GIÁM ĐỐC DÁN API KEY VÀO ĐÂY
 GEMINI_API_KEY = "AIzaSyDMdmMYUpqnB5wPxcF94Spy6LkNBdkKh2w" 
 
 if AI_AVAILABLE and GEMINI_API_KEY != "AIzaSyDMdmMYUpqnB5wPxcF94Spy6LkNBdkKh2w":
@@ -122,7 +122,7 @@ def log_deletion(deleted_by, entity_type, entity_name, reason):
     conn.commit(); conn.close()
 
 # ==========================================
-# 3. ĐỒ HỌA TOÁN HỌC ĐỘNG CHUẨN SGK (CHỐNG LẶP, KHÔNG ĐÈ CHỮ)
+# 3. ĐỒ HỌA TOÁN HỌC ĐỘNG CHUẨN SGK (FIX LỖI TYPE ERROR 46)
 # ==========================================
 def fig_to_base64(fig):
     buf = BytesIO()
@@ -154,7 +154,6 @@ def draw_dynamic_thales(AE, EB, AF, FC):
     ax.text(2.4, 1.5, 'F', ha='left', fontsize=11, fontweight='bold')
     ax.text(2.6, 2.3, '$EF // BC$', style='italic', fontsize=10)
     
-    # Gắn thông số động dọc theo cạnh
     ax.text(0.6, 2.3, str(AE), color='red', fontsize=10, rotation=63)
     ax.text(0.2, 0.8, str(EB), color='red', fontsize=10, rotation=63)
     ax.text(2.0, 2.3, str(AF), color='red', fontsize=10, rotation=-63)
@@ -165,10 +164,10 @@ def draw_dynamic_thales(AE, EB, AF, FC):
 
 def draw_dynamic_altitude(BH, HC, AH):
     fig, ax = plt.subplots(figsize=(3.5, 2.5))
-    ax.plot([0, 0, 4, 0], [0, 3, 0, 0], 'k-', lw=1.5) # Tam giác vuông tại A
-    ax.plot([0, 1.44], [0, 1.92], 'b-', lw=1.5) # Đường cao AH
-    ax.plot([0, 0.2, 0.2], [0.2, 0.2, 0], 'k-', lw=1) # Ký hiệu góc vuông A
-    ax.plot([1.3, 1.44, 1.58], [1.7, 1.92, 1.78], 'k-', lw=1) # Ký hiệu góc vuông H
+    ax.plot([0, 0, 4, 0], [0, 3, 0, 0], 'k-', lw=1.5) 
+    ax.plot([0, 1.44], [0, 1.92], 'b-', lw=1.5) 
+    ax.plot([0, 0.2, 0.2], [0.2, 0.2, 0], 'k-', lw=1) 
+    ax.plot([1.3, 1.44, 1.58], [1.7, 1.92, 1.78], 'k-', lw=1) 
     ax.text(-0.3, -0.2, 'A', fontsize=11, fontweight='bold')
     ax.text(-0.3, 3.1, 'B', fontsize=11, fontweight='bold')
     ax.text(4.2, -0.2, 'C', fontsize=11, fontweight='bold')
@@ -181,10 +180,11 @@ def draw_dynamic_altitude(BH, HC, AH):
     return fig_to_base64(fig)
 
 def draw_dynamic_shadow(h_cot, bong_cot, bong_cay):
+    # Đã fix lỗi TypeError: h_cot, bong_cot, bong_cay giờ bắt buộc là số nguyên/float
     fig, ax = plt.subplots(figsize=(4.5, 2.5))
     ax.plot([0, 6.8], [0, 0], 'k-', lw=2) # Mặt đất
-    ax.plot([0, 0], [0, 3.5], 'k-', lw=3) # Cột đèn (AB)
-    ax.plot([3, 3], [0, 1.9], 'g-', lw=4) # Cây xanh (CD)
+    ax.plot([0, 0], [0, 3.5], 'k-', lw=3) # Cột đèn
+    ax.plot([3, 3], [0, 1.9], 'g-', lw=4) # Cây
     ax.plot([0, 6.8], [3.5, 0], 'b-', lw=1) # Tia sáng
     
     ax.text(-0.3, 3.5, 'A', fontweight='bold')
@@ -193,14 +193,15 @@ def draw_dynamic_shadow(h_cot, bong_cot, bong_cay):
     ax.text(2.7, -0.3, 'D', fontweight='bold')
     ax.text(6.9, -0.1, 'M', fontweight='bold')
     
-    ax.text(-0.8, 1.5, str(h_cot), color='red')
-    ax.text(1.5, -0.4, str(bong_cot - bong_cay), color='red')
-    ax.text(4.5, -0.4, str(bong_cay), color='red')
+    # Gắn chữ "m" vào hiển thị, không truyền vào toán học
+    ax.text(-0.8, 1.5, f"{h_cot}m", color='red')
+    ax.text(1.5, -0.4, f"{bong_cot - bong_cay}m", color='red')
+    ax.text(4.5, -0.4, f"{bong_cay}m", color='red')
     ax.axis('off')
     return fig_to_base64(fig)
 
 # ==========================================
-# 4. ĐỘNG CƠ SINH ĐỀ CHUYÊN SÂU (AI + DYNAMIC LOCAL)
+# 4. ĐỘNG CƠ SINH ĐỀ CHUYÊN SÂU (AI + 38 DẠNG ĐỘC LẬP)
 # ==========================================
 class ExamGenerator:
     def __init__(self):
@@ -211,61 +212,107 @@ class ExamGenerator:
         random.shuffle(opts)
         return opts
 
-    def get_dynamic_local_question(self):
-        """Sinh câu hỏi ngẫu nhiên bằng thuật toán, có hình vẽ chuẩn SGK, KHÔNG LẶP LẠI"""
-        q_type = random.choice(['thales', 'altitude', 'shadow', 'parabola', 'algebra', 'kinhte'])
+    def get_38_distinct_local_questions(self):
+        """Khởi tạo 38 câu hỏi với 38 kiến thức Toán học hoàn toàn khác nhau để chống lặp"""
+        pool = []
         
-        if q_type == 'thales':
-            ae = random.randint(2, 6); eb = random.randint(2, 6); af = random.randint(2, 6)
-            fc = round((eb * af) / ae, 1)
-            fc_str = str(int(fc)) if fc.is_integer() else str(fc)
-            ans = fc_str
-            img = draw_dynamic_thales(ae, eb, af, 'x')
-            q = f"Quan sát hình vẽ, biết $EF // BC$. Theo định lý Thales, độ dài $x$ (tức đoạn $FC$) bằng bao nhiêu?"
-            opts = self.format_options(ans, [str(round(fc+1, 1)), str(round(fc+0.5, 1)), str(round(fc-1, 1))])
-            return {"q": q, "opts": opts, "a": ans, "h": "Sử dụng tỉ số Thales: AE/EB = AF/FC.", "i_svg": "", "i": img}
-            
-        elif q_type == 'altitude':
-            bh = random.choice([2, 4, 9, 16]); hc = random.choice([3, 4, 9, 16, 25])
-            ah = round(math.sqrt(bh * hc), 1)
-            ah_str = str(int(ah)) if ah.is_integer() else str(ah)
-            ans = ah_str
-            img = draw_dynamic_altitude(bh, hc, 'h')
-            q = f"Cho tam giác $ABC$ vuông tại $A$, có đường cao $AH = h$. Biết hình chiếu của hai cạnh góc vuông trên cạnh huyền là $BH = {bh}$ và $HC = {hc}$. Tính độ dài $h$."
-            opts = self.format_options(ans, [str(round(ah+2, 1)), str(round(ah+1, 1)), str(round(ah-1, 1))])
-            return {"q": q, "opts": opts, "a": ans, "h": "Hệ thức lượng: $AH^2 = BH \\times HC$.", "i_svg": "", "i": img}
-            
-        elif q_type == 'shadow':
-            h_cot = random.choice([8, 10, 12]); b_cay = random.choice([3, 4, 5]); dist = random.choice([2, 4, 6])
-            b_cot = b_cay + dist
-            h_cay = round((h_cot * b_cay) / b_cot, 1)
-            h_cay_str = str(int(h_cay)) if h_cay.is_integer() else str(h_cay)
-            ans = f"{h_cay_str} m"
-            img = draw_dynamic_shadow(f"{h_cot}m", b_cot, f"{b_cay}m")
-            q = f"Một cột đèn $AB$ cao {h_cot}m có bóng trên mặt đất dài {b_cot}m. Cùng lúc đó, một cái cây $CD$ có bóng dài {b_cay}m. Chiều cao của cây là:"
-            opts = self.format_options(ans, [f"{round(h_cay+1,1)} m", f"{round(h_cay+0.5,1)} m", f"{round(h_cay-0.5,1)} m"])
-            return {"q": q, "opts": opts, "a": ans, "h": "Hai tam giác tạo bởi tia sáng đồng dạng. Tỉ lệ: $CD / AB = b_{cay} / b_{cot}$.", "i_svg": "", "i": img}
+        # Q1: Thales
+        ae = random.randint(2, 6); eb = random.randint(2, 6); af = random.randint(2, 6)
+        fc = round((eb * af) / ae, 1)
+        ans_q1 = str(int(fc)) if fc.is_integer() else str(fc)
+        pool.append({"q": "Quan sát hình vẽ, biết $EF // BC$. Theo định lý Thales, độ dài đoạn $FC$ ($x$) bằng bao nhiêu?", "opts": self.format_options(ans_q1, [str(round(fc+1, 1)), str(round(fc+0.5, 1)), str(round(fc-1, 1))]), "a": ans_q1, "h": "Tỉ số Thales: AE/EB = AF/FC.", "i_svg": "", "i": draw_dynamic_thales(ae, eb, af, 'x')})
+        
+        # Q2: Hệ thức lượng
+        bh = random.choice([2, 4, 9]); hc = random.choice([3, 4, 16])
+        ah = round(math.sqrt(bh * hc), 1)
+        ans_q2 = str(int(ah)) if ah.is_integer() else str(ah)
+        pool.append({"q": f"Cho $\\Delta ABC$ vuông tại $A$, có đường cao $AH = h$. Biết $BH = {bh}$ và $HC = {hc}$. Tính độ dài $h$.", "opts": self.format_options(ans_q2, [str(round(ah+2, 1)), str(round(ah+1, 1)), str(round(ah-1, 1))]), "a": ans_q2, "h": "$AH^2 = BH \\cdot HC$.", "i_svg": "", "i": draw_dynamic_altitude(bh, hc, 'h')})
+        
+        # Q3: Bóng cây (Lỗi 46 Fix)
+        h_cot = random.choice([8, 10, 12]); b_cay = random.choice([3, 4]); dist = random.choice([2, 4])
+        b_cot = b_cay + dist
+        h_cay = round((h_cot * b_cay) / b_cot, 1)
+        ans_q3 = f"{str(int(h_cay)) if h_cay.is_integer() else str(h_cay)} m"
+        pool.append({"q": f"Một cột đèn $AB$ cao {h_cot}m có bóng trên mặt đất dài {b_cot}m. Cùng lúc đó, bóng của cây $CD$ dài {b_cay}m. Chiều cao của cây là:", "opts": self.format_options(ans_q3, [f"{round(h_cay+1,1)} m", f"{round(h_cay+0.5,1)} m", f"{round(h_cay-0.5,1)} m"]), "a": ans_q3, "h": "Hai tam giác tạo bởi tia sáng đồng dạng.", "i_svg": "", "i": draw_dynamic_shadow(h_cot, b_cot, b_cay)})
 
-        elif q_type == 'parabola':
-            a_val = random.choice([1, 2, 3, -1, -2, -3])
-            img = draw_dynamic_parabola(a_val)
-            ans = r"$a > 0$" if a_val > 0 else r"$a < 0$"
-            distractors = [r"$a < 0$" if a_val > 0 else r"$a > 0$", "Hàm số luôn đồng biến", "Đồ thị không cắt trục tung"]
-            q = "Quan sát đồ thị hàm số $y = ax^2$ dưới đây. Khẳng định nào sau đây là ĐÚNG về hệ số $a$?"
-            return {"q": q, "opts": self.format_options(ans, distractors), "a": ans, "h": "Bề lõm quay lên thì a > 0, quay xuống thì a < 0.", "i_svg": "", "i": img}
+        # Q4: Parabol
+        a_val = random.choice([1, 2, -1, -2])
+        ans_q4 = r"$a > 0$" if a_val > 0 else r"$a < 0$"
+        pool.append({"q": "Quan sát đồ thị hàm số $y = ax^2$ dưới đây. Khẳng định nào sau đây là ĐÚNG về hệ số $a$?", "opts": self.format_options(ans_q4, [r"$a < 0$" if a_val > 0 else r"$a > 0$", "Hàm số luôn đồng biến", "Đồ thị đi qua điểm (0; 2)"]), "a": ans_q4, "h": "Bề lõm quay lên thì a > 0.", "i_svg": "", "i": draw_dynamic_parabola(a_val)})
 
-        elif q_type == 'algebra':
-            S = random.randint(3, 8); P = random.randint(-4, 4)
-            ans = str(S**2 - 2*P)
-            q = f"Gọi $x_1, x_2$ là hai nghiệm của phương trình bậc hai thỏa mãn $x_1+x_2={S}$ và $x_1x_2={P}$. Giá trị của biểu thức $x_1^2 + x_2^2$ bằng:"
-            return {"q": q, "opts": self.format_options(ans, [str(S**2 + 2*P), str(S**2), str(S**2 - P)]), "a": ans, "h": "$x_1^2 + x_2^2 = S^2 - 2P$", "i_svg": "", "i": None}
+        # Q5: Căn bậc hai
+        num = random.choice([16, 25, 36, 49, 64, 81])
+        ans_q5 = str(int(math.sqrt(num)))
+        pool.append({"q": f"Căn bậc hai số học của {num} là:", "opts": self.format_options(ans_q5, [f"-{ans_q5}", str(num**2), "Cả âm và dương"]), "a": ans_q5, "h": "Căn số học luôn không âm", "i_svg": "", "i": None})
 
-        elif q_type == 'kinhte':
-            goc = random.choice([200, 350, 500])
-            lai = random.choice([6.0, 7.0, 8.5])
-            ans = f"{goc * (1 + lai/100):.2f} triệu"
-            q = f"Một người gửi tiết kiệm {goc} triệu đồng với lãi suất {lai}%/năm. Sau 1 năm, tổng số tiền người đó nhận được là:"
-            return {"q": q, "opts": self.format_options(ans, [f"{goc * (lai/100):.2f} triệu", f"{goc + lai} triệu", f"{goc * (1 + lai/100) + 5:.2f} triệu"]), "a": ans, "h": "Gốc * (1 + Lãi suất)", "i_svg": "", "i": None}
+        # Q6: Rút gọn biểu thức
+        pool.append({"q": "Biểu thức $\\sqrt{(x-3)^2}$ sau khi rút gọn bằng:", "opts": self.format_options("$|x-3|$", ["$x-3$", "$\\pm(x-3)$", "$3-x$"]), "a": "$|x-3|$", "h": "$\\sqrt{A^2} = |A|$", "i_svg": "", "i": None})
+
+        # Q7: Lãi suất
+        lai = random.choice([5, 6, 7])
+        ans_q7 = f"{int(100 * (1 + lai/100)**2)} triệu"
+        pool.append({"q": f"Bác Tư gửi 100 triệu VNĐ, lãi kép {lai}%/năm. Sau 2 năm bác nhận được tổng số tiền (làm tròn) là:", "opts": self.format_options(ans_q7, [f"{int(100 * (1 + lai/100))} triệu", f"{100 + lai*2} triệu", f"{int(100 * (1 + lai/100)**2) + 2} triệu"]), "a": ans_q7, "h": "Dùng công thức lãi kép", "i_svg": "", "i": None})
+
+        # Q8: Chuyển động
+        v1 = 40; v2 = 60; t = 2
+        ans_q8 = f"{v1+v2} km/h"
+        pool.append({"q": f"Hai ô tô xuất phát cùng lúc và đi ngược chiều trên quãng đường AB dài {(v1+v2)*t} km. Chúng gặp nhau sau {t} giờ. Tổng vận tốc hai xe là:", "opts": self.format_options(ans_q8, [f"{(v1+v2)*t} km/h", f"{(v1+v2)/t} km/h", f"{v1+v2+10} km/h"]), "a": ans_q8, "h": "$v_1 + v_2 = S/t$", "i_svg": "", "i": None})
+
+        # Q9: Xác suất xúc xắc
+        pool.append({"q": "Gieo đồng thời hai con xúc xắc cân đối và đồng chất. Xác suất để tổng số chấm trên hai mặt bằng 7 là:", "opts": self.format_options("1/6", ["5/36", "1/12", "7/36"]), "a": "1/6", "h": "Có 6 biến cố: (1,6), (2,5), (3,4)...", "i_svg": "", "i": None})
+
+        # Q10: Phương trình đường thẳng
+        pool.append({"q": "Đường thẳng đi qua hai điểm $A(0; 2)$ và $B(1; 4)$ có phương trình là:", "opts": self.format_options("$y = 2x + 2$", ["$y = x + 2$", "$y = 2x - 2$", "$y = 4x$"]), "a": "$y = 2x + 2$", "h": "Lập hệ phương trình tìm a, b", "i_svg": "", "i": None})
+
+        # Q11: Hệ phương trình
+        pool.append({"q": "Nghiệm $(x; y)$ của hệ phương trình $\\begin{cases} 2x - y = 1 \\\\ x + y = 5 \\end{cases}$ là:", "opts": self.format_options("$(2; 3)$", ["$(3; 2)$", "$(1; 4)$", "$(4; 1)$"]), "a": "$(2; 3)$", "h": "Cộng hai vế", "i_svg": "", "i": None})
+
+        # Q12: Tứ giác nội tiếp
+        pool.append({"q": "Cho tứ giác $ABCD$ nội tiếp đường tròn. Nếu góc $\\angle A = 75^\\circ$ thì góc đối diện $\\angle C$ bằng:", "opts": self.format_options("$105^\\circ$", ["$75^\\circ$", "$100^\\circ$", "$85^\\circ$"]), "a": "$105^\\circ$", "h": "Tổng hai góc đối bằng 180", "i_svg": "", "i": None})
+
+        # Q13: Thể tích nón
+        pool.append({"q": "Công thức tính thể tích của khối nón có bán kính đáy $r$ và chiều cao $h$ là:", "opts": self.format_options("$V = \\frac{1}{3}\\pi r^2 h$", ["$V = \\pi r^2 h$", "$V = \\frac{4}{3}\\pi r^3$", "$V = 2\\pi r h$"]), "a": "$V = \\frac{1}{3}\\pi r^2 h$", "h": "Công thức cơ bản SGK", "i_svg": "", "i": None})
+
+        # Q14: Độ dài cung tròn
+        pool.append({"q": "Độ dài cung tròn $60^\\circ$ của đường tròn bán kính $R = 6$ cm là:", "opts": self.format_options("$2\\pi$ cm", ["$6\\pi$ cm", "$3\\pi$ cm", "$12\\pi$ cm"]), "a": "$2\\pi$ cm", "h": "$l = \\frac{\\pi R n}{180}$", "i_svg": "", "i": None})
+
+        # Q15: Vi-ét tổng bình phương
+        S = random.randint(3, 7); P = random.randint(-2, 3)
+        ans_q15 = str(S**2 - 2*P)
+        pool.append({"q": f"Biết phương trình bậc hai có hai nghiệm thỏa mãn $x_1+x_2={S}$ và $x_1x_2={P}$. Giá trị của $x_1^2 + x_2^2$ là:", "opts": self.format_options(ans_q15, [str(S**2 + 2*P), str(S**2), str(S**2 - P)]), "a": ans_q15, "h": "$S^2 - 2P$", "i_svg": "", "i": None})
+
+        # Bổ sung các dạng khác nhau bằng văn bản để đủ 38 câu... (Tôi dùng vòng lặp với các hằng số toán học cơ bản để bù đủ số lượng mà dạng văn bản khác nhau hoàn toàn)
+        diverse_templates = [
+            ("Tập nghiệm của phương trình $x^4 - 5x^2 + 4 = 0$ là:", "$\\pm 1, \\pm 2$", ["$1, 4$", "$\\pm 1, 2$", "Vô nghiệm"]),
+            ("Hệ số góc của đường thẳng $3x + 2y - 5 = 0$ là:", "$-1.5$", ["1.5", "3", "2"]),
+            ("Giá trị của $\\sin 30^\\circ + \\cos 60^\\circ$ là:", "1", ["$0$", "$\\sqrt{3}$", "$\\frac{1}{2}$"]),
+            ("Tâm đường tròn ngoại tiếp tam giác vuông nằm ở đâu?", "Trung điểm cạnh huyền", ["Trực tâm", "Trọng tâm", "Giao 3 đường phân giác"]),
+            ("Phương trình nào sau đây là phương trình bậc nhất hai ẩn?", "$2x - 3y = 5$", ["$x^2 - y = 0$", "$x + y^2 = 1$", "$\\frac{1}{x} + y = 2$"]),
+            ("Hàm số $y = \\sqrt{m-2} \\cdot x + 3$ là hàm số bậc nhất khi:", "$m > 2$", ["$m \\ge 2$", "$m < 2$", "$m \\ne 2$"]),
+            ("Số đo góc tạo bởi tiếp tuyến và dây cung bằng:", "Nửa số đo cung bị chắn", ["Số đo cung bị chắn", "Số đo góc ở tâm", "Gấp đôi số đo cung"]),
+            ("Diện tích mặt cầu bán kính $R=3$ là:", "$36\\pi$", ["$12\\pi$", "$27\\pi$", "$9\\pi$"]),
+            ("Điều kiện để phương trình $ax^2 + bx + c = 0$ (a khác 0) có 2 nghiệm phân biệt là:", "$\\Delta > 0$", ["$\\Delta \\ge 0$", "$\\Delta = 0$", "$\\Delta < 0$"]),
+            ("Cho $\\Delta ABC$ đều cạnh $a$. Chiều cao của tam giác là:", "$\\frac{a\\sqrt{3}}{2}$", ["$\\frac{a}{2}$", "$a\\sqrt{3}$", "$\\frac{a\\sqrt{2}}{2}$"]),
+            ("Biểu thức $\\sqrt{A^2}$ luôn bằng:", "$|A|$", ["A", "-A", "$\\pm A$"]),
+            ("Giao điểm của hai đường cao trong tam giác gọi là:", "Trực tâm", ["Trọng tâm", "Tâm đường tròn nội tiếp", "Tâm đường tròn ngoại tiếp"]),
+            ("Với góc nhọn $\\alpha$, hệ thức nào SAI?", "$\\sin^2\\alpha - \\cos^2\\alpha = 1$", ["$\\sin^2\\alpha + \\cos^2\\alpha = 1$", "$\\tan\\alpha = \\frac{\\sin\\alpha}{\\cos\\alpha}$", "$\\tan\\alpha \\cdot \\cot\\alpha = 1$"]),
+            ("Đồ thị hàm số $y = 2x - 4$ cắt trục hoành tại điểm có hoành độ là:", "2", ["-4", "-2", "4"]),
+            ("Hai đường thẳng $y = 2x+1$ và $y = 2x-3$ có vị trí tương đối là:", "Song song", ["Cắt nhau", "Trùng nhau", "Vuông góc"]),
+            ("Diện tích hình quạt tròn bán kính R, cung $n^\\circ$ là:", "$\\frac{\\pi R^2 n}{360}$", ["$\\frac{\\pi R n}{180}$", "$\\frac{\\pi R^2 n}{180}$", "$\\pi R^2$"]),
+            ("Căn bậc ba của -27 là:", "-3", ["3", "Không tồn tại", "$\\pm 3$"]),
+            ("Rút gọn $\\sqrt{8} - \\sqrt{2}$ ta được:", "$\\sqrt{2}$", ["$\\sqrt{6}$", "$2\\sqrt{2}$", "4"]),
+            ("Một vòi nước chảy đầy bể trong 6 giờ. Trong 1 giờ vòi đó chảy được:", "1/6 bể", ["6 bể", "1/3 bể", "2/3 bể"]),
+            ("Phương trình $\\frac{x}{2} + \\frac{y}{3} = 1$ có bao nhiêu nghiệm?", "Vô số nghiệm", ["1 nghiệm", "2 nghiệm", "Vô nghiệm"]),
+            ("Cho $x > 0$. Rút gọn $x \\sqrt{\\frac{1}{x}}$ ta được:", "$\\sqrt{x}$", ["x", "1", "$\\frac{1}{x}$"]),
+            ("Tứ giác có 4 đỉnh nằm trên đường tròn gọi là:", "Tứ giác nội tiếp", ["Hình vuông", "Hình bình hành", "Hình thoi"]),
+            ("Phân tích đa thức $x^2 - y^2$ thành nhân tử:", "$(x-y)(x+y)$", ["$(x-y)^2$", "$(x+y)^2$", "$x(x-y)$"])
+        ]
+        
+        for tpl in diverse_templates:
+            pool.append({"q": tpl[0], "opts": self.format_options(tpl[1], tpl[2]), "a": tpl[1], "h": "Lý thuyết Toán 9.", "i_svg": "", "i": None})
+            if len(pool) == 38: break
+
+        return pool
 
     def generate_all(self):
         ai_questions = []
@@ -273,11 +320,11 @@ class ExamGenerator:
             try:
                 seed = time.time()
                 prompt = f"""Mốc thời gian: {seed}. 
-                Sáng tạo ĐÚNG 5 CÂU HỎI trắc nghiệm Toán 9 thực tế (Vận tốc, kiến trúc, kinh tế...).
+                Đóng vai Chuyên gia Tuyển sinh Toán học ra đề thi vào 10 chuyên. Sáng tạo 5 CÂU HỎI trắc nghiệm Toán 9 thực tiễn đa dạng (Lãi suất, Tốc độ, Không gian...).
                 YÊU CẦU:
-                1. TUYỆT ĐỐI KHÔNG GHI NHÃN ĐỘ KHÓ (Ví dụ: Không dùng [Nhận biết], [Vận dụng]). Nội dung đi thẳng vào câu hỏi.
-                2. Sáng tạo nội dung không lặp lại.
-                3. Trả về đúng JSON nguyên khối: [{{"question": "...", "options": ["A", "B", "C", "D"], "answer": "...", "hint": "...", "image_svg": ""}}]"""
+                1. TUYỆT ĐỐI KHÔNG GHI NHÃN ĐỘ KHÓ (như [Nhận biết], [Vận dụng]). Nội dung đi thẳng vào câu hỏi.
+                2. Với câu hỏi cần hình SVG: Phải dùng thẻ viewBox. Chữ số BẮT BUỘC dùng dx, dy để cách xa nét vẽ. KHÔNG để chữ đè nét vẽ.
+                3. Trả về ĐÚNG JSON nguyên khối: [{{"question": "...", "options": ["A", "B", "C", "D"], "answer": "...", "hint": "...", "image_svg": ""}}]"""
                 
                 res = ai_model.generate_content(prompt)
                 raw_text = re.sub(r'```json\n?', '', res.text)
@@ -297,16 +344,20 @@ class ExamGenerator:
             except Exception:
                 pass 
 
-        final_pool = ai_questions.copy()
+        # --- KẾT HỢP NGÂN HÀNG ĐỘC LẬP BÊN TRONG ---
+        local_distinct_pool = self.get_38_distinct_local_questions()
         
-        # Bù đắp bằng thuật toán sinh hình động chuẩn SGK (để đủ 38 câu thường)
-        while len(final_pool) < 38:
-            final_pool.append(self.get_dynamic_local_question())
+        # Nếu AI trả kết quả, ta lấy AI + phần còn lại của local cho đủ 38
+        if ai_questions:
+            num_ai = min(len(ai_questions), 10)
+            final_pool = ai_questions[:num_ai] + local_distinct_pool[:38 - num_ai]
+        else:
+            final_pool = local_distinct_pool[:38]
 
         # --- 2 CÂU HSG QUỐC GIA (TRÙM CUỐI) ---
         hsg_bank = [
             {"q": "Cho các số thực dương $a, b, c$ thỏa mãn $a^2+b^2+c^2=3$. Tìm giá trị nhỏ nhất của biểu thức $P = \\frac{a^3}{\\sqrt{b^2+3}} + \\frac{b^3}{\\sqrt{c^2+3}} + \\frac{c^3}{\\sqrt{a^2+3}}$.", "a": r"$\frac{3}{2}$", "d": [r"1", r"$\frac{1}{2}$", r"3"], "h": "Sử dụng BĐT AM-GM và Bunhiacopxki."},
-            {"q": "Tìm số cặp số nguyên $(x, y)$ thỏa mãn phương trình: $x^3 + y^3 = (x+y)^2$.", "a": "4 cặp: (0,0), (1,0), (0,1), (2,2)", "d": ["2 cặp", "Vô số cặp", "Vô nghiệm"], "h": "Phân tích $(x+y)(x^2-xy+y^2 - x - y) = 0$."},
+            {"q": "Tìm tất cả các nghiệm nguyên $(x, y)$ thỏa mãn phương trình: $x^3 + y^3 = (x+y)^2$.", "a": "4 cặp: (0,0), (1,0), (0,1), (2,2)", "d": ["2 cặp", "Vô số cặp", "Vô nghiệm"], "h": "Phân tích $(x+y)(x^2-xy+y^2 - x - y) = 0$."},
             {"q": "Trên bảng viết 2026 số 1. Mỗi lần cho phép xóa 2 số a, b bất kỳ và viết lại bằng số $a+b+ab$. Hỏi sau 2025 lần thực hiện, số còn lại trên bảng là bao nhiêu?", "a": "$2^{2026} - 1$", "d": ["$2026!$", "$2026^2$", "$2^{2025}$"], "h": "Dùng tính chất bất biến: $(a+1)(b+1) - 1 = a+b+ab$. Tích các số cộng 1 luôn không đổi."},
             {"q": "Giải phương trình vô tỷ: $\\sqrt{x - \\frac{1}{x}} - \\sqrt{1 - \\frac{1}{x}} = \\frac{x-1}{x}$.", "a": "$x = \\frac{1+\\sqrt{5}}{2}$", "d": ["$x = 2$", "$x = 1$", "Vô nghiệm"], "h": "Điều kiện $x \\ge 1$. Nhân lượng liên hợp 2 vế."}
         ]
@@ -315,7 +366,7 @@ class ExamGenerator:
 
         final_pool.extend(hsg_questions)
         
-        # ĐẢO LỘN HOÀN TOÀN 40 CÂU (HSG BỊ GIẤU KÍN Ở VỊ TRÍ BẤT KỲ)
+        # ĐẢO LỘN HOÀN TOÀN 40 CÂU (GIẤU 2 CÂU HSG BẤT KỲ ĐÂU)
         random.shuffle(final_pool)
 
         for i, q in enumerate(final_pool[:40]):
@@ -498,7 +549,7 @@ def main():
                             st.session_state[f"mand_ans_{exam_id}"] = {str(i+1): None for i in range(num_q)}
                             
                         if ai_model and st.button("✨ Nhờ AI số hóa đề này thành trắc nghiệm thông minh"):
-                            with st.spinner("AI đang phân tích ảnh và loại bỏ nhãn độ khó..."):
+                            with st.spinner("AI đang đọc ảnh và loại bỏ nhãn độ khó..."):
                                 prompt = "Đọc đề này và chuyển sang JSON trắc nghiệm kèm giải chi tiết. TUYỆT ĐỐI không bao gồm các cụm từ [Nhận biết], [Vận dụng]. [{'id': 1, 'question': '...', 'options': ['A', 'B', 'C', 'D'], 'answer': 'A', 'hint': '...'}]"
                                 try:
                                     res = ai_model.generate_content([prompt, {"mime_type": exam_row['file_type'], "data": exam_row['file_data']}])
@@ -628,15 +679,13 @@ def main():
             conn.close()
 
         with tab_ai:
-            st.title("🤖 Đề tự luyện")
-            # --- ĐÃ XÓA DÒNG THÔNG BÁO NHƯ GIÁM ĐỐC YÊU CẦU ---
-            
+            # ĐÃ GỠ BỎ HOÀN TOÀN CÁC DÒNG THÔNG BÁO DÀI DÒNG THỪA THÃI NHƯ TRONG ẢNH
             if 'exam_data' not in st.session_state: st.session_state.exam_data = None
             if 'user_answers' not in st.session_state: st.session_state.user_answers = {}
             if 'is_submitted' not in st.session_state: st.session_state.is_submitted = False
 
             if st.button("🔄 TẠO ĐỀ LUYỆN TẬP MỚI", use_container_width=True):
-                with st.spinner("Hệ thống đang xáo trộn số liệu và yêu cầu AI vẽ đồ họa chuẩn SGK..."):
+                with st.spinner("Hệ thống đang xáo trộn thư viện ảnh chuẩn SGK và sinh đề độc bản..."):
                     gen = ExamGenerator()
                     st.session_state.exam_data = gen.generate_all()
                     st.session_state.user_answers = {str(q['id']): None for q in st.session_state.exam_data}
@@ -651,15 +700,13 @@ def main():
                     st.markdown("---")
 
                 for q in st.session_state.exam_data:
-                    # Quét sạch nhãn độ khó để giao diện gọn gàng
                     q_text = re.sub(r'\[.*?\]\s*', '', q['question']).strip()
                     st.markdown(f"**Câu {q['id']}:** {q_text}", unsafe_allow_html=True)
                     
-                    # Render đồ họa AI vẽ (SVG) hoặc đồ họa Python (Matplotlib chuẩn)
                     if q.get('image_svg'):
                         st.markdown(f"<div style='margin: 15px 0; display:flex; justify-content:center;'>{q['image_svg']}</div>", unsafe_allow_html=True)
                     elif q.get('image'): 
-                        st.markdown(f'<div style="text-align:center;"><img src="data:image/png;base64,{q["image"]}" style="max-width:350px; margin-bottom: 10px;"></div>', unsafe_allow_html=True)
+                        st.markdown(f'<div style="text-align:left;"><img src="data:image/png;base64,{q["image"]}" style="max-width:350px; margin-bottom: 10px;"></div>', unsafe_allow_html=True)
                     
                     disabled = st.session_state.is_submitted
                     ans_val = st.session_state.user_answers[str(q['id'])]
@@ -1057,4 +1104,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
