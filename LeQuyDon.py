@@ -1,5 +1,5 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V18 CORE TỐI ƯU
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V18 (PHÂN QUYỀN CHUYÊN SÂU)
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
@@ -63,7 +63,6 @@ def init_db():
     try: c.execute("ALTER TABLE mandatory_results ADD COLUMN user_answers_json TEXT")
     except: pass
     
-    # --- BẢNG LƯU VẾT LỊCH SỬ XÓA ---
     c.execute('''CREATE TABLE IF NOT EXISTS deletion_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         deleted_by TEXT,
@@ -77,7 +76,6 @@ def init_db():
     conn.commit()
     conn.close()
 
-# --- HÀM GHI LOG XÓA ---
 def log_deletion(deleted_by, entity_type, entity_name, reason):
     conn = sqlite3.connect('exam_db.sqlite')
     c = conn.cursor()
@@ -87,7 +85,6 @@ def log_deletion(deleted_by, entity_type, entity_name, reason):
     conn.commit()
     conn.close()
 
-# --- THUẬT TOÁN TẠO USERNAME CHUẨN QUỐC TẾ ---
 def generate_username(fullname, dob):
     s = str(fullname)
     s = re.sub(r'[đĐ]', 'd', s)
@@ -560,15 +557,15 @@ def main():
     elif st.session_state.role in ['core_admin', 'sub_admin', 'teacher']:
         st.title("⚙ Bảng Điều Khiển (LMS)")
         
-        # --- PHÂN QUYỀN HIỂN THỊ TABS ---
+        # --- TAB MENU THEO QUYỀN ---
         if st.session_state.role in ['core_admin', 'sub_admin']:
             tabs = st.tabs(["🏫 Lớp & Học sinh", "🛡️ Quản lý Nhân sự", "📊 Báo cáo Điểm", "📤 Phát Đề (Giao Bài)"])
             tab_class, tab_staff, tab_scores, tab_system = tabs
         else:
-            tabs = st.tabs(["🏫 Lớp của tôi", "📊 Báo cáo Điểm"])
-            tab_class, tab_scores = tabs
+            # Giáo viên giờ có thêm tab Phát Đề
+            tabs = st.tabs(["🏫 Lớp của tôi", "📊 Báo cáo Điểm", "📤 Phát Đề (Giao Bài)"])
+            tab_class, tab_scores, tab_system = tabs
             tab_staff = None
-            tab_system = None
         
         conn = sqlite3.connect('exam_db.sqlite')
         c = conn.cursor()
@@ -649,7 +646,7 @@ def main():
                 st.dataframe(df_students, use_container_width=True)
                 
                 if not df_students.empty:
-                    st.markdown("#### ✏️ Chỉnh sửa / Xóa Học sinh")
+                    st.markdown("#### ✏️ Cập nhật Thông tin Học sinh")
                     user_to_edit = st.selectbox("Chọn Học sinh cần thao tác:", ["-- Chọn --"] + df_students['Tài khoản'].tolist())
                     if user_to_edit != "-- Chọn --":
                         c.execute("SELECT fullname, password, dob, class_name FROM users WHERE username=?", (user_to_edit,))
@@ -660,7 +657,10 @@ def main():
                             edit_pwd = c2.text_input("Mật khẩu", value=u_data[1])
                             edit_dob = c1.text_input("Ngày sinh", value=u_data[2] if u_data[2] else "")
                             edit_class = c2.text_input("Đổi Lớp", value=u_data[3])
-                            del_reason_stu = st.text_input("Lý do xóa (Bắt buộc nếu muốn xóa Học sinh này):")
+                            
+                            # TÍNH NĂNG 1: KHÓA QUYỀN XÓA CỦA GIÁO VIÊN
+                            if st.session_state.role in ['core_admin', 'sub_admin']:
+                                del_reason_stu = st.text_input("Lý do xóa (Bắt buộc nếu muốn xóa Học sinh này):")
                             
                             col_save, col_del = st.columns(2)
                             if col_save.form_submit_button("💾 Cập nhật Thông tin"):
@@ -668,31 +668,38 @@ def main():
                                 conn.commit()
                                 st.success("✅ Cập nhật thành công!")
                                 st.rerun()
-                            if col_del.form_submit_button("🗑 XÓA TÀI KHOẢN NÀY"):
-                                if not del_reason_stu: st.error("❌ Vui lòng nhập Lý do xóa trước khi thao tác!")
-                                else:
-                                    log_deletion(st.session_state.current_user, "Học sinh", f"{user_to_edit} ({u_data[0]})", del_reason_stu)
-                                    c.execute("DELETE FROM users WHERE username=?", (user_to_edit,))
-                                    c.execute("DELETE FROM mandatory_results WHERE username=?", (user_to_edit,))
-                                    conn.commit()
-                                    st.rerun()
+                                
+                            if st.session_state.role in ['core_admin', 'sub_admin']:
+                                if col_del.form_submit_button("🗑 XÓA TÀI KHOẢN NÀY"):
+                                    if not del_reason_stu: st.error("❌ Vui lòng nhập Lý do xóa trước khi thao tác!")
+                                    else:
+                                        log_deletion(st.session_state.current_user, "Học sinh", f"{user_to_edit} ({u_data[0]})", del_reason_stu)
+                                        c.execute("DELETE FROM users WHERE username=?", (user_to_edit,))
+                                        c.execute("DELETE FROM mandatory_results WHERE username=?", (user_to_edit,))
+                                        conn.commit()
+                                        st.rerun()
+                            else:
+                                col_del.markdown("*(Giáo viên không có quyền xóa tài khoản. Vui lòng liên hệ Admin).*")
+                
                 st.markdown("---")
                 
-                with st.expander("🚨 Dọn dẹp Cuối năm (Xóa toàn bộ lớp)"):
-                    st.warning(f"Hành động này sẽ xóa vĩnh viễn toàn bộ học sinh và kết quả thi của lớp {selected_class}.")
-                    del_reason_class = st.text_input("Lý do xóa toàn bộ lớp (Bắt buộc):")
-                    if st.checkbox("Tôi xác nhận muốn xóa vĩnh viễn dữ liệu lớp này."):
-                        if st.button("🗑 TIẾN HÀNH XÓA LỚP", type="primary"):
-                            if not del_reason_class: 
-                                st.error("❌ Vui lòng nhập Lý do xóa lớp!")
-                            else:
-                                log_deletion(st.session_state.current_user, "Lớp học", selected_class, del_reason_class)
-                                for u in df_students['Tài khoản'].tolist():
-                                    c.execute("DELETE FROM users WHERE username=?", (u,))
-                                    c.execute("DELETE FROM mandatory_results WHERE username=?", (u,))
-                                conn.commit()
-                                st.success(f"✅ Đã xóa thành công lớp {selected_class}!")
-                                st.rerun()
+                # CHỈ ADMIN ĐƯỢC XÓA LỚP
+                if st.session_state.role in ['core_admin', 'sub_admin']:
+                    with st.expander("🚨 Dọn dẹp Cuối năm (Xóa toàn bộ lớp)"):
+                        st.warning(f"Hành động này sẽ xóa vĩnh viễn toàn bộ học sinh và kết quả thi của lớp {selected_class}.")
+                        del_reason_class = st.text_input("Lý do xóa toàn bộ lớp (Bắt buộc):")
+                        if st.checkbox("Tôi xác nhận muốn xóa vĩnh viễn dữ liệu lớp này."):
+                            if st.button("🗑 TIẾN HÀNH XÓA LỚP", type="primary"):
+                                if not del_reason_class: 
+                                    st.error("❌ Vui lòng nhập Lý do xóa lớp!")
+                                else:
+                                    log_deletion(st.session_state.current_user, "Lớp học", selected_class, del_reason_class)
+                                    for u in df_students['Tài khoản'].tolist():
+                                        c.execute("DELETE FROM users WHERE username=?", (u,))
+                                        c.execute("DELETE FROM mandatory_results WHERE username=?", (u,))
+                                    conn.commit()
+                                    st.success(f"✅ Đã xóa thành công lớp {selected_class}!")
+                                    st.rerun()
 
         # --- TAB 2: QUẢN LÝ NHÂN SỰ ---
         if tab_staff:
@@ -734,7 +741,7 @@ def main():
                     t_user = c1.text_input("Tài khoản GV")
                     t_pwd = c2.text_input("Mật khẩu")
                     t_name = c1.text_input("Họ và Tên")
-                    t_classes = c2.text_input("Giao Lớp quản lý (VD: 9A1)")
+                    t_classes = c2.text_input("Giao Lớp quản lý ban đầu (VD: 9A1)")
                     if st.form_submit_button("Tạo GV", type="primary"):
                         try:
                             c.execute("INSERT INTO users (username, password, role, fullname, managed_classes) VALUES (?, ?, 'teacher', ?, ?)", (t_user, t_pwd, t_name, t_classes))
@@ -745,7 +752,21 @@ def main():
                 df_teach = pd.read_sql_query("SELECT username as 'Tài khoản', fullname as 'Họ tên', managed_classes as 'Lớp QL' FROM users WHERE role='teacher'", conn)
                 st.dataframe(df_teach, use_container_width=True)
                 
-                st.markdown("**Xóa Giáo viên:**")
+                # TÍNH NĂNG 2: ADMIN ĐIỀU CHUYỂN / PHÂN LỚP CHO GIÁO VIÊN
+                st.markdown("#### 🔄 Phân Công / Điều Chuyển Lớp Cho Giáo Viên")
+                t_to_edit = st.selectbox("Chọn Giáo viên để phân lớp:", ["-- Chọn --"] + df_teach['Tài khoản'].tolist())
+                if t_to_edit != "-- Chọn --":
+                    current_classes = df_teach[df_teach['Tài khoản'] == t_to_edit]['Lớp QL'].values[0]
+                    with st.form("reassign_gv_form"):
+                        new_classes = st.text_input("Nhập danh sách lớp mới (phân cách bằng dấu phẩy, VD: 9A, 9B, 9C)", value=str(current_classes) if pd.notna(current_classes) else "")
+                        if st.form_submit_button("💾 Cập nhật phân công"):
+                            c.execute("UPDATE users SET managed_classes=? WHERE username=?", (new_classes, t_to_edit))
+                            conn.commit()
+                            st.success(f"✅ Đã điều chuyển giáo viên phụ trách các lớp: {new_classes}")
+                            st.rerun()
+                
+                st.markdown("---")
+                st.markdown("#### 🗑 Xóa Giáo viên")
                 c_delt1, c_delt2 = st.columns(2)
                 t_to_del = c_delt1.selectbox("Chọn GV cần xóa:", ["-- Chọn --"] + df_teach['Tài khoản'].tolist())
                 t_del_reason = c_delt2.text_input("Lý do xóa Giáo viên này (Bắt buộc):")
@@ -841,63 +862,71 @@ def main():
                             st.dataframe(df_stats[['Câu', 'Số HS làm sai']], use_container_width=True)
                         else: st.info("Cần có dữ liệu nộp bài để hệ thống phân tích.")
 
-        # --- TAB 4: PHÁT ĐỀ (CHỈ DÀNH CHO ADMIN) ---
+        # --- TAB 4: PHÁT ĐỀ ---
         if tab_system:
             with tab_system:
                 st.subheader("📤 Phát Bài Tập Cho Học Sinh")
-                assign_options = ["Toàn trường"] + all_system_classes
-                st.success("👑 BẠN ĐANG DÙNG QUYỀN ADMIN: Tính năng Giao bài chỉ dành cho Ban giám đốc hoặc Admin thành viên.")
                 
-                target_class = st.selectbox("🎯 Giao bài cho đối tượng:", assign_options)
-                exam_title = st.text_input("Tên bài kiểm tra (VD: Thi Giữa Kỳ Toán 9)")
+                # TÍNH NĂNG 3: MỞ QUYỀN PHÁT ĐỀ NHƯNG GIỚI HẠN LỚP
+                if st.session_state.role in ['core_admin', 'sub_admin']: 
+                    assign_options = ["Toàn trường"] + all_system_classes
+                    st.success("👑 BẠN ĐANG DÙNG QUYỀN ADMIN: Có thể giao bài chung cho 'Toàn trường' hoặc chỉ định một lớp cụ thể.")
+                else: 
+                    assign_options = available_classes # Chỉ lấy đúng các lớp do GV này quản lý
+                    st.info("👨‍🏫 BẠN ĐANG DÙNG QUYỀN GIÁO VIÊN: Bạn chỉ được phép giao đề cho các lớp thuộc quyền quản lý của bạn.")
                 
-                c1, c2 = st.columns(2)
-                s_date = c1.date_input("Ngày giao")
-                s_time = c1.time_input("Giờ giao", value=datetime.strptime("07:00", "%H:%M").time())
-                e_date = c2.date_input("Ngày thu")
-                e_time = c2.time_input("Giờ thu", value=datetime.strptime("23:59", "%H:%M").time())
-                
-                st.markdown("---")
-                exam_type = st.radio("Lựa chọn phương thức giao bài:", ["📤 Tải lên đề thi của tôi (File PDF/Ảnh)", "🤖 Sinh ngẫu nhiên từ Ngân hàng Đề AI"])
-                
-                if exam_type == "📤 Tải lên đề thi của tôi (File PDF/Ảnh)":
-                    st.info("💡 Học sinh sẽ nhìn thấy File đề của bạn ở nửa màn hình bên trái và điền phiếu trắc nghiệm A B C D ở nửa màn hình bên phải.")
-                    uploaded_file = st.file_uploader("1. Tải File Đề (Hỗ trợ PDF, JPG, PNG)", type=['pdf', 'jpg', 'png', 'jpeg'])
-                    ans_input = st.text_input("2. Nhập chuỗi Đáp án Đúng (Viết liền, VD: ABCDABCD)")
+                if not assign_options: st.warning("Bạn chưa được phân quyền quản lý lớp nào nên chưa thể giao bài.")
+                else:
+                    target_class = st.selectbox("🎯 Giao bài cho đối tượng:", assign_options)
+                    exam_title = st.text_input("Tên bài kiểm tra (VD: Thi Giữa Kỳ Toán 9)")
                     
-                    if st.button("🚀 Phát Đề (File PDF)", type="primary"):
-                        if not exam_title: st.error("Vui lòng nhập tên bài thi!")
-                        elif not uploaded_file: st.error("Vui lòng tải file đề thi lên!")
-                        elif not ans_input: st.error("Vui lòng nhập chuỗi đáp án!")
-                        else:
-                            ans_clean = list(ans_input.upper().replace(" ", "").replace(",", ""))
-                            valid_chars = all(char in ['A', 'B', 'C', 'D'] for char in ans_clean)
-                            if not valid_chars: 
-                                st.error("❌ Chuỗi đáp án bị lỗi! Chỉ được phép chứa các chữ A, B, C, D.")
+                    c1, c2 = st.columns(2)
+                    s_date = c1.date_input("Ngày giao")
+                    s_time = c1.time_input("Giờ giao", value=datetime.strptime("07:00", "%H:%M").time())
+                    e_date = c2.date_input("Ngày thu")
+                    e_time = c2.time_input("Giờ thu", value=datetime.strptime("23:59", "%H:%M").time())
+                    
+                    st.markdown("---")
+                    exam_type = st.radio("Lựa chọn phương thức giao bài:", ["📤 Tải lên đề thi của tôi (File PDF/Ảnh)", "🤖 Sinh ngẫu nhiên từ Ngân hàng Đề AI"])
+                    
+                    if exam_type == "📤 Tải lên đề thi của tôi (File PDF/Ảnh)":
+                        st.info("💡 Học sinh sẽ nhìn thấy File đề của bạn ở nửa màn hình bên trái và điền phiếu trắc nghiệm A B C D ở nửa màn hình bên phải.")
+                        uploaded_file = st.file_uploader("1. Tải File Đề (Hỗ trợ PDF, JPG, PNG)", type=['pdf', 'jpg', 'png', 'jpeg'])
+                        ans_input = st.text_input("2. Nhập chuỗi Đáp án Đúng (Viết liền, VD: ABCDABCD)")
+                        
+                        if st.button("🚀 Phát Đề (File PDF)", type="primary"):
+                            if not exam_title: st.error("Vui lòng nhập tên bài thi!")
+                            elif not uploaded_file: st.error("Vui lòng tải file đề thi lên!")
+                            elif not ans_input: st.error("Vui lòng nhập chuỗi đáp án!")
                             else:
-                                file_bytes = uploaded_file.read()
-                                b64 = base64.b64encode(file_bytes).decode('utf-8')
-                                mime_type = uploaded_file.type
+                                ans_clean = list(ans_input.upper().replace(" ", "").replace(",", ""))
+                                valid_chars = all(char in ['A', 'B', 'C', 'D'] for char in ans_clean)
+                                if not valid_chars: 
+                                    st.error("❌ Chuỗi đáp án bị lỗi! Chỉ được phép chứa các chữ A, B, C, D.")
+                                else:
+                                    file_bytes = uploaded_file.read()
+                                    b64 = base64.b64encode(file_bytes).decode('utf-8')
+                                    mime_type = uploaded_file.type
+                                    s_str = f"{s_date} {s_time.strftime('%H:%M:%S')}"
+                                    e_str = f"{e_date} {e_time.strftime('%H:%M:%S')}"
+                                    
+                                    c.execute("INSERT INTO mandatory_exams (title, start_time, end_time, target_class, file_data, file_type, answer_key) VALUES (?, ?, ?, ?, ?, ?, ?)", 
+                                              (exam_title.strip(), s_str, e_str, target_class, b64, mime_type, json.dumps(ans_clean)))
+                                    conn.commit()
+                                    st.success(f"✅ Đã phát đề thành công tới {target_class}! Hệ thống tự động tạo phiếu tô {len(ans_clean)} câu trắc nghiệm.")
+                    
+                    else:
+                        if st.button("🚀 Phát Đề AI (Trộn Ngẫu Nhiên 40 Câu)", type="primary"):
+                            if exam_title:
+                                gen = ExamGenerator()
+                                fixed_exam = gen.generate_all()
                                 s_str = f"{s_date} {s_time.strftime('%H:%M:%S')}"
                                 e_str = f"{e_date} {e_time.strftime('%H:%M:%S')}"
-                                
-                                c.execute("INSERT INTO mandatory_exams (title, start_time, end_time, target_class, file_data, file_type, answer_key) VALUES (?, ?, ?, ?, ?, ?, ?)", 
-                                          (exam_title.strip(), s_str, e_str, target_class, b64, mime_type, json.dumps(ans_clean)))
+                                c.execute("INSERT INTO mandatory_exams (title, questions_json, start_time, end_time, target_class) VALUES (?, ?, ?, ?, ?)", 
+                                          (exam_title.strip(), json.dumps(fixed_exam), s_str, e_str, target_class))
                                 conn.commit()
-                                st.success(f"✅ Đã phát đề thành công! Hệ thống tự động tạo phiếu tô {len(ans_clean)} câu trắc nghiệm.")
-                
-                else:
-                    if st.button("🚀 Phát Đề AI (Trộn Ngẫu Nhiên 40 Câu)", type="primary"):
-                        if exam_title:
-                            gen = ExamGenerator()
-                            fixed_exam = gen.generate_all()
-                            s_str = f"{s_date} {s_time.strftime('%H:%M:%S')}"
-                            e_str = f"{e_date} {e_time.strftime('%H:%M:%S')}"
-                            c.execute("INSERT INTO mandatory_exams (title, questions_json, start_time, end_time, target_class) VALUES (?, ?, ?, ?, ?)", 
-                                      (exam_title.strip(), json.dumps(fixed_exam), s_str, e_str, target_class))
-                            conn.commit()
-                            st.success(f"✅ Đã phát đề AI chuẩn 40 câu tới {target_class}!")
-                        else: st.error("Vui lòng nhập tên bài thi!")
+                                st.success(f"✅ Đã phát đề AI chuẩn 40 câu tới {target_class}!")
+                            else: st.error("Vui lòng nhập tên bài thi!")
         conn.close()
 
 if __name__ == "__main__":
