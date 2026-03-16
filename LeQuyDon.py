@@ -19,9 +19,9 @@ import google.generativeai as genai
 VN_TZ = timezone(timedelta(hours=7))
 
 # GIÁM ĐỐC DÁN KEY GEMINI VÀO ĐÂY ĐỂ KÍCH HOẠT HỆ THỐNG
-GEMINI_API_KEY = "DÁN_API_KEY_CỦA_BẠN_VÀO_ĐÂY" 
+GEMINI_API_KEY = "AIzaSyDMdmMYUpqnB5wPxcF94Spy6LkNBdkKh2w" 
 
-if GEMINI_API_KEY != "DÁN_API_KEY_CỦA_BẠN_VÀO_ĐÂY":
+if GEMINI_API_KEY != "AIzaSyDMdmMYUpqnB5wPxcF94Spy6LkNBdkKh2w":
     genai.configure(api_key=GEMINI_API_KEY)
     ai_model = genai.GenerativeModel('gemini-1.5-flash')
 
@@ -175,3 +175,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
