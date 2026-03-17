@@ -1,6 +1,6 @@
 # ==========================================
 # LÕI HỆ THỐNG LMS - PHIÊN BẢN V20 SUPREME ULTIMATE
-# Bổ sung: Tính năng Giáo viên Soát duyệt & Xem trước Đề AI
+# Cải tiến: AI đọc file PDF/Ảnh tự tạo Đáp án & Lời giải
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
@@ -36,7 +36,7 @@ except ImportError:
 
 VN_TZ = timezone(timedelta(hours=7))
 
-# GIÁM ĐỐC DÁN API KEY VÀO ĐÂY
+# GIÁM ĐỐC DÁN API KEY VÀO ĐÂY 
 GEMINI_API_KEY = "AIzaSyDMdmMYUpqnB5wPxcF94Spy6LkNBdkKh2w" 
 
 if AI_AVAILABLE and GEMINI_API_KEY != "AIzaSyDMdmMYUpqnB5wPxcF94Spy6LkNBdkKh2w":
@@ -122,7 +122,7 @@ def log_deletion(deleted_by, entity_type, entity_name, reason):
     conn.commit(); conn.close()
 
 # ==========================================
-# 3. ĐỒ HỌA TOÁN HỌC ĐỘNG CHUẨN SGK
+# 3. ĐỒ HỌA TOÁN HỌC ĐỘNG CHUẨN SGK 
 # ==========================================
 def fig_to_base64(fig):
     buf = BytesIO()
@@ -153,7 +153,6 @@ def draw_dynamic_thales(AE, EB, AF, FC):
     ax.text(0.5, 1.5, 'E', ha='right', fontsize=11, fontweight='bold')
     ax.text(2.4, 1.5, 'F', ha='left', fontsize=11, fontweight='bold')
     ax.text(2.6, 2.3, '$EF // BC$', style='italic', fontsize=10)
-    
     ax.text(0.6, 2.3, str(AE), color='red', fontsize=10, rotation=63)
     ax.text(0.2, 0.8, str(EB), color='red', fontsize=10, rotation=63)
     ax.text(2.0, 2.3, str(AF), color='red', fontsize=10, rotation=-63)
@@ -171,7 +170,6 @@ def draw_dynamic_altitude(BH, HC, AH):
     ax.text(-0.3, 3.1, 'B', fontsize=11, fontweight='bold')
     ax.text(4.2, -0.2, 'C', fontsize=11, fontweight='bold')
     ax.text(1.6, 2.1, 'H', fontsize=11, fontweight='bold')
-    
     ax.text(0.5, 2.6, str(BH), color='red', fontsize=10, rotation=-36)
     ax.text(2.8, 1.0, str(HC), color='red', fontsize=10, rotation=-36)
     ax.text(0.8, 0.8, str(AH), color='red', fontsize=10, rotation=53)
@@ -184,13 +182,11 @@ def draw_dynamic_shadow(h_cot, bong_cot, bong_cay):
     ax.plot([0, 0], [0, 3.5], 'k-', lw=3) 
     ax.plot([3, 3], [0, 1.9], 'g-', lw=4) 
     ax.plot([0, 6.8], [3.5, 0], 'b-', lw=1) 
-    
     ax.text(-0.3, 3.5, 'A', fontweight='bold')
     ax.text(-0.3, -0.3, 'B', fontweight='bold')
     ax.text(2.7, 2.0, 'C', fontweight='bold')
     ax.text(2.7, -0.3, 'D', fontweight='bold')
     ax.text(6.9, -0.1, 'M', fontweight='bold')
-    
     ax.text(-0.8, 1.5, f"{h_cot}m", color='red')
     ax.text(1.5, -0.4, f"{bong_cot - bong_cay}m", color='red')
     ax.text(4.5, -0.4, f"{bong_cay}m", color='red')
@@ -295,7 +291,7 @@ class ExamGenerator:
                 prompt = f"""Mốc thời gian: {seed}. 
                 Đóng vai Chuyên gia Tuyển sinh Toán học. Sáng tạo 5 CÂU HỎI trắc nghiệm Toán 9 thực tiễn đa dạng.
                 YÊU CẦU:
-                1. TUYỆT ĐỐI KHÔNG GHI NHÃN ĐỘ KHÓ (như [Nhận biết]). Nội dung đi thẳng vào câu hỏi.
+                1. TUYỆT ĐỐI KHÔNG GHI NHÃN ĐỘ KHÓ (như [Nhận biết], [Vận dụng]). Nội dung đi thẳng vào câu hỏi.
                 2. Với câu hỏi cần hình SVG: Phải dùng thẻ viewBox. Chữ số BẮT BUỘC dùng dx, dy để cách xa nét vẽ.
                 3. Trả về ĐÚNG JSON nguyên khối: [{{"question": "...", "options": ["A", "B", "C", "D"], "answer": "...", "hint": "...", "image_svg": ""}}]"""
                 
@@ -513,47 +509,27 @@ def main():
                         except: pass
                         num_q = len(ans_key)
                         
-                        if f"mand_ans_{exam_id}" not in st.session_state:
-                            st.session_state[f"mand_ans_{exam_id}"] = {str(i+1): None for i in range(num_q)}
-                            
-                        if ai_model and st.button("✨ Nhờ AI số hóa đề này thành trắc nghiệm thông minh"):
-                            with st.spinner("AI đang đọc ảnh và loại bỏ nhãn độ khó..."):
-                                prompt = "Đọc đề này và chuyển sang JSON trắc nghiệm kèm giải chi tiết. TUYỆT ĐỐI không bao gồm các cụm từ [Nhận biết], [Vận dụng]. [{'id': 1, 'question': '...', 'options': ['A', 'B', 'C', 'D'], 'answer': 'A', 'hint': '...'}]"
-                                try:
-                                    res = ai_model.generate_content([prompt, {"mime_type": exam_row['file_type'], "data": exam_row['file_data']}])
-                                    match = re.search(r'\[.*\]', res.text, re.DOTALL)
-                                    if match: st.session_state[f"ai_digitized_{exam_id}"] = json.loads(match.group())
-                                except: st.error("Lỗi kết nối AI!")
-
-                        if f"ai_digitized_{exam_id}" in st.session_state:
-                            mand_exam_data = st.session_state[f"ai_digitized_{exam_id}"]
-                            for q in mand_exam_data:
-                                q_text = re.sub(r'\[.*?\]\s*', '', q['question']).strip()
-                                st.markdown(f"**Câu {q['id']}:** {q_text}", unsafe_allow_html=True)
-                                ans_val = st.session_state[f"mand_ans_{exam_id}"].get(str(q['id']))
-                                selected = st.radio("Chọn đáp án:", options=q.get('options', ['A','B','C','D']), index=q['options'].index(ans_val) if ans_val in q.get('options', []) else None, key=f"m_q_{exam_id}_{q['id']}")
-                                st.session_state[f"mand_ans_{exam_id}"][str(q['id'])] = selected
-                                st.markdown("---")
-                        else:
-                            col_pdf, col_ans = st.columns([1.5, 1])
-                            with col_pdf:
-                                st.markdown("#### 📄 NỘI DUNG ĐỀ THI")
-                                b64 = exam_row['file_data']
-                                mime = exam_row['file_type']
-                                if 'pdf' in str(mime).lower():
-                                    st.markdown(f'<iframe src="data:application/pdf;base64,{b64}" width="100%" height="700px" type="application/pdf"></iframe>', unsafe_allow_html=True)
-                                else:
-                                    st.markdown(f'<img src="data:{mime};base64,{b64}" width="100%">', unsafe_allow_html=True)
-                            with col_ans:
-                                st.markdown("#### ✍️ PHIẾU TÔ TRẮC NGHIỆM")
-                                grid_cols = st.columns(2)
-                                for i in range(num_q):
-                                    with grid_cols[i % 2]:
-                                        q_str = str(i+1)
-                                        current_val = st.session_state[f"mand_ans_{exam_id}"][q_str]
-                                        idx = ['A','B','C','D'].index(current_val) if current_val in ['A','B','C','D'] else None
-                                        sel = st.radio(f"Câu {q_str}", ['A','B','C','D'], index=idx, key=f"q_{exam_id}_{q_str}", horizontal=True)
-                                        st.session_state[f"mand_ans_{exam_id}"][q_str] = sel
+                        col_pdf, col_ans = st.columns([1.5, 1])
+                        with col_pdf:
+                            st.markdown("#### 📄 NỘI DUNG ĐỀ THI")
+                            b64 = exam_row['file_data']
+                            mime = exam_row['file_type']
+                            if 'pdf' in str(mime).lower():
+                                st.markdown(f'<iframe src="data:application/pdf;base64,{b64}" width="100%" height="700px" type="application/pdf"></iframe>', unsafe_allow_html=True)
+                            else:
+                                st.markdown(f'<img src="data:{mime};base64,{b64}" width="100%">', unsafe_allow_html=True)
+                        with col_ans:
+                            st.markdown("#### ✍️ PHIẾU TÔ TRẮC NGHIỆM")
+                            if f"mand_ans_{exam_id}" not in st.session_state:
+                                st.session_state[f"mand_ans_{exam_id}"] = {str(i+1): None for i in range(num_q)}
+                            grid_cols = st.columns(2)
+                            for i in range(num_q):
+                                with grid_cols[i % 2]:
+                                    q_str = str(i+1)
+                                    current_val = st.session_state[f"mand_ans_{exam_id}"][q_str]
+                                    idx = ['A','B','C','D'].index(current_val) if current_val in ['A','B','C','D'] else None
+                                    sel = st.radio(f"Câu {q_str}", ['A','B','C','D'], index=idx, key=f"q_{exam_id}_{q_str}", horizontal=True)
+                                    st.session_state[f"mand_ans_{exam_id}"][q_str] = sel
                                      
                         st.markdown("---")
                         if st.button("📤 NỘP BÀI CHÍNH THỨC", type="primary", use_container_width=True) or remaining <= 0:
@@ -577,7 +553,12 @@ def main():
                         for q in mand_exam_data:
                             q_text = re.sub(r'\[.*?\]\s*', '', q['question']).strip()
                             st.markdown(f"**Câu {q['id']}:** {q_text}", unsafe_allow_html=True)
-                            if q.get('image'): st.markdown(f'<img src="data:image/png;base64,{q["image"]}" style="max-width:350px;">', unsafe_allow_html=True)
+                            
+                            # Render Hinh anh
+                            if q.get('image_svg'):
+                                st.markdown(f"<div style='margin: 15px 0; display:flex; justify-content:center;'>{q['image_svg']}</div>", unsafe_allow_html=True)
+                            elif q.get('image'): 
+                                st.markdown(f'<div style="text-align:left;"><img src="data:image/png;base64,{q["image"]}" style="max-width:350px; margin-bottom: 10px;"></div>', unsafe_allow_html=True)
                             
                             ans_val = st.session_state[f"mand_ans_{exam_id}"][str(q['id'])]
                             selected = st.radio("Chọn đáp án:", options=q['options'], index=q['options'].index(ans_val) if ans_val in q['options'] else None, key=f"m_q_{exam_id}_{q['id']}", label_visibility="collapsed")
@@ -610,12 +591,26 @@ def main():
                                 correct_val = ans_key[i]
                                 if stu_val == correct_val: st.success(f"Câu {i+1}: {stu_val} ✅")
                                 else: st.error(f"Câu {i+1}: {stu_val} ❌ (Đ/A: {correct_val})")
+                        
+                        # Hiển thị lời giải AI nếu Giám khảo dùng AI số hóa PDF
+                        if pd.notnull(exam_row.get('questions_json')) and exam_row.get('questions_json') != "":
+                            st.markdown("---")
+                            st.markdown("#### 💡 Lời giải chi tiết (AI phân tích)")
+                            try:
+                                ai_hints = json.loads(exam_row['questions_json'])
+                                for q in ai_hints:
+                                    with st.expander(f"Câu {q['id']}: Xem lời giải"):
+                                        st.markdown(q.get('hint', 'Chưa có lời giải.'))
+                            except: pass
                     else:
                         mand_exam_data = json.loads(exam_row['questions_json'])
                         for q in mand_exam_data:
                             q_text = re.sub(r'\[.*?\]\s*', '', q['question']).strip()
                             st.markdown(f"**Câu {q['id']}:** {q_text}", unsafe_allow_html=True)
-                            if q.get('image'): st.markdown(f'<img src="data:image/png;base64,{q["image"]}" style="max-width:350px;">', unsafe_allow_html=True)
+                            if q.get('image_svg'):
+                                st.markdown(f"<div style='margin: 15px 0; display:flex; justify-content:center;'>{q['image_svg']}</div>", unsafe_allow_html=True)
+                            elif q.get('image'): 
+                                st.markdown(f'<div style="text-align:left;"><img src="data:image/png;base64,{q["image"]}" style="max-width:350px; margin-bottom: 10px;"></div>', unsafe_allow_html=True)
                             u_ans = saved_ans.get(str(q['id']))
                             st.radio("Đã chọn:", options=q['options'], index=q['options'].index(u_ans) if u_ans in q['options'] else None, key=f"rev_{exam_id}_{q['id']}", disabled=True, label_visibility="collapsed")
                             if u_ans == q['answer']: st.success("✅ Chính xác")
@@ -647,13 +642,12 @@ def main():
             conn.close()
 
         with tab_ai:
-            # GIAO DIỆN SẠCH SẼ - KHÔNG DÒNG TEXT THỪA
             if 'exam_data' not in st.session_state: st.session_state.exam_data = None
             if 'user_answers' not in st.session_state: st.session_state.user_answers = {}
             if 'is_submitted' not in st.session_state: st.session_state.is_submitted = False
 
-            if st.button("🔄 TẠO ĐỀ LUYỆN TẬP MỚI", use_container_width=True):
-                with st.spinner("Đang xáo trộn dữ liệu và vẽ đồ họa chuẩn SGK..."):
+            if st.button("🔄 TẠO ĐỀ LUYỆN TẬP ĐỘC BẢN", use_container_width=True):
+                with st.spinner("AI đang thiết kế hình ảnh không gian và trộn ngẫu nhiên 40 câu hỏi..."):
                     gen = ExamGenerator()
                     st.session_state.exam_data = gen.generate_all()
                     st.session_state.user_answers = {str(q['id']): None for q in st.session_state.exam_data}
@@ -1030,83 +1024,103 @@ def main():
                 st.markdown("---")
                 exam_type = st.radio("Lựa chọn phương thức giao bài:", ["📤 Tải lên đề thi của tôi (File PDF/Ảnh)", "🤖 Sinh ngẫu nhiên từ Ngân hàng Đề AI"])
                 
+                # --- PHẦN MỚI: AI ĐỌC PDF/ẢNH TẠO ĐÁP ÁN ---
                 if exam_type == "📤 Tải lên đề thi của tôi (File PDF/Ảnh)":
-                    st.info("💡 Học sinh sẽ nhìn thấy File đề của bạn ở nửa màn hình bên trái và điền phiếu trắc nghiệm A B C D ở nửa màn hình bên phải.")
+                    st.info("💡 Hệ thống hỗ trợ 2 cách: Nhập đáp án thủ công hoặc Nhờ AI tự động đọc đề và tạo lời giải chi tiết.")
                     uploaded_file = st.file_uploader("1. Tải File Đề (Hỗ trợ PDF, JPG, PNG)", type=['pdf', 'jpg', 'png', 'jpeg'])
-                    ans_input = st.text_input("2. Nhập chuỗi Đáp án Đúng (Viết liền, VD: ABCDABCD)")
                     
-                    if st.button("🚀 Phát Đề (File PDF)", type="primary"):
-                        if not exam_title: st.error("Vui lòng nhập tên bài thi!")
-                        elif not uploaded_file: st.error("Vui lòng tải file đề thi lên!")
-                        elif not ans_input: st.error("Vui lòng nhập chuỗi đáp án!")
-                        else:
-                            ans_clean = list(ans_input.upper().replace(" ", "").replace(",", ""))
-                            valid_chars = all(char in ['A', 'B', 'C', 'D'] for char in ans_clean)
-                            if not valid_chars: 
-                                st.error("❌ Chuỗi đáp án bị lỗi! Chỉ được phép chứa các chữ A, B, C, D.")
+                    pdf_method = st.radio("2. Phương thức tạo Đáp án & Lời giải:", ["🤖 AI tự động đọc file và tạo (Khuyên dùng)", "✍️ Nhập chuỗi đáp án thủ công"])
+                    
+                    if pdf_method == "✍️ Nhập chuỗi đáp án thủ công":
+                        ans_input = st.text_input("Nhập chuỗi Đáp án Đúng (Viết liền, VD: ABCDABCD)")
+                        if st.button("🚀 Phát Đề (Thủ công)", type="primary"):
+                            if not exam_title: st.error("Vui lòng nhập tên bài thi!")
+                            elif not uploaded_file: st.error("Vui lòng tải file đề thi lên!")
+                            elif not ans_input: st.error("Vui lòng nhập chuỗi đáp án!")
                             else:
-                                file_bytes = uploaded_file.read()
-                                b64 = base64.b64encode(file_bytes).decode('utf-8')
-                                mime_type = uploaded_file.type
-                                s_str = f"{s_date} {s_time.strftime('%H:%M:%S')}"
-                                e_str = f"{e_date} {e_time.strftime('%H:%M:%S')}"
-                                
-                                c.execute("INSERT INTO mandatory_exams (title, start_time, end_time, target_class, file_data, file_type, answer_key) VALUES (?, ?, ?, ?, ?, ?, ?)", 
-                                          (exam_title.strip(), s_str, e_str, target_class, b64, mime_type, json.dumps(ans_clean)))
-                                conn.commit()
-                                st.success(f"✅ Đã phát đề thành công tới {target_class}! Hệ thống tự động tạo phiếu tô {len(ans_clean)} câu trắc nghiệm.")
+                                ans_clean = list(ans_input.upper().replace(" ", "").replace(",", ""))
+                                valid_chars = all(char in ['A', 'B', 'C', 'D'] for char in ans_clean)
+                                if not valid_chars: 
+                                    st.error("❌ Chuỗi đáp án bị lỗi! Chỉ được phép chứa các chữ A, B, C, D.")
+                                else:
+                                    file_bytes = uploaded_file.read()
+                                    b64 = base64.b64encode(file_bytes).decode('utf-8')
+                                    s_str = f"{s_date} {s_time.strftime('%H:%M:%S')}"
+                                    e_str = f"{e_date} {e_time.strftime('%H:%M:%S')}"
+                                    c.execute("INSERT INTO mandatory_exams (title, start_time, end_time, target_class, file_data, file_type, answer_key) VALUES (?, ?, ?, ?, ?, ?, ?)", 
+                                              (exam_title.strip(), s_str, e_str, target_class, b64, uploaded_file.type, json.dumps(ans_clean)))
+                                    conn.commit()
+                                    st.success(f"✅ Đã phát đề thành công tới {target_class}! Học sinh sẽ tô phiếu trắc nghiệm {len(ans_clean)} câu.")
+                    else:
+                        if 'pdf_ai_preview' not in st.session_state: st.session_state.pdf_ai_preview = None
+                        
+                        if st.button("🤖 Phân tích Đề bằng AI", type="primary"):
+                            if not exam_title: st.error("Vui lòng nhập tên bài thi!")
+                            elif not uploaded_file: st.error("Vui lòng tải file đề thi lên!")
+                            elif not ai_model: st.error("Chưa cấu hình API Key Gemini ở dòng 38!")
+                            else:
+                                with st.spinner("AI đang đọc ảnh/PDF, trích xuất đáp án và soạn lời giải chi tiết..."):
+                                    file_bytes = uploaded_file.read()
+                                    prompt = "Đọc đề thi này. Trích xuất toàn bộ câu hỏi thành danh sách JSON. Cấu trúc BẮT BUỘC: [{'id': 1, 'question': 'nội dung', 'options': ['A', 'B', 'C', 'D'], 'answer': 'A', 'hint': 'Lời giải chi tiết từng bước'}]. LƯU Ý: Trường 'answer' CHỈ ĐƯỢC chứa 1 CHỮ CÁI A, B, C hoặc D."
+                                    try:
+                                        res = ai_model.generate_content([prompt, {"mime_type": uploaded_file.type, "data": file_bytes}])
+                                        match = re.search(r'\[.*\]', res.text, re.DOTALL)
+                                        if match:
+                                            st.session_state.pdf_ai_preview = json.loads(match.group())
+                                            st.rerun()
+                                        else:
+                                            st.error("AI không thể bóc tách được định dạng file này.")
+                                    except:
+                                        st.error("Lỗi kết nối AI hoặc file quá mờ/dung lượng lớn!")
+                                        
+                        if st.session_state.pdf_ai_preview:
+                            st.success("✅ AI đã hoàn tất bóc tách! Mời thầy/cô soát duyệt:")
+                            ans_key_ai = []
+                            with st.expander("🔍 XEM TRƯỚC ĐÁP ÁN & LỜI GIẢI AI SOẠN", expanded=True):
+                                for q in st.session_state.pdf_ai_preview:
+                                    st.markdown(f"**Câu {q['id']}:** {q.get('question','')}")
+                                    # Chuẩn hóa để chắc chắn answer_key chỉ chứa ký tự ABCD
+                                    ans_letter = re.sub(r'[^A-D]', '', str(q.get('answer', 'A')).upper())
+                                    final_ans = ans_letter[0] if ans_letter else 'A'
+                                    ans_key_ai.append(final_ans)
+                                    
+                                    st.markdown(f"- ✅ **Đáp án đúng:** {final_ans}")
+                                    st.markdown(f"- 💡 **Lời giải:** {q.get('hint','')}")
+                                    st.markdown("---")
+                            
+                            col_d, col_h = st.columns(2)
+                            with col_d:
+                                if st.button("🚀 XÁC NHẬN PHÁT ĐỀ NÀY", use_container_width=True):
+                                    uploaded_file.seek(0)
+                                    file_bytes = uploaded_file.read()
+                                    b64 = base64.b64encode(file_bytes).decode('utf-8')
+                                    s_str = f"{s_date} {s_time.strftime('%H:%M:%S')}"
+                                    e_str = f"{e_date} {e_time.strftime('%H:%M:%S')}"
+                                    
+                                    # Lưu PDF và cả chuỗi answer_key (để tô bubble) + questions_json (để học sinh xem lời giải)
+                                    c.execute("INSERT INTO mandatory_exams (title, start_time, end_time, target_class, file_data, file_type, answer_key, questions_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
+                                              (exam_title.strip(), s_str, e_str, target_class, b64, uploaded_file.type, json.dumps(ans_key_ai), json.dumps(st.session_state.pdf_ai_preview)))
+                                    conn.commit()
+                                    st.session_state.pdf_ai_preview = None
+                                    st.success(f"✅ Đã phát đề thành công! Học sinh sẽ làm bài trên file và có thể xem lời giải chi tiết sau khi nộp.")
+                                    time.sleep(1); st.rerun()
+                            with col_h:
+                                if st.button("❌ Hủy & Thử lại", use_container_width=True):
+                                    st.session_state.pdf_ai_preview = None
+                                    st.rerun()
                 
                 else:
-                    # --- NÂNG CẤP 1: GIÁO VIÊN XEM TRƯỚC ĐỀ AI ---
-                    if 'preview_exam_data' not in st.session_state:
-                        st.session_state.preview_exam_data = None
-
-                    if st.session_state.preview_exam_data is None:
-                        if st.button("🔄 Sinh Đề & Xem Trước (AI)", type="primary"):
-                            if exam_title:
-                                with st.spinner("AI đang là Kiến trúc sư thiết kế không gian và trộn đề..."):
-                                    gen = ExamGenerator()
-                                    st.session_state.preview_exam_data = gen.generate_all()
-                                    st.rerun()
-                            else: 
-                                st.error("Vui lòng nhập tên bài thi!")
-                    else:
-                        st.success("✅ Trí tuệ nhân tạo đã biên soạn xong 40 câu hỏi. Mời bạn duyệt trước khi giao!")
-                        
-                        with st.expander("🔍 BẤM VÀO ĐÂY ĐỂ XEM CHI TIẾT ĐỀ VỪA SINH (Soát duyệt)", expanded=True):
-                            for q in st.session_state.preview_exam_data:
-                                q_text = re.sub(r'\[.*?\]\s*', '', q['question']).strip()
-                                st.markdown(f"**Câu {q['id']}:** {q_text}", unsafe_allow_html=True)
-                                
-                                if q.get('image_svg'):
-                                    st.markdown(f"<div style='margin: 10px 0;'>{q['image_svg']}</div>", unsafe_allow_html=True)
-                                elif q.get('image'): 
-                                    st.markdown(f'<img src="data:image/png;base64,{q["image"]}" style="max-width:300px; margin-bottom: 10px;">', unsafe_allow_html=True)
-                                
-                                for opt in q['options']:
-                                    if opt == q['answer']:
-                                        st.markdown(f"- ✅ **{opt}**")
-                                    else:
-                                        st.markdown(f"- {opt}")
-                                st.markdown(f"*💡 Lời giải:* {q['hint']}")
-                                st.markdown("---")
-                                
-                        col_duyet, col_huy = st.columns(2)
-                        with col_duyet:
-                            if st.button("🚀 XÁC NHẬN GIAO BÀI CHO HỌC SINH", type="primary", use_container_width=True):
-                                s_str = f"{s_date} {s_time.strftime('%H:%M:%S')}"
-                                e_str = f"{e_date} {e_time.strftime('%H:%M:%S')}"
-                                c.execute("INSERT INTO mandatory_exams (title, questions_json, start_time, end_time, target_class) VALUES (?, ?, ?, ?, ?)", 
-                                          (exam_title.strip(), json.dumps(st.session_state.preview_exam_data), s_str, e_str, target_class))
-                                conn.commit()
-                                st.session_state.preview_exam_data = None
-                                st.success(f"✅ Đã phát đề AI chuẩn 40 câu tới {target_class} thành công!")
-                                time.sleep(1) # Chờ 1 giây để hiển thị thông báo
-                                st.rerun()
-                        with col_huy:
-                            if st.button("❌ Hủy đề này & Sinh lại", use_container_width=True):
-                                st.session_state.preview_exam_data = None
-                                st.rerun()
+                    if st.button("🚀 Phát Đề AI (Trộn Ngẫu Nhiên 40 Câu)", type="primary"):
+                        if exam_title:
+                            gen = ExamGenerator()
+                            fixed_exam = gen.generate_all()
+                            s_str = f"{s_date} {s_time.strftime('%H:%M:%S')}"
+                            e_str = f"{e_date} {e_time.strftime('%H:%M:%S')}"
+                            c.execute("INSERT INTO mandatory_exams (title, questions_json, start_time, end_time, target_class) VALUES (?, ?, ?, ?, ?)", 
+                                      (exam_title.strip(), json.dumps(fixed_exam), s_str, e_str, target_class))
+                            conn.commit()
+                            st.success(f"✅ Đã phát đề AI chuẩn 40 câu tới {target_class}!")
+                        else: st.error("Vui lòng nhập tên bài thi!")
         conn.close()
 
 if __name__ == "__main__":
