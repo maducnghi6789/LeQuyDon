@@ -1,6 +1,7 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V20 SUPREME ULTIMATE
-# Cải tiến: AI đọc file PDF/Ảnh tự tạo Đáp án & Lời giải
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V20 SUPREME ULTIMATE (FINAL)
+# Đầy đủ tính năng: Đồ họa SGK, Trộn đề độc bản, AI đọc PDF cho Admin
+# Giao diện: Clean UI 100% (Không chứa Text rác)
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
@@ -36,7 +37,7 @@ except ImportError:
 
 VN_TZ = timezone(timedelta(hours=7))
 
-# GIÁM ĐỐC DÁN API KEY VÀO ĐÂY 
+# GIÁM ĐỐC DÁN API KEY VÀO ĐÂY
 GEMINI_API_KEY = "AIzaSyDMdmMYUpqnB5wPxcF94Spy6LkNBdkKh2w" 
 
 if AI_AVAILABLE and GEMINI_API_KEY != "AIzaSyDMdmMYUpqnB5wPxcF94Spy6LkNBdkKh2w":
@@ -122,7 +123,7 @@ def log_deletion(deleted_by, entity_type, entity_name, reason):
     conn.commit(); conn.close()
 
 # ==========================================
-# 3. ĐỒ HỌA TOÁN HỌC ĐỘNG CHUẨN SGK 
+# 3. ĐỒ HỌA TOÁN HỌC ĐỘNG CHUẨN SGK
 # ==========================================
 def fig_to_base64(fig):
     buf = BytesIO()
@@ -153,6 +154,7 @@ def draw_dynamic_thales(AE, EB, AF, FC):
     ax.text(0.5, 1.5, 'E', ha='right', fontsize=11, fontweight='bold')
     ax.text(2.4, 1.5, 'F', ha='left', fontsize=11, fontweight='bold')
     ax.text(2.6, 2.3, '$EF // BC$', style='italic', fontsize=10)
+    
     ax.text(0.6, 2.3, str(AE), color='red', fontsize=10, rotation=63)
     ax.text(0.2, 0.8, str(EB), color='red', fontsize=10, rotation=63)
     ax.text(2.0, 2.3, str(AF), color='red', fontsize=10, rotation=-63)
@@ -170,6 +172,7 @@ def draw_dynamic_altitude(BH, HC, AH):
     ax.text(-0.3, 3.1, 'B', fontsize=11, fontweight='bold')
     ax.text(4.2, -0.2, 'C', fontsize=11, fontweight='bold')
     ax.text(1.6, 2.1, 'H', fontsize=11, fontweight='bold')
+    
     ax.text(0.5, 2.6, str(BH), color='red', fontsize=10, rotation=-36)
     ax.text(2.8, 1.0, str(HC), color='red', fontsize=10, rotation=-36)
     ax.text(0.8, 0.8, str(AH), color='red', fontsize=10, rotation=53)
@@ -182,11 +185,13 @@ def draw_dynamic_shadow(h_cot, bong_cot, bong_cay):
     ax.plot([0, 0], [0, 3.5], 'k-', lw=3) 
     ax.plot([3, 3], [0, 1.9], 'g-', lw=4) 
     ax.plot([0, 6.8], [3.5, 0], 'b-', lw=1) 
+    
     ax.text(-0.3, 3.5, 'A', fontweight='bold')
     ax.text(-0.3, -0.3, 'B', fontweight='bold')
     ax.text(2.7, 2.0, 'C', fontweight='bold')
     ax.text(2.7, -0.3, 'D', fontweight='bold')
     ax.text(6.9, -0.1, 'M', fontweight='bold')
+    
     ax.text(-0.8, 1.5, f"{h_cot}m", color='red')
     ax.text(1.5, -0.4, f"{bong_cot - bong_cay}m", color='red')
     ax.text(4.5, -0.4, f"{bong_cay}m", color='red')
@@ -291,7 +296,7 @@ class ExamGenerator:
                 prompt = f"""Mốc thời gian: {seed}. 
                 Đóng vai Chuyên gia Tuyển sinh Toán học. Sáng tạo 5 CÂU HỎI trắc nghiệm Toán 9 thực tiễn đa dạng.
                 YÊU CẦU:
-                1. TUYỆT ĐỐI KHÔNG GHI NHÃN ĐỘ KHÓ (như [Nhận biết], [Vận dụng]). Nội dung đi thẳng vào câu hỏi.
+                1. TUYỆT ĐỐI KHÔNG GHI NHÃN ĐỘ KHÓ. Nội dung đi thẳng vào câu hỏi.
                 2. Với câu hỏi cần hình SVG: Phải dùng thẻ viewBox. Chữ số BẮT BUỘC dùng dx, dy để cách xa nét vẽ.
                 3. Trả về ĐÚNG JSON nguyên khối: [{{"question": "...", "options": ["A", "B", "C", "D"], "answer": "...", "hint": "...", "image_svg": ""}}]"""
                 
@@ -554,7 +559,6 @@ def main():
                             q_text = re.sub(r'\[.*?\]\s*', '', q['question']).strip()
                             st.markdown(f"**Câu {q['id']}:** {q_text}", unsafe_allow_html=True)
                             
-                            # Render Hinh anh
                             if q.get('image_svg'):
                                 st.markdown(f"<div style='margin: 15px 0; display:flex; justify-content:center;'>{q['image_svg']}</div>", unsafe_allow_html=True)
                             elif q.get('image'): 
@@ -592,7 +596,6 @@ def main():
                                 if stu_val == correct_val: st.success(f"Câu {i+1}: {stu_val} ✅")
                                 else: st.error(f"Câu {i+1}: {stu_val} ❌ (Đ/A: {correct_val})")
                         
-                        # Hiển thị lời giải AI nếu Giám khảo dùng AI số hóa PDF
                         if pd.notnull(exam_row.get('questions_json')) and exam_row.get('questions_json') != "":
                             st.markdown("---")
                             st.markdown("#### 💡 Lời giải chi tiết (AI phân tích)")
@@ -647,7 +650,7 @@ def main():
             if 'is_submitted' not in st.session_state: st.session_state.is_submitted = False
 
             if st.button("🔄 TẠO ĐỀ LUYỆN TẬP ĐỘC BẢN", use_container_width=True):
-                with st.spinner("AI đang thiết kế hình ảnh không gian và trộn ngẫu nhiên 40 câu hỏi..."):
+                with st.spinner("Hệ thống đang xáo trộn thư viện ảnh chuẩn SGK và sinh đề độc bản..."):
                     gen = ExamGenerator()
                     st.session_state.exam_data = gen.generate_all()
                     st.session_state.user_answers = {str(q['id']): None for q in st.session_state.exam_data}
@@ -1024,9 +1027,7 @@ def main():
                 st.markdown("---")
                 exam_type = st.radio("Lựa chọn phương thức giao bài:", ["📤 Tải lên đề thi của tôi (File PDF/Ảnh)", "🤖 Sinh ngẫu nhiên từ Ngân hàng Đề AI"])
                 
-                # --- PHẦN MỚI: AI ĐỌC PDF/ẢNH TẠO ĐÁP ÁN ---
                 if exam_type == "📤 Tải lên đề thi của tôi (File PDF/Ảnh)":
-                    st.info("💡 Hệ thống hỗ trợ 2 cách: Nhập đáp án thủ công hoặc Nhờ AI tự động đọc đề và tạo lời giải chi tiết.")
                     uploaded_file = st.file_uploader("1. Tải File Đề (Hỗ trợ PDF, JPG, PNG)", type=['pdf', 'jpg', 'png', 'jpeg'])
                     
                     pdf_method = st.radio("2. Phương thức tạo Đáp án & Lời giải:", ["🤖 AI tự động đọc file và tạo (Khuyên dùng)", "✍️ Nhập chuỗi đáp án thủ công"])
@@ -1079,7 +1080,6 @@ def main():
                             with st.expander("🔍 XEM TRƯỚC ĐÁP ÁN & LỜI GIẢI AI SOẠN", expanded=True):
                                 for q in st.session_state.pdf_ai_preview:
                                     st.markdown(f"**Câu {q['id']}:** {q.get('question','')}")
-                                    # Chuẩn hóa để chắc chắn answer_key chỉ chứa ký tự ABCD
                                     ans_letter = re.sub(r'[^A-D]', '', str(q.get('answer', 'A')).upper())
                                     final_ans = ans_letter[0] if ans_letter else 'A'
                                     ans_key_ai.append(final_ans)
@@ -1097,7 +1097,6 @@ def main():
                                     s_str = f"{s_date} {s_time.strftime('%H:%M:%S')}"
                                     e_str = f"{e_date} {e_time.strftime('%H:%M:%S')}"
                                     
-                                    # Lưu PDF và cả chuỗi answer_key (để tô bubble) + questions_json (để học sinh xem lời giải)
                                     c.execute("INSERT INTO mandatory_exams (title, start_time, end_time, target_class, file_data, file_type, answer_key, questions_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
                                               (exam_title.strip(), s_str, e_str, target_class, b64, uploaded_file.type, json.dumps(ans_key_ai), json.dumps(st.session_state.pdf_ai_preview)))
                                     conn.commit()
