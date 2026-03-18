@@ -1,8 +1,8 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V34 SUPREME ULTIMATE (BULLETPROOF PARSER)
-# Đột phá tối thượng: Đập bỏ JSON. Sử dụng thuật toán bóc tách thẻ Tag (@@Q@@, @@A@@).
-# Miễn nhiễm 100% với lỗi "Expecting ',' delimiter", lỗi gạch chéo LaTeX, lỗi ngoặc kép.
-# Giữ nguyên: Quét PDF 10 trang, Ép Model Pro chống lười, Format Toán SGK, Két sắt API.
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V35 SUPREME ULTIMATE (EMOTIONAL PROMPTING)
+# Đột phá: Áp dụng kỹ thuật Thôi miên AI (Emotional Prompting) ép AI giải đủ 40 câu và giải siêu chi tiết.
+# Cải tiến: Bộ lọc "Tolerant Parser" tự động bỏ qua các lỗi gõ sai thẻ của AI.
+# Giữ nguyên: Quét PDF 10 trang, Ép Model Pro, Không dùng JSON, Két sắt API.
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
@@ -65,12 +65,13 @@ def format_math_text(text):
     text = re.sub(r'\\\[(.*?)\\\]', r'$$\1$$', text)
     return text
 
-# --- 🚀 THUẬT TOÁN "VIÊN ĐẠN BẠC" BÓC TÁCH VĂN BẢN (MIỄN NHIỄM LỖI JSON) ---
+# --- 🚀 THUẬT TOÁN "BỘ LỌC KHOAN DUNG" (TOLERANT PARSER) CHỐNG BỎ SÓT CÂU ---
 def extract_field(tag, next_tag, text, is_last=False):
+    # Chấp nhận mọi kiểu gõ: @@Q@@:, @@Q@@, hay @@Q@@ :
     if is_last:
-        pattern = rf'{re.escape(tag)}(.*)'
+        pattern = rf'{re.escape(tag)}[\s:]*(.*)'
     else:
-        pattern = rf'{re.escape(tag)}(.*?){re.escape(next_tag)}'
+        pattern = rf'{re.escape(tag)}[\s:]*(.*?){re.escape(next_tag)}'
     match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
     return match.group(1).strip() if match else ""
 
@@ -80,13 +81,13 @@ def parse_bulletproof(raw_text):
     for block in blocks:
         if not block.strip(): continue
         try:
-            q = extract_field('@@Q@@:', '@@A@@:', block)
-            oa = extract_field('@@A@@:', '@@B@@:', block)
-            ob = extract_field('@@B@@:', '@@C@@:', block)
-            oc = extract_field('@@C@@:', '@@D@@:', block)
-            od = extract_field('@@D@@:', '@@ANS@@:', block)
-            ans = extract_field('@@ANS@@:', '@@HINT@@:', block)
-            hint = extract_field('@@HINT@@:', '', block, is_last=True)
+            q = extract_field('@@Q@@', '@@A@@', block)
+            oa = extract_field('@@A@@', '@@B@@', block)
+            ob = extract_field('@@B@@', '@@C@@', block)
+            oc = extract_field('@@C@@', '@@D@@', block)
+            od = extract_field('@@D@@', '@@ANS@@', block)
+            ans = extract_field('@@ANS@@', '@@HINT@@', block)
+            hint = extract_field('@@HINT@@', '', block, is_last=True)
             
             if not q or not oa: continue
 
@@ -110,14 +111,14 @@ def parse_bulletproof(raw_text):
             continue
             
     if not questions:
-        raise Exception("AI không bóc tách được câu hỏi nào. Đề thi có thể quá mờ hoặc AI từ chối đọc.")
+        raise Exception("AI không bóc tách được câu hỏi nào. Bạn hãy thử bấm Phân tích lại một lần nữa.")
         
     return questions
 
-# --- RADAR TỰ ĐỘNG DÒ TÌM MODEL VÀ ÉP OUTPUT KHỔNG LỒ ---
+# --- RADAR TỰ ĐỘNG DÒ TÌM MODEL ---
 def call_ai_safely(prompt, file_bytes=None, mime_type=None):
     if not AI_AVAILABLE:
-        raise Exception("Hệ thống thiếu thư viện google-generativeai. Cần thêm vào requirements.txt")
+        raise Exception("Hệ thống thiếu thư viện google-generativeai.")
     
     current_key = get_api_key()
     if not current_key or len(current_key) < 20 or "DÁN_MÃ" in current_key:
@@ -173,6 +174,7 @@ def call_ai_safely(prompt, file_bytes=None, mime_type=None):
     clean_model_name = target_model.replace("models/", "")
     
     try:
+        # Bơm 8192 token để đủ sức cày 40 câu
         model = genai.GenerativeModel(clean_model_name, generation_config={"max_output_tokens": 8192})
         return model.generate_content(contents)
     except Exception as e:
@@ -380,21 +382,18 @@ class ExamGenerator:
     def generate_all(self):
         ai_questions = []
         try:
-            seed = time.time()
-            # MŨI TIÊM 2: DÙNG BULLETPROOF PARSER CHO PHẦN SINH ĐỀ RANDOM
-            prompt = f"""Mốc thời gian: {seed}. 
-            Đóng vai Chuyên gia Tuyển sinh Toán học. Sáng tạo 5 CÂU HỎI trắc nghiệm Toán 9 thực tiễn đa dạng.
-            BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG VĂN BẢN (KHÔNG DÙNG JSON). Mỗi câu hỏi theo cấu trúc:
+            prompt = """Bạn là một Giáo viên Toán cực kỳ tận tâm.
+            Nhiệm vụ: Sáng tạo 5 CÂU HỎI trắc nghiệm Toán 9 thực tiễn đa dạng.
+            KHÔNG DÙNG JSON. Hãy trả về kết quả bằng văn bản thô theo cấu trúc Tag sau:
             @@ID@@
-            @@Q@@: Nội dung câu hỏi
-            @@A@@: Đáp án A
-            @@B@@: Đáp án B
-            @@C@@: Đáp án C
-            @@D@@: Đáp án D
-            @@ANS@@: A
-            @@HINT@@: Viết lời giải chi tiết
-            
-            Lưu ý: Mọi công thức Toán học LaTeX phải bọc trong dấu đô-la (VD: $x^2 + 1 = 0$, $\\frac{1}{2}$). KHÔNG dùng \\( hay \\) để bọc."""
+            @@Q@@ Câu hỏi
+            @@A@@ Đáp án A
+            @@B@@ Đáp án B
+            @@C@@ Đáp án C
+            @@D@@ Đáp án D
+            @@ANS@@ A
+            @@HINT@@ Lời giải chi tiết
+            """
             
             res = call_ai_safely(prompt)
             parsed_q = parse_bulletproof(res.text)
@@ -427,7 +426,7 @@ class ExamGenerator:
 # 5. GIAO DIỆN HỆ THỐNG
 # ==========================================
 def main():
-    st.set_page_config(page_title="Hệ Thống LMS V34", layout="wide", page_icon="🏫")
+    st.set_page_config(page_title="Hệ Thống LMS V35", layout="wide", page_icon="🏫")
     init_db()
     
     if 'current_user' not in st.session_state: st.session_state.current_user = None
@@ -1220,40 +1219,42 @@ def main():
                     else:
                         if 'ai_pdf_preview' not in st.session_state: st.session_state.ai_pdf_preview = None
                         
-                        if st.button("🤖 Phân tích Đề bằng Bulletproof Parser", type="primary"):
+                        if st.button("🤖 Phân tích Đề bằng AI V35", type="primary"):
                             if not exam_title: st.error("Vui lòng nhập tên bài thi!")
                             elif not uploaded_file: st.error("Vui lòng tải file đề thi lên!")
                             else:
-                                with st.spinner("AI đang quét bề mặt tài liệu và biên soạn lời giải... (Khoảng 20-40 giây)"):
+                                with st.spinner("AI đang cày ải đọc 40-50 câu hỏi... (Khoảng 20-40 giây)"):
                                     file_bytes = uploaded_file.read()
                                     mime_type = uploaded_file.type
                                     
-                                    prompt = """Nhiệm vụ: Trích xuất TOÀN BỘ câu hỏi trắc nghiệm Toán học từ tài liệu đính kèm.
-                                    CẢNH BÁO QUAN TRỌNG: Đề thi có bao nhiêu câu, bạn phải trích xuất đúng bấy nhiêu câu. TUYỆT ĐỐI KHÔNG BỎ SÓT BẤT KỲ CÂU NÀO (Dù là 40 hay 50 câu).
+                                    # LỆNH THIẾT QUÂN LUẬT: Ép AI làm đủ 100% câu và dùng thẻ @@Q@@
+                                    prompt = """Bạn là một Giáo viên Toán cực kỳ tận tâm và có trách nhiệm.
+                                    Nhiệm vụ của bạn là: Đọc kỹ tài liệu đính kèm, GÕ LẠI TOÀN BỘ CÂU HỎI TRẮC NGHIỆM VÀ ĐÁP ÁN, sau đó GIẢI CHI TIẾT TỪNG BƯỚC cho từng câu.
                                     
-                                    BẮT BUỘC TRẢ VỀ THEO ĐÚNG ĐỊNH DẠNG VĂN BẢN THÔ DƯỚI ĐÂY CHO TỪNG CÂU HỎI (Tuyệt đối không dùng JSON, không dùng định dạng khác):
+                                    CẢNH BÁO TỐI CAO: Đề thi này có từ 40 đến 50 câu hỏi. BẠN PHẢI QUÉT VÀ GIẢI ĐỦ 100% SỐ CÂU ĐÓ (TỪ CÂU 1 ĐẾN CÂU CUỐI CÙNG).
+                                    NẾU BẠN LƯỜI BIẾNG MÀ CHỈ LÀM 2, 3 CÂU, HOẶC BỎ DỞ GIỮA CHỪNG, HỌC SINH CỦA TÔI SẼ BỊ TRƯỢT ĐẠI HỌC! 
+                                    Tuyệt đối không được ghi "các câu sau làm tương tự". Phải giải từng câu một.
                                     
-                                    @@ID@@
-                                    @@Q@@: Nội dung câu hỏi
-                                    @@A@@: Nội dung đáp án A
-                                    @@B@@: Nội dung đáp án B
-                                    @@C@@: Nội dung đáp án C
-                                    @@D@@: Nội dung đáp án D
-                                    @@ANS@@: Chữ cái đáp án đúng (A, B, C, hoặc D)
-                                    @@HINT@@: Lời giải chi tiết
+                                    Trả về dạng Plain Text. Với mỗi câu hỏi, BẮT BUỘC tuân thủ đúng cấu trúc Tag sau (Mỗi câu bắt đầu bằng @@ID@@):
 
-                                    Lưu ý:
-                                    - Các công thức Toán học phải bọc trong dấu đô-la (VD: $x^2 + 1 = 0$, $\\frac{1}{2}$).
-                                    - Không dùng \\( hay \\) hay ngoặc đơn ( ) để bọc công thức.
+                                    @@ID@@
+                                    @@Q@@ Nội dung câu hỏi
+                                    @@A@@ Nội dung đáp án A
+                                    @@B@@ Nội dung đáp án B
+                                    @@C@@ Nội dung đáp án C
+                                    @@D@@ Nội dung đáp án D
+                                    @@ANS@@ Chỉ ghi 1 chữ cái A, B, C hoặc D
+                                    @@HINT@@ Viết lời giải chi tiết từng bước ở đây (Không được ghi chung chung).
+
+                                    LƯU Ý TOÁN HỌC: Mọi công thức Toán học LaTeX phải bọc trong dấu đô-la (VD: $x^2 + 1 = 0$, $\\frac{1}{2}$). KHÔNG DÙNG \\( hay \\).
                                     """
                                     
                                     try:
                                         res = call_ai_safely(prompt, file_bytes, mime_type)
-                                        parsed = parse_bulletproof(res.text)
-                                        st.session_state.ai_pdf_preview = parsed
+                                        st.session_state.ai_pdf_preview = parse_bulletproof(res.text)
                                         st.rerun()
                                     except Exception as e:
-                                        st.error(f"Lỗi hệ thống: {str(e)}")
+                                        st.error(f"Lỗi AI: {str(e)}")
                                         
                         if st.session_state.ai_pdf_preview:
                             st.success(f"✅ AI đã hoàn tất bóc tách {len(st.session_state.ai_pdf_preview)} câu hỏi! Mời thầy/cô soát duyệt trước khi giao:")
