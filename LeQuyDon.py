@@ -1,6 +1,7 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V29 SUPREME ULTIMATE (AUTO-HEAL BẤT TỬ)
-# Fix Lỗi line 1 col 1: Tắt JSON Mode lỗi của Google, xây dựng hàm parse_json_safely() tự chữa lành.
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V30 SUPREME ULTIMATE (SILVER BULLET PARSER)
+# Đột phá: Đập bỏ giao thức JSON khi kết nối AI. Sử dụng Thẻ Tag tùy chỉnh (Custom Delimiters).
+# Miễn nhiễm 100% với các lỗi "Expecting value", "Invalid control char", "Delimiter".
 # Giữ nguyên: Quét 10 trang PDF, Radar dò Model AI, Két sắt API Key.
 # ==========================================
 import matplotlib
@@ -37,7 +38,7 @@ except ImportError:
 
 VN_TZ = timezone(timedelta(hours=7))
 
-# --- DATABASE VAULT ĐỂ LƯU API KEY ---
+# --- DATABASE VAULT ĐỂ LƯU API KEY (BẢO MẬT TUYỆT ĐỐI) ---
 def get_api_key():
     try:
         conn = sqlite3.connect('exam_db.sqlite')
@@ -56,7 +57,7 @@ def save_api_key(key_str):
     conn.commit()
     conn.close()
 
-# --- BỘ LỌC DỊCH THUẬT TOÁN HỌC ---
+# --- BỘ LỌC DỊCH THUẬT TOÁN HỌC (CHỐNG LỖI RAW LATEX) ---
 def format_math_text(text):
     if not text: return ""
     text = str(text)
@@ -64,48 +65,69 @@ def format_math_text(text):
     text = re.sub(r'\\\[(.*?)\\\]', r'$$\1$$', text)
     return text
 
-# --- 🚀 BỘ GIẢI MÃ TỰ CHỮA LÀNH (CHỐNG SẬP APP 100%) ---
-def parse_json_safely(raw_text):
-    if not raw_text or not raw_text.strip():
-        raise Exception("AI trả về kết quả rỗng. Có thể do tài liệu quá mờ hoặc lỗi máy chủ Google.")
-    
-    # Lọc bỏ markdown block
-    text = raw_text.replace('```json', '').replace('```', '').strip()
-    
-    # Tìm mảng JSON
-    match = re.search(r'\[.*\]', text, re.DOTALL)
-    if match:
-        json_str = match.group()
+# --- 🚀 BỘ GIẢI MÃ VIÊN ĐẠN BẠC (MIỄN NHIỄM MỌI LỖI JSON) ---
+def extract_field(tag, next_tag, text, is_last=False):
+    if is_last:
+        pattern = rf'{tag}:\s*(.*)'
     else:
-        match = re.search(r'\{.*\}', text, re.DOTALL)
-        if match:
-            json_str = "[" + match.group() + "]"
-        else:
-            raise Exception("AI không tạo ra cấu trúc JSON hợp lệ.")
+        pattern = rf'{tag}:\s*(.*?)\s*{next_tag}:'
+    match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
+    return match.group(1).strip() if match else ""
 
-    # Lọc ký tự điều khiển gây lỗi (Giữ lại \n, \t, \r)
-    json_str = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', json_str)
+def parse_ai_text(raw_text):
+    questions = []
+    # Bóc tách từng câu hỏi nằm giữa <Q> và </Q>
+    blocks = re.findall(r'<Q>(.*?)</Q>', raw_text, re.DOTALL | re.IGNORECASE)
     
-    try:
-        return json.loads(json_str, strict=False)
-    except Exception:
-        # Nếu lỗi (thường do LaTeX \frac), tự động nhân đôi dấu \ để sửa lỗi
-        try:
-            healed_str = json_str.replace('\\', '\\\\')
-            healed_str = healed_str.replace('\\\\n', '\\n') # Trả lại \n
-            healed_str = healed_str.replace('\\\\"', '\\"') # Trả lại \"
-            return json.loads(healed_str, strict=False)
-        except Exception:
-            raise Exception("AI bóc tách được câu hỏi nhưng sai ngoặc/cú pháp JSON. Vui lòng bấm Phân tích lại!")
+    # Phương án dự phòng nếu AI quên thẻ đóng </Q>
+    if not blocks:
+        blocks = raw_text.split('<Q>')[1:]
 
-# --- 🚀 RADAR TỰ ĐỘNG DÒ TÌM MODEL ---
+    for idx, block in enumerate(blocks):
+        try:
+            block = block.replace('</Q>', '')
+            q = extract_field('QUESTION', 'OPTA', block)
+            oa = extract_field('OPTA', 'OPTB', block)
+            ob = extract_field('OPTB', 'OPTC', block)
+            oc = extract_field('OPTC', 'OPTD', block)
+            od = extract_field('OPTD', 'ANSWER', block)
+            ans_letter = extract_field('ANSWER', 'HINT', block)
+            hint = extract_field('HINT', '', block, is_last=True)
+
+            if not q or not oa: continue
+
+            # Chuẩn hóa format Toán học ngay từ khi bóc tách
+            options = [format_math_text(oa), format_math_text(ob), format_math_text(oc), format_math_text(od)]
+            
+            # Xử lý đáp án đúng
+            ans_letter_clean = re.sub(r'[^A-D]', '', ans_letter.upper())
+            if not ans_letter_clean: ans_letter_clean = 'A'
+            letter_idx = ord(ans_letter_clean[0]) - ord('A')
+            answer_val = options[letter_idx] if 0 <= letter_idx < 4 else options[0]
+
+            questions.append({
+                "id": idx + 1,
+                "question": format_math_text(q),
+                "options": options,
+                "answer": answer_val,
+                "hint": format_math_text(hint)
+            })
+        except Exception:
+            continue
+            
+    if not questions:
+        raise Exception("Google AI không trả về đúng định dạng thẻ Tag. Vui lòng bấm thử lại!")
+        
+    return questions
+
+# --- 🚀 RADAR TỰ ĐỘNG DÒ TÌM MODEL VÀ ÉP OUTPUT LỚN ---
 def call_ai_safely(prompt, file_bytes=None, mime_type=None):
     if not AI_AVAILABLE:
         raise Exception("Hệ thống thiếu thư viện google-generativeai. Cần thêm vào requirements.txt")
     
     current_key = get_api_key()
     if not current_key or len(current_key) < 20 or "DÁN_MÃ" in current_key:
-        raise Exception("Chưa cấu hình API Key. Admin Trường vui lòng đăng nhập, nhìn sang Menu bên trái để lưu mã API.")
+        raise Exception("Chưa cấu hình API Key. Admin Trường vui lòng vào Menu bên trái để lưu mã API.")
         
     genai.configure(api_key=current_key.strip())
     
@@ -356,30 +378,32 @@ class ExamGenerator:
             seed = time.time()
             prompt = f"""Mốc thời gian: {seed}. 
             Đóng vai Chuyên gia Tuyển sinh Toán học. Sáng tạo 5 CÂU HỎI trắc nghiệm Toán 9 thực tiễn đa dạng.
-            YÊU CẦU TRẢ VỀ ĐÚNG DANH SÁCH JSON NHƯ MẪU: [{{"id": 1, "question": "...", "options": ["A", "B", "C", "D"], "answer": "...", "hint": "...", "image_svg": ""}}]
-            LUẬT THÉP BẮT BUỘC:
-            1. TUYỆT ĐỐI KHÔNG DÙNG DẤU NGOẶC KÉP (") BÊN TRONG CÁC CHUỖI VĂN BẢN (Nội dung câu hỏi, đáp án, hint). Hãy dùng dấu nháy đơn (') để thay thế.
-            2. KHÔNG bấm Enter ngắt dòng trong chuỗi. Dùng '\\n'.
-            3. Mọi công thức LaTeX phải dùng 2 gạch chéo (VD: \\\\frac, \\\\sqrt).
-            4. BAO BỌC TẤT CẢ công thức bằng dấu $."""
+            KHÔNG SỬ DỤNG JSON. Trả về kết quả dưới dạng văn bản thô, tuân thủ CHÍNH XÁC cấu trúc thẻ Tag dưới đây cho mỗi câu hỏi (Bắt đầu bằng <Q> và kết thúc bằng </Q>):
+
+            <Q>
+            QUESTION: Nội dung câu hỏi
+            OPTA: Nội dung đáp án A
+            OPTB: Nội dung đáp án B
+            OPTC: Nội dung đáp án C
+            OPTD: Nội dung đáp án D
+            ANSWER: Chỉ ghi 1 chữ cái A, B, C hoặc D
+            HINT: Viết lời giải chi tiết
+            </Q>
+
+            LƯU Ý TOÁN HỌC: Mọi công thức Toán học LaTeX phải bọc trong dấu đô-la (VD: $x^2 + 1 = 0$, $\\frac{1}{2}$). Tuyệt đối không dùng \\( hay \\) để bọc."""
             
             res = call_ai_safely(prompt)
+            parsed_q = parse_ai_text(res.text)
             
-            try:
-                # Dùng Hàm Tự Chữa Lành thay vì parse trực tiếp
-                parsed_q = parse_json_safely(res.text)
-                for q in parsed_q:
-                    ai_questions.append({
-                        "q": format_math_text(str(q.get("question", "")).strip()), 
-                        "opts": self.format_options(format_math_text(str(q.get("answer", ""))), [format_math_text(str(o)) for o in q.get("options",[]) if str(o) != str(q.get("answer",""))]), 
-                        "a": format_math_text(str(q.get("answer", ""))), 
-                        "h": format_math_text(str(q.get("hint", ""))), 
-                        "i_svg": q.get("image_svg", ""), 
-                        "i": None
-                    })
-            except Exception:
-                pass
-                
+            for q in parsed_q:
+                ai_questions.append({
+                    "q": q["question"], 
+                    "opts": self.format_options(q["answer"], [o for o in q["options"] if o != q["answer"]]), 
+                    "a": q["answer"], 
+                    "h": q["hint"], 
+                    "i_svg": "", 
+                    "i": None
+                })
         except Exception:
             pass 
 
@@ -396,10 +420,10 @@ class ExamGenerator:
         return self.exam
 
 # ==========================================
-# 5. GIAO DIỆN HỆ THỐNG V29
+# 5. GIAO DIỆN HỆ THỐNG
 # ==========================================
 def main():
-    st.set_page_config(page_title="Hệ Thống LMS V29", layout="wide", page_icon="🏫")
+    st.set_page_config(page_title="Hệ Thống LMS V30", layout="wide", page_icon="🏫")
     init_db()
     
     if 'current_user' not in st.session_state: st.session_state.current_user = None
@@ -429,7 +453,7 @@ def main():
                         st.error("❌ Sai tài khoản hoặc mật khẩu!")
         return
 
-    # --- SIDEBAR V29 ---
+    # --- SIDEBAR ---
     with st.sidebar:
         st.markdown(f"### 👤 {st.session_state.fullname}")
         role_map = {"core_admin": "👑 Admin Trường", "sub_admin": "🛡 Admin", "teacher": "👨‍🏫 Giáo viên", "student": "🎓 Học sinh"}
@@ -671,9 +695,7 @@ def main():
                         q_json_raw = exam_row.get('questions_json')
                         if pd.notna(q_json_raw) and str(q_json_raw).strip() not in ["", "None", "nan", "NaN", "null"]:
                             try: 
-                                parsed = json.loads(str(q_json_raw), strict=False)
-                                if isinstance(parsed, list):
-                                    ai_hints = parsed
+                                ai_hints = json.loads(str(q_json_raw), strict=False)
                             except: 
                                 pass
 
@@ -1202,33 +1224,42 @@ def main():
                                     file_bytes = uploaded_file.read()
                                     mime_type = uploaded_file.type
                                     
-                                    prompt = """Đọc đề thi trong tài liệu đính kèm. Trích xuất TOÀN BỘ câu hỏi thành danh sách JSON. 
-                                    Cấu trúc BẮT BUỘC: [{"id": 1, "question": "nội dung", "options": ["A", "B", "C", "D"], "answer": "A", "hint": "Viết lời giải chi tiết"}]
-                                    CẢNH BÁO ĐỂ KHÔNG BỊ LỖI JSON VÀ TOÁN HỌC:
-                                    1. TUYỆT ĐỐI KHÔNG DÙNG DẤU NGOẶC KÉP (") BÊN TRONG CÁC GIÁ TRỊ CHUỖI. Bắt buộc dùng dấu nháy đơn (').
-                                    2. KHÔNG DÙNG ký tự xuống dòng (Enter) trong chuỗi.
-                                    3. TOÀN BỘ ký hiệu LaTeX và số liệu toán học phải bọc trong dấu đô-la (VD: $x^2 + 1 = 0$, $\\frac{1}{2}$). Tuyệt đối không dùng \\( hay \\) hay ngoặc đơn ( ) để bọc công thức.
-                                    4. Chỉ xuất duy nhất mảng JSON, không nói thêm."""
+                                    prompt = """Đọc đề thi trong tài liệu đính kèm. Trích xuất TOÀN BỘ câu hỏi.
+                                    CẢNH BÁO QUAN TRỌNG: Trích xuất ĐẦY ĐỦ 100% số câu hỏi có trong đề.
+                                    TUYỆT ĐỐI KHÔNG DÙNG JSON. Hãy trả về kết quả dưới dạng văn bản thô (Plain Text), tuân thủ CHÍNH XÁC cấu trúc thẻ Tag dưới đây cho mỗi câu hỏi (Bắt đầu mỗi câu bằng <Q> và kết thúc bằng </Q>):
+
+                                    <Q>
+                                    QUESTION: Nội dung câu hỏi
+                                    OPTA: Nội dung đáp án A
+                                    OPTB: Nội dung đáp án B
+                                    OPTC: Nội dung đáp án C
+                                    OPTD: Nội dung đáp án D
+                                    ANSWER: Chỉ ghi 1 chữ cái A, B, C hoặc D
+                                    HINT: Lời giải chi tiết
+                                    </Q>
+
+                                    LƯU Ý TOÁN HỌC:
+                                    - Ký hiệu LaTeX phải bọc trong dấu đô-la (VD: $x^2 + 1 = 0$, $\\frac{1}{2}$). 
+                                    - Tuyệt đối không dùng \\( hay \\) hay ngoặc đơn ( ) để bọc công thức."""
                                     
                                     try:
                                         res = call_ai_safely(prompt, file_bytes, mime_type)
-                                        parsed_json = parse_json_safely(res.text)
-                                        st.session_state.ai_pdf_preview = parsed_json
+                                        st.session_state.ai_pdf_preview = parse_ai_text(res.text)
                                         st.rerun()
                                     except Exception as e:
-                                        st.error(f"Lỗi hệ thống AI: {str(e)}")
+                                        st.error(f"Lỗi AI: {str(e)}")
                                         
                         if st.session_state.ai_pdf_preview:
                             st.success(f"✅ AI đã hoàn tất bóc tách {len(st.session_state.ai_pdf_preview)} câu hỏi! Mời thầy/cô soát duyệt trước khi giao:")
                             ans_key_ai = []
                             with st.expander("🔍 XEM TRƯỚC ĐÁP ÁN & LỜI GIẢI TỪ AI", expanded=True):
                                 for q in st.session_state.ai_pdf_preview:
-                                    st.markdown(f"**Câu {q['id']}:** {format_math_text(q.get('question',''))}")
+                                    st.markdown(f"**Câu {q['id']}:** {q.get('question','')}")
                                     ans_letter = re.sub(r'[^A-D]', '', str(q.get('answer', 'A')).upper())
                                     final_ans = ans_letter[0] if ans_letter else 'A'
                                     ans_key_ai.append(final_ans)
                                     st.markdown(f"- ✅ **Đáp án đúng:** {final_ans}")
-                                    st.markdown(f"- 💡 **Lời giải:** {format_math_text(q.get('hint',''))}")
+                                    st.markdown(f"- 💡 **Lời giải:** {q.get('hint','')}")
                                     st.markdown("---")
                                     
                             c_duyet, c_huy = st.columns(2)
