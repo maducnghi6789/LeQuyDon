@@ -1,7 +1,7 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V20 SUPREME ULTIMATE (FINAL PIL IMAGE)
-# Fix Lỗi 61: Tối ưu dung lượng PDF (DPI 100), chuẩn hóa bằng thư viện PIL Image
-# Loại bỏ hoàn toàn các model AI cũ gây lỗi 404 bóng ma.
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V20 SUPREME ULTIMATE (FINAL RADAR AI)
+# Đột phá: Radar tự động quét và lựa chọn mô hình AI hợp lệ từ Google (Diệt 100% lỗi 404).
+# Giữ nguyên: Biến PDF thành ảnh (PyMuPDF PIL), Đồ họa chuẩn SGK, Sinh 40 câu hỏi.
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
@@ -38,19 +38,10 @@ except ImportError:
 
 VN_TZ = timezone(timedelta(hours=7))
 
-# --- MÃ API KEY BÍ MẬT CỦA ADMIN (CHỈ GHI 1 LẦN) ---
-GEMINI_API_KEY = "AIzaSyAAKymdzIpyMIr76LNcY__6CrZE4QQ1IpY"
+# --- MÃ API KEY BÍ MẬT CỦA ADMIN ---
+GEMINI_API_KEY = "AIzaSyDFfDUSfvkIAVPrWy7jlPs1tykBv7553IY"
 
-if AI_AVAILABLE and GEMINI_API_KEY and "DÁN_MÃ" not in GEMINI_API_KEY:
-    try:
-        genai.configure(api_key=GEMINI_API_KEY.strip())
-        ai_model = genai.GenerativeModel('gemini-1.5-flash')
-    except:
-        ai_model = None
-else:
-    ai_model = None
-
-# --- 🚀 BƯỚC ĐỘT PHÁ: HÀM GỌI AI VỚI PIL IMAGE (KHÔNG BAO GIỜ 404) ---
+# --- 🚀 BƯỚC ĐỘT PHÁ: RADAR TỰ ĐỘNG DÒ TÌM MODEL HỢP LỆ (KHÔNG BAO GIỜ 404) ---
 def call_ai_safely(prompt, file_bytes=None, mime_type=None):
     if not AI_AVAILABLE:
         raise Exception("Hệ thống thiếu thư viện google-generativeai.")
@@ -58,15 +49,23 @@ def call_ai_safely(prompt, file_bytes=None, mime_type=None):
         raise Exception("API Key không hợp lệ. Vui lòng kiểm tra mã.")
         
     genai.configure(api_key=GEMINI_API_KEY.strip())
-    contents = [prompt]
     
+    # 1. HỎI GOOGLE XEM API NÀY ĐƯỢC PHÉP DÙNG NHỮNG MODEL NÀO
+    try:
+        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+    except Exception as e:
+        raise Exception(f"Không thể lấy danh sách mô hình từ Google. Lỗi: {str(e)}")
+
+    contents = [prompt]
+    needs_vision = False
+    
+    # 2. XỬ LÝ FILE ẢNH HOẶC PDF (CHỐNG LỖI MẶT MẾU VÀ DUNG LƯỢNG)
     if file_bytes and mime_type:
+        needs_vision = True
         if "pdf" in mime_type.lower():
             if not PDF_RENDERER_AVAILABLE:
                 raise Exception("Thiếu thư viện PyMuPDF để xử lý PDF.")
-            
             doc = fitz.open(stream=file_bytes, filetype="pdf")
-            # Tối ưu hóa: Dùng DPI 100 và tối đa 4 trang để tránh lỗi dung lượng
             for page_num in range(min(len(doc), 4)):
                 pix = doc.load_page(page_num).get_pixmap(dpi=100) 
                 img = Image.open(BytesIO(pix.tobytes("png")))
@@ -75,23 +74,33 @@ def call_ai_safely(prompt, file_bytes=None, mime_type=None):
             img = Image.open(BytesIO(file_bytes))
             contents.append(img)
 
-    # Chỉ dùng 2 model mạnh nhất và tương thích nhất hiện tại
-    models_to_try = [
-        'gemini-1.5-flash',
-        'gemini-1.5-pro'
-    ]
+    # 3. LỰA CHỌN MODEL THÔNG MINH DỰA TRÊN DANH SÁCH GOOGLE TRẢ VỀ
+    if needs_vision:
+        preferences = ['models/gemini-1.5-flash', 'models/gemini-1.5-pro', 'models/gemini-1.0-pro-vision-latest', 'models/gemini-pro-vision']
+    else:
+        preferences = ['models/gemini-1.5-flash', 'models/gemini-1.5-pro', 'models/gemini-pro', 'models/gemini-1.0-pro']
         
-    first_error = ""
-    for m_name in models_to_try:
-        try:
-            model = genai.GenerativeModel(m_name)
-            return model.generate_content(contents)
-        except Exception as e:
-            if not first_error:
-                first_error = str(e)
-            continue
+    target_model = None
+    for pref in preferences:
+        if pref in available_models:
+            target_model = pref
+            break
             
-    raise Exception(f"Google từ chối phân tích. Lỗi gốc: {first_error}")
+    if not target_model:
+        if available_models:
+            target_model = available_models[0]
+        else:
+            raise Exception("API Key của bạn không có quyền truy cập mô hình AI nào.")
+            
+    # Lấy tên sạch của model (xóa chữ 'models/')
+    clean_model_name = target_model.replace("models/", "")
+    
+    # 4. GỌI AI BẰNG MODEL ĐÃ CHỌN LỌC
+    try:
+        model = genai.GenerativeModel(clean_model_name)
+        return model.generate_content(contents)
+    except Exception as e:
+        raise Exception(f"Hệ thống đã tự chọn mô hình tốt nhất ({clean_model_name}) nhưng Google vẫn từ chối. Lỗi: {str(e)}")
 
 # ==========================================
 # 1. HÀM HỖ TRỢ EXCEL & REGEX 
@@ -201,6 +210,7 @@ def draw_dynamic_thales(AE, EB, AF, FC):
     ax.text(0.5, 1.5, 'E', ha='right', fontsize=11, fontweight='bold')
     ax.text(2.4, 1.5, 'F', ha='left', fontsize=11, fontweight='bold')
     ax.text(2.6, 2.3, '$EF // BC$', style='italic', fontsize=10)
+    
     ax.text(0.6, 2.3, str(AE), color='red', fontsize=10, rotation=63)
     ax.text(0.2, 0.8, str(EB), color='red', fontsize=10, rotation=63)
     ax.text(2.0, 2.3, str(AF), color='red', fontsize=10, rotation=-63)
@@ -218,6 +228,7 @@ def draw_dynamic_altitude(BH, HC, AH):
     ax.text(-0.3, 3.1, 'B', fontsize=11, fontweight='bold')
     ax.text(4.2, -0.2, 'C', fontsize=11, fontweight='bold')
     ax.text(1.6, 2.1, 'H', fontsize=11, fontweight='bold')
+    
     ax.text(0.5, 2.6, str(BH), color='red', fontsize=10, rotation=-36)
     ax.text(2.8, 1.0, str(HC), color='red', fontsize=10, rotation=-36)
     ax.text(0.8, 0.8, str(AH), color='red', fontsize=10, rotation=53)
@@ -235,6 +246,7 @@ def draw_dynamic_shadow(h_cot, bong_cot, bong_cay):
     ax.text(2.7, 2.0, 'C', fontweight='bold')
     ax.text(2.7, -0.3, 'D', fontweight='bold')
     ax.text(6.9, -0.1, 'M', fontweight='bold')
+    
     ax.text(-0.8, 1.5, f"{h_cot}m", color='red')
     ax.text(1.5, -0.4, f"{bong_cot - bong_cay}m", color='red')
     ax.text(4.5, -0.4, f"{bong_cay}m", color='red')
@@ -282,6 +294,7 @@ class ExamGenerator:
             ("Tâm đường tròn ngoại tiếp tam giác vuông nằm ở đâu?", "Trung điểm cạnh huyền", ["Trực tâm", "Trọng tâm", "Giao 3 đường phân giác"]),
             ("Phương trình nào sau đây là phương trình bậc nhất hai ẩn?", "$2x - 3y = 5$", ["$x^2 - y = 0$", "$x + y^2 = 1$", "$\\frac{1}{x} + y = 2$"])
         ]
+        
         for tpl in diverse_templates:
             pool.append({"q": tpl[0], "opts": self.format_options(tpl[1], tpl[2]), "a": tpl[1], "h": "Lý thuyết Toán cơ bản.", "i_svg": "", "i": None})
 
@@ -581,6 +594,7 @@ def main():
                         ans_key = json.loads(exam_row['answer_key'])
                         num_q = len(ans_key)
                         
+                        # Lấy lời giải AI nếu có
                         ai_hints = []
                         if pd.notnull(exam_row.get('questions_json')) and str(exam_row.get('questions_json')).strip() != "":
                             try: ai_hints = json.loads(exam_row['questions_json'])
@@ -599,6 +613,7 @@ def main():
                                 else: 
                                     st.error(f"**Câu {i+1}: {stu_val}** ❌ (Đúng: {correct_val})")
                                     
+                                # Hiển thị Lời giải AI
                                 if ai_hints and len(ai_hints) > i:
                                     with st.expander("💡 Xem hướng dẫn giải từ AI"):
                                         st.markdown(ai_hints[i].get('hint', 'Chưa có lời giải chi tiết.'))
@@ -1092,7 +1107,7 @@ def main():
                                         else:
                                             st.error("AI không thể bóc tách cấu trúc đề này.")
                                     except Exception as e:
-                                        st.error(f"Lỗi AI: {str(e)}")
+                                        st.error(f"Lỗi hệ thống: {str(e)}")
                                         
                         if st.session_state.ai_pdf_preview:
                             st.success("✅ AI đã hoàn tất bóc tách! Mời thầy/cô soát duyệt trước khi giao:")
@@ -1142,4 +1157,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
