@@ -1,7 +1,6 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V20 SUPREME ULTIMATE (FINAL)
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V20 SUPREME ULTIMATE (ĐÃ TÍCH HỢP API KEY)
 # Đầy đủ tính năng: Đồ họa SGK, Trộn đề độc bản, AI đọc PDF cho Admin
-# Giao diện: Clean UI 100% (Không chứa Text rác)
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
@@ -37,12 +36,15 @@ except ImportError:
 
 VN_TZ = timezone(timedelta(hours=7))
 
-# GIÁM ĐỐC DÁN API KEY VÀO ĐÂY
-GEMINI_API_KEY = "AIzaSyBEoI3erNW5bhDb6_qdi81wjEsVVOw4Dqo" 
+# --- ĐÃ TÍCH HỢP MÃ API KEY CỦA GIÁM ĐỐC ---
+GEMINI_API_KEY = "AIzaSyBEoI3erNW5bhDb6_qdi81wjEsVVOw4Dqo"
 
-if AI_AVAILABLE and GEMINI_API_KEY != "AIzaSyBEoI3erNW5bhDb6_qdi81wjEsVVOw4Dqo":
-    genai.configure(api_key=GEMINI_API_KEY)
-    ai_model = genai.GenerativeModel('gemini-1.5-flash')
+if AI_AVAILABLE and GEMINI_API_KEY:
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+        ai_model = genai.GenerativeModel('gemini-1.5-flash')
+    except:
+        ai_model = None
 else:
     ai_model = None
 
@@ -154,7 +156,6 @@ def draw_dynamic_thales(AE, EB, AF, FC):
     ax.text(0.5, 1.5, 'E', ha='right', fontsize=11, fontweight='bold')
     ax.text(2.4, 1.5, 'F', ha='left', fontsize=11, fontweight='bold')
     ax.text(2.6, 2.3, '$EF // BC$', style='italic', fontsize=10)
-    
     ax.text(0.6, 2.3, str(AE), color='red', fontsize=10, rotation=63)
     ax.text(0.2, 0.8, str(EB), color='red', fontsize=10, rotation=63)
     ax.text(2.0, 2.3, str(AF), color='red', fontsize=10, rotation=-63)
@@ -172,7 +173,6 @@ def draw_dynamic_altitude(BH, HC, AH):
     ax.text(-0.3, 3.1, 'B', fontsize=11, fontweight='bold')
     ax.text(4.2, -0.2, 'C', fontsize=11, fontweight='bold')
     ax.text(1.6, 2.1, 'H', fontsize=11, fontweight='bold')
-    
     ax.text(0.5, 2.6, str(BH), color='red', fontsize=10, rotation=-36)
     ax.text(2.8, 1.0, str(HC), color='red', fontsize=10, rotation=-36)
     ax.text(0.8, 0.8, str(AH), color='red', fontsize=10, rotation=53)
@@ -185,13 +185,11 @@ def draw_dynamic_shadow(h_cot, bong_cot, bong_cay):
     ax.plot([0, 0], [0, 3.5], 'k-', lw=3) 
     ax.plot([3, 3], [0, 1.9], 'g-', lw=4) 
     ax.plot([0, 6.8], [3.5, 0], 'b-', lw=1) 
-    
     ax.text(-0.3, 3.5, 'A', fontweight='bold')
     ax.text(-0.3, -0.3, 'B', fontweight='bold')
     ax.text(2.7, 2.0, 'C', fontweight='bold')
     ax.text(2.7, -0.3, 'D', fontweight='bold')
     ax.text(6.9, -0.1, 'M', fontweight='bold')
-    
     ax.text(-0.8, 1.5, f"{h_cot}m", color='red')
     ax.text(1.5, -0.4, f"{bong_cot - bong_cay}m", color='red')
     ax.text(4.5, -0.4, f"{bong_cay}m", color='red')
@@ -649,13 +647,18 @@ def main():
             if 'user_answers' not in st.session_state: st.session_state.user_answers = {}
             if 'is_submitted' not in st.session_state: st.session_state.is_submitted = False
 
-            if st.button("🔄 TẠO ĐỀ LUYỆN TẬP ĐỘC BẢN", use_container_width=True):
-                with st.spinner("Hệ thống đang xáo trộn thư viện ảnh chuẩn SGK và sinh đề độc bản..."):
-                    gen = ExamGenerator()
-                    st.session_state.exam_data = gen.generate_all()
-                    st.session_state.user_answers = {str(q['id']): None for q in st.session_state.exam_data}
-                    st.session_state.is_submitted = False
-                    st.rerun()
+            if st.button("🔄 TẠO ĐỀ LUYỆN TẬP MỚI", use_container_width=True):
+                if not AI_AVAILABLE:
+                    st.error("❌ LỖI HỆ THỐNG CLOUD: Chưa cài đặt thư viện AI. Hãy tạo file requirements.txt chứa 'google-generativeai' trên máy chủ của bạn.")
+                elif not ai_model:
+                    st.error("❌ Chưa kết nối được API Key Gemini!")
+                else:
+                    with st.spinner("AI đang xáo trộn thư viện ảnh chuẩn SGK và sinh đề độc bản..."):
+                        gen = ExamGenerator()
+                        st.session_state.exam_data = gen.generate_all()
+                        st.session_state.user_answers = {str(q['id']): None for q in st.session_state.exam_data}
+                        st.session_state.is_submitted = False
+                        st.rerun()
 
             if st.session_state.exam_data:
                 if st.session_state.is_submitted:
@@ -1029,7 +1032,6 @@ def main():
                 
                 if exam_type == "📤 Tải lên đề thi của tôi (File PDF/Ảnh)":
                     uploaded_file = st.file_uploader("1. Tải File Đề (Hỗ trợ PDF, JPG, PNG)", type=['pdf', 'jpg', 'png', 'jpeg'])
-                    
                     pdf_method = st.radio("2. Phương thức tạo Đáp án & Lời giải:", ["🤖 AI tự động đọc file và tạo (Khuyên dùng)", "✍️ Nhập chuỗi đáp án thủ công"])
                     
                     if pdf_method == "✍️ Nhập chuỗi đáp án thủ công":
@@ -1056,9 +1058,14 @@ def main():
                         if 'pdf_ai_preview' not in st.session_state: st.session_state.pdf_ai_preview = None
                         
                         if st.button("🤖 Phân tích Đề bằng AI", type="primary"):
-                            if not exam_title: st.error("Vui lòng nhập tên bài thi!")
-                            elif not uploaded_file: st.error("Vui lòng tải file đề thi lên!")
-                            elif not ai_model: st.error("Chưa cấu hình API Key Gemini ở dòng 38!")
+                            if not AI_AVAILABLE:
+                                st.error("❌ LỖI HỆ THỐNG CLOUD: Chưa cài đặt thư viện AI. Bạn phải tạo file requirements.txt có chữ 'google-generativeai' trên Github/Streamlit.")
+                            elif not exam_title: 
+                                st.error("Vui lòng nhập tên bài thi!")
+                            elif not uploaded_file: 
+                                st.error("Vui lòng tải file đề thi lên!")
+                            elif not ai_model: 
+                                st.error("❌ Chưa cấu hình API Key Gemini hoặc API Key không hợp lệ!")
                             else:
                                 with st.spinner("AI đang đọc ảnh/PDF, trích xuất đáp án và soạn lời giải chi tiết..."):
                                     file_bytes = uploaded_file.read()
@@ -1124,4 +1131,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
