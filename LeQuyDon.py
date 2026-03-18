@@ -38,7 +38,7 @@ except ImportError:
 VN_TZ = timezone(timedelta(hours=7))
 
 # --- MÃ API KEY BÍ MẬT CỦA BẠN ---
-GEMINI_API_KEY = "AIzaSyDFfDUSfvkIAVPrWy7jlPs1tykBv7553IY"
+GEMINI_API_KEY = "AIzaSyCxm5TwaSIEewBeUX-pNVj02GsdDXqyWes"
 
 # --- 🚀 BƯỚC ĐỘT PHÁ: HỘP SỐ TỰ ĐỘNG CHỐNG LỖI 404 GOOGLE ---
 def call_ai_safely(prompt, file_bytes=None, mime_type=None):
@@ -1152,3 +1152,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
