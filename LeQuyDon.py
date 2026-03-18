@@ -1,6 +1,6 @@
 # ==========================================
 # LÕI HỆ THỐNG LMS - PHIÊN BẢN V20 SUPREME ULTIMATE (TINH GỌN & BẤT TỬ)
-# Cải tiến: Đơn giản hóa quy trình giao đề, loại bỏ AI đọc PDF gây lỗi, gỡ bỏ ô nhập API
+# Cải tiến: Xử lý triệt để lỗi trình duyệt chặn hiển thị PDF (Mặt mếu)
 # Giữ nguyên: Đồ họa SVG chuẩn SGK, Trộn đề độc bản 40 câu, Ẩn nhãn
 # ==========================================
 import matplotlib
@@ -38,9 +38,9 @@ except ImportError:
 VN_TZ = timezone(timedelta(hours=7))
 
 # --- ADMIN TRƯỜNG DÁN MÃ API KEY BÍ MẬT VÀO ĐÂY (CHỈ CẦN DÁN 1 LẦN) ---
-GEMINI_API_KEY = "AIzaSyAClkp3Rv08r7hfyJsdIvKC32lPuurgKM8" 
+GEMINI_API_KEY = "DÁN_MÃ_API_CỦA_BẠN_VÀO_ĐÂY" 
 
-if AI_AVAILABLE and GEMINI_API_KEY and GEMINI_API_KEY != "AIzaSyAClkp3Rv08r7hfyJsdIvKC32lPuurgKM8":
+if AI_AVAILABLE and GEMINI_API_KEY and GEMINI_API_KEY != "DÁN_MÃ_API_CỦA_BẠN_VÀO_ĐÂY":
     try:
         genai.configure(api_key=GEMINI_API_KEY)
         ai_model = genai.GenerativeModel('gemini-1.5-flash')
@@ -292,7 +292,7 @@ class ExamGenerator:
 
     def generate_all(self):
         ai_questions = []
-        if ai_model: # Sinh chữ thuần túy thì an toàn
+        if ai_model:
             try:
                 seed = time.time()
                 prompt = f"""Mốc thời gian: {seed}. 
@@ -354,7 +354,7 @@ class ExamGenerator:
 def main():
     st.set_page_config(page_title="Hệ Thống LMS V20", layout="wide", page_icon="🏫")
     init_db()
-        
+    
     if 'current_user' not in st.session_state: st.session_state.current_user = None
     if 'role' not in st.session_state: st.session_state.role = None
     if 'fullname' not in st.session_state: st.session_state.fullname = None
@@ -522,14 +522,17 @@ def main():
                             st.markdown("#### 📄 NỘI DUNG ĐỀ THI")
                             b64 = exam_row['file_data']
                             mime = exam_row['file_type']
+                            # --- FIX LỖI 58: TRÌNH DUYỆT CHẶN PDF ---
                             if 'pdf' in str(mime).lower():
-                                st.markdown(f'<iframe src="data:application/pdf;base64,{b64}" width="100%" height="700px" type="application/pdf"></iframe>', unsafe_allow_html=True)
+                                st.markdown(f'<embed src="data:application/pdf;base64,{b64}" width="100%" height="800px" type="application/pdf">', unsafe_allow_html=True)
+                                st.download_button(label="📥 Trình duyệt chặn hiển thị? Nhấn để tải Đề PDF về máy", data=base64.b64decode(b64), file_name="De_Kiem_Tra.pdf", mime="application/pdf", key=f"dl_do_{exam_id}")
                             else:
                                 st.markdown(f'<img src="data:{mime};base64,{b64}" width="100%">', unsafe_allow_html=True)
                         with col_ans:
                             st.markdown("#### ✍️ PHIẾU TÔ TRẮC NGHIỆM")
                             if f"mand_ans_{exam_id}" not in st.session_state:
                                 st.session_state[f"mand_ans_{exam_id}"] = {str(i+1): None for i in range(num_q)}
+                            
                             grid_cols = st.columns(2)
                             for i in range(num_q):
                                 with grid_cols[i % 2]:
@@ -642,8 +645,8 @@ def main():
             if 'user_answers' not in st.session_state: st.session_state.user_answers = {}
             if 'is_submitted' not in st.session_state: st.session_state.is_submitted = False
 
-            if st.button("🔄 TẠO ĐỀ LUYỆN TẬP ĐỘC BẢN", use_container_width=True):
-                with st.spinner("Đang xáo trộn dữ liệu và tạo đề..."):
+            if st.button("🔄 TẠO ĐỀ LUYỆN TẬP MỚI", use_container_width=True):
+                with st.spinner("Đang xáo trộn dữ liệu và vẽ đồ họa chuẩn SGK..."):
                     gen = ExamGenerator()
                     st.session_state.exam_data = gen.generate_all()
                     st.session_state.user_answers = {str(q['id']): None for q in st.session_state.exam_data}
@@ -1018,7 +1021,6 @@ def main():
                 e_time = c2.time_input("Giờ thu", value=datetime.strptime("23:59", "%H:%M").time())
                 
                 st.markdown("---")
-                # ĐƠN GIẢN HÓA QUY TRÌNH PHÁT ĐỀ - BỎ TÍNH NĂNG AI ĐỌC PDF LỖI
                 exam_type = st.radio("Lựa chọn phương thức giao bài:", ["📤 Tải lên đề thi của tôi (File PDF/Ảnh)", "🤖 Sinh ngẫu nhiên từ Lõi V20 (40 Câu)"])
                 
                 if exam_type == "📤 Tải lên đề thi của tôi (File PDF/Ảnh)":
@@ -1059,4 +1061,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
