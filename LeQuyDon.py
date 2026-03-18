@@ -1,7 +1,7 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V20 SUPREME ULTIMATE (FINAL PROMPT FIX)
-# Hoàn thiện: Tối ưu hóa câu lệnh (Prompt) ép AI phải tự giải toán ngắn gọn thay vì copy chữ mẫu.
-# Giữ nguyên: Radar dò Model chống 404, Biến PDF thành ảnh, Đồ họa chuẩn SGK, Sinh 40 câu hỏi.
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V20 SUPREME ULTIMATE (FINAL RADAR AI)
+# Đột phá: Radar tự động quét và lựa chọn mô hình AI hợp lệ từ Google (Diệt 100% lỗi 404).
+# Giữ nguyên: Biến PDF thành ảnh (PyMuPDF PIL), Đồ họa chuẩn SGK, Sinh 40 câu hỏi.
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
@@ -38,15 +38,15 @@ except ImportError:
 
 VN_TZ = timezone(timedelta(hours=7))
 
-# --- MÃ API KEY BÍ MẬT CỦA ADMIN ---
-GEMINI_API_KEY = "AIzaSyDFfDUSfvkIAVPrWy7jlPs1tykBv7553IY"
+# --- ADMIN TRƯỜNG DÁN MÃ API KEY MỚI TINH & BÍ MẬT VÀO ĐÂY ---
+GEMINI_API_KEY = "DÁN_MÃ_API_MỚI_TINH_CỦA_BẠN_VÀO_ĐÂY"
 
 # --- 🚀 BƯỚC ĐỘT PHÁ: RADAR TỰ ĐỘNG DÒ TÌM MODEL HỢP LỆ (KHÔNG BAO GIỜ 404) ---
 def call_ai_safely(prompt, file_bytes=None, mime_type=None):
     if not AI_AVAILABLE:
-        raise Exception("Hệ thống thiếu thư viện google-generativeai.")
-    if len(GEMINI_API_KEY) < 20:
-        raise Exception("API Key không hợp lệ. Vui lòng kiểm tra mã.")
+        raise Exception("Hệ thống thiếu thư viện google-generativeai. Cần thêm vào requirements.txt")
+    if not GEMINI_API_KEY or len(GEMINI_API_KEY) < 20 or "DÁN_MÃ" in GEMINI_API_KEY:
+        raise Exception("Bạn chưa cấu hình API Key. Vui lòng tạo mã mới ở Google AI Studio và dán vào dòng 39 của code!")
         
     genai.configure(api_key=GEMINI_API_KEY.strip())
     
@@ -54,7 +54,7 @@ def call_ai_safely(prompt, file_bytes=None, mime_type=None):
     try:
         available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
     except Exception as e:
-        raise Exception(f"Không thể lấy danh sách mô hình từ Google. Lỗi: {str(e)}")
+        raise Exception(f"Google từ chối mã API của bạn. Chi tiết: {str(e)}")
 
     contents = [prompt]
     needs_vision = False
@@ -64,7 +64,7 @@ def call_ai_safely(prompt, file_bytes=None, mime_type=None):
         needs_vision = True
         if "pdf" in mime_type.lower():
             if not PDF_RENDERER_AVAILABLE:
-                raise Exception("Thiếu thư viện PyMuPDF để xử lý PDF.")
+                raise Exception("Thiếu thư viện PyMuPDF để xử lý PDF. Cần thêm vào requirements.txt")
             doc = fitz.open(stream=file_bytes, filetype="pdf")
             for page_num in range(min(len(doc), 4)):
                 pix = doc.load_page(page_num).get_pixmap(dpi=100) 
@@ -100,7 +100,7 @@ def call_ai_safely(prompt, file_bytes=None, mime_type=None):
         model = genai.GenerativeModel(clean_model_name)
         return model.generate_content(contents)
     except Exception as e:
-        raise Exception(f"Hệ thống đã tự chọn mô hình tốt nhất ({clean_model_name}) nhưng Google vẫn từ chối. Lỗi: {str(e)}")
+        raise Exception(f"Hệ thống đã chọn mô hình tốt nhất ({clean_model_name}) nhưng Google vẫn từ chối. Lỗi: {str(e)}")
 
 # ==========================================
 # 1. HÀM HỖ TRỢ EXCEL & REGEX 
@@ -510,6 +510,7 @@ def main():
                             b64 = exam_row['file_data']
                             mime = exam_row['file_type']
                             
+                            # --- HIỂN THỊ PDF CHUYÊN NGHIỆP: CHUYỂN ẢNH CHỐNG MẶT MẾU LỖI 58 ---
                             if 'pdf' in str(mime).lower():
                                 if not PDF_RENDERER_AVAILABLE:
                                     st.warning("Hệ thống thiếu PyMuPDF. Trình duyệt có thể chặn file này.")
@@ -593,6 +594,7 @@ def main():
                         ans_key = json.loads(exam_row['answer_key'])
                         num_q = len(ans_key)
                         
+                        # Lấy lời giải AI nếu có
                         ai_hints = []
                         if pd.notnull(exam_row.get('questions_json')) and str(exam_row.get('questions_json')).strip() != "":
                             try: ai_hints = json.loads(exam_row['questions_json'])
@@ -611,6 +613,7 @@ def main():
                                 else: 
                                     st.error(f"**Câu {i+1}: {stu_val}** ❌ (Đúng: {correct_val})")
                                     
+                                # Hiển thị Lời giải AI
                                 if ai_hints and len(ai_hints) > i:
                                     with st.expander("💡 Xem hướng dẫn giải từ AI"):
                                         st.markdown(ai_hints[i].get('hint', 'Chưa có lời giải chi tiết.'))
@@ -1059,7 +1062,7 @@ def main():
                 if exam_type == "📤 Tải lên đề thi của tôi (File PDF/Ảnh)":
                     uploaded_file = st.file_uploader("1. Tải File Đề (Hỗ trợ PDF, JPG, PNG)", type=['pdf', 'jpg', 'png', 'jpeg'])
                     
-                    pdf_method = st.radio("2. Cấu hình Đáp án & Lời giải:", ["✍️ Nhập chuỗi đáp án thủ công", "🤖 Nhờ AI đọc file, phân tích đáp án và viết lời giải (Khuyên dùng)"])
+                    pdf_method = st.radio("2. Cấu hình Đáp án & Lời giải:", ["✍️ Nhập chuỗi đáp án thủ công", "🤖 Nhờ AI phân tích file và viết lời giải chi tiết (Khuyên dùng)"])
                     
                     if pdf_method == "✍️ Nhập chuỗi đáp án thủ công":
                         ans_input = st.text_input("Nhập chuỗi Đáp án Đúng (Viết liền, VD: ABCDABCD)")
@@ -1070,7 +1073,6 @@ def main():
                             else:
                                 ans_clean = list(ans_input.upper().replace(" ", "").replace(",", ""))
                                 valid_chars = all(char in ['A', 'B', 'C', 'D'] for char in ans_clean)
-                                # Fix lỗi 60.2 - Chèn chuỗi đúng vào answer_key
                                 if not valid_chars: 
                                     st.error("❌ Chuỗi đáp án bị lỗi! Chỉ được phép chứa các chữ A, B, C, D.")
                                 else:
@@ -1093,7 +1095,6 @@ def main():
                                     file_bytes = uploaded_file.read()
                                     mime_type = uploaded_file.type
                                     
-                                    # CẢI TIẾN CÂU LỆNH PROMPT ĐỂ AI PHẢI TỰ GIẢI
                                     prompt = "Đọc đề thi trong ảnh/tài liệu sau. Trích xuất toàn bộ câu hỏi thành danh sách JSON. Cấu trúc BẮT BUỘC: [{'id': 1, 'question': 'nội dung', 'options': ['A', 'B', 'C', 'D'], 'answer': 'A', 'hint': '<Hãy tự viết lời giải ngắn gọn hoặc gợi ý cách làm cho câu hỏi này>'}]. Chỉ xuất JSON, không xuất chữ nào khác."
                                     
                                     try:
