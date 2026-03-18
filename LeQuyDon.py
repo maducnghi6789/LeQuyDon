@@ -1,7 +1,7 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V30 SUPREME ULTIMATE (SILVER BULLET PARSER)
-# Đột phá: Đập bỏ giao thức JSON khi kết nối AI. Sử dụng Thẻ Tag tùy chỉnh (Custom Delimiters).
-# Miễn nhiễm 100% với các lỗi "Expecting value", "Invalid control char", "Delimiter".
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V31 SUPREME ULTIMATE (ANTI-LAZINESS PARSER)
+# Fix Lỗi AI lười (chỉ gõ 2 câu): Ép lệnh "Thiết quân luật" bắt bóc tách 100% đề thi.
+# Đột phá mới: Thuật toán cắt lớp bằng thẻ ngoặc vuông [CAU], [A], [B] siêu an toàn.
 # Giữ nguyên: Quét 10 trang PDF, Radar dò Model AI, Két sắt API Key.
 # ==========================================
 import matplotlib
@@ -38,7 +38,7 @@ except ImportError:
 
 VN_TZ = timezone(timedelta(hours=7))
 
-# --- DATABASE VAULT ĐỂ LƯU API KEY (BẢO MẬT TUYỆT ĐỐI) ---
+# --- DATABASE VAULT ĐỂ LƯU API KEY ---
 def get_api_key():
     try:
         conn = sqlite3.connect('exam_db.sqlite')
@@ -57,7 +57,7 @@ def save_api_key(key_str):
     conn.commit()
     conn.close()
 
-# --- BỘ LỌC DỊCH THUẬT TOÁN HỌC (CHỐNG LỖI RAW LATEX) ---
+# --- BỘ LỌC DỊCH THUẬT TOÁN HỌC ---
 def format_math_text(text):
     if not text: return ""
     text = str(text)
@@ -65,49 +65,45 @@ def format_math_text(text):
     text = re.sub(r'\\\[(.*?)\\\]', r'$$\1$$', text)
     return text
 
-# --- 🚀 BỘ GIẢI MÃ VIÊN ĐẠN BẠC (MIỄN NHIỄM MỌI LỖI JSON) ---
-def extract_field(tag, next_tag, text, is_last=False):
-    if is_last:
-        pattern = rf'{tag}:\s*(.*)'
-    else:
-        pattern = rf'{tag}:\s*(.*?)\s*{next_tag}:'
-    match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
-    return match.group(1).strip() if match else ""
-
-def parse_ai_text(raw_text):
+# --- 🚀 THUẬT TOÁN "BẤT TỬ" CẮT LỚP CÂU HỎI TỪ VĂN BẢN THÔ ---
+def parse_ai_text_v31(raw_text):
     questions = []
-    # Bóc tách từng câu hỏi nằm giữa <Q> và </Q>
-    blocks = re.findall(r'<Q>(.*?)</Q>', raw_text, re.DOTALL | re.IGNORECASE)
+    # Tách văn bản thành các khối riêng biệt bắt đầu bằng [CAU]
+    blocks = raw_text.split('[CAU]')
     
-    # Phương án dự phòng nếu AI quên thẻ đóng </Q>
-    if not blocks:
-        blocks = raw_text.split('<Q>')[1:]
-
-    for idx, block in enumerate(blocks):
+    for block in blocks:
+        if not block.strip(): continue
         try:
-            block = block.replace('</Q>', '')
-            q = extract_field('QUESTION', 'OPTA', block)
-            oa = extract_field('OPTA', 'OPTB', block)
-            ob = extract_field('OPTB', 'OPTC', block)
-            oc = extract_field('OPTC', 'OPTD', block)
-            od = extract_field('OPTD', 'ANSWER', block)
-            ans_letter = extract_field('ANSWER', 'HINT', block)
-            hint = extract_field('HINT', '', block, is_last=True)
-
-            if not q or not oa: continue
-
-            # Chuẩn hóa format Toán học ngay từ khi bóc tách
-            options = [format_math_text(oa), format_math_text(ob), format_math_text(oc), format_math_text(od)]
+            # Kiểm tra an toàn xem có đủ thẻ tối thiểu không
+            if '[A]' not in block or '[DAP_AN]' not in block: 
+                continue
             
-            # Xử lý đáp án đúng
+            # Cắt và lấy nội dung từng phần
+            q_part = block.split('[A]')[0].strip()
+            a_part = block.split('[A]')[1].split('[B]')[0].strip() if '[B]' in block else ""
+            b_part = block.split('[B]')[1].split('[C]')[0].strip() if '[C]' in block else ""
+            c_part = block.split('[C]')[1].split('[D]')[0].strip() if '[D]' in block else ""
+            d_part = block.split('[D]')[1].split('[DAP_AN]')[0].strip() if '[DAP_AN]' in block else ""
+            
+            ans_hint_part = block.split('[DAP_AN]')[1]
+            ans_letter = ans_hint_part.split('[LOI_GIAI]')[0].strip() if '[LOI_GIAI]' in ans_hint_part else ans_hint_part.strip()
+            hint = ans_hint_part.split('[LOI_GIAI]')[1].strip() if '[LOI_GIAI]' in ans_hint_part else ""
+
+            # Xóa chữ "Câu 1:", "Bài 2:" ở đầu câu hỏi nếu AI lỡ viết vào
+            q_part = re.sub(r'^(Câu|Bài)\s*\d+\s*[:\.]?\s*', '', q_part, flags=re.IGNORECASE)
+
+            # Chuẩn hóa Toán học cho 4 đáp án
+            options = [format_math_text(a_part), format_math_text(b_part), format_math_text(c_part), format_math_text(d_part)]
+            
+            # Khớp chữ cái với nội dung đáp án đúng
             ans_letter_clean = re.sub(r'[^A-D]', '', ans_letter.upper())
             if not ans_letter_clean: ans_letter_clean = 'A'
             letter_idx = ord(ans_letter_clean[0]) - ord('A')
             answer_val = options[letter_idx] if 0 <= letter_idx < 4 else options[0]
 
             questions.append({
-                "id": idx + 1,
-                "question": format_math_text(q),
+                "id": len(questions) + 1,
+                "question": format_math_text(q_part),
                 "options": options,
                 "answer": answer_val,
                 "hint": format_math_text(hint)
@@ -116,7 +112,7 @@ def parse_ai_text(raw_text):
             continue
             
     if not questions:
-        raise Exception("Google AI không trả về đúng định dạng thẻ Tag. Vui lòng bấm thử lại!")
+        raise Exception("AI không bóc tách được câu hỏi nào. Nguyên nhân có thể do đề quá mờ hoặc AI bị quá tải.")
         
     return questions
 
@@ -171,6 +167,7 @@ def call_ai_safely(prompt, file_bytes=None, mime_type=None):
     clean_model_name = target_model.replace("models/", "")
     
     try:
+        # ÉP MAX_OUTPUT_TOKENS = 8192 ĐỂ AI GÕ ĐỦ 40-50 CÂU KHÔNG BỊ HẾT HƠI
         model = genai.GenerativeModel(clean_model_name, generation_config={"max_output_tokens": 8192})
         return model.generate_content(contents)
     except Exception as e:
@@ -373,38 +370,23 @@ class ExamGenerator:
         return pool
 
     def generate_all(self):
+        # AI Generator logic giữ nguyên nhưng dùng parse_ai_text_v31
         ai_questions = []
         try:
-            seed = time.time()
-            prompt = f"""Mốc thời gian: {seed}. 
-            Đóng vai Chuyên gia Tuyển sinh Toán học. Sáng tạo 5 CÂU HỎI trắc nghiệm Toán 9 thực tiễn đa dạng.
-            KHÔNG SỬ DỤNG JSON. Trả về kết quả dưới dạng văn bản thô, tuân thủ CHÍNH XÁC cấu trúc thẻ Tag dưới đây cho mỗi câu hỏi (Bắt đầu bằng <Q> và kết thúc bằng </Q>):
+            prompt = """Nhiệm vụ: Tạo 5 CÂU HỎI trắc nghiệm Toán 9 thực tiễn.
+            Trả về dạng Plain Text với cấu trúc ngoặc vuông.
 
-            <Q>
-            QUESTION: Nội dung câu hỏi
-            OPTA: Nội dung đáp án A
-            OPTB: Nội dung đáp án B
-            OPTC: Nội dung đáp án C
-            OPTD: Nội dung đáp án D
-            ANSWER: Chỉ ghi 1 chữ cái A, B, C hoặc D
-            HINT: Viết lời giải chi tiết
-            </Q>
-
-            LƯU Ý TOÁN HỌC: Mọi công thức Toán học LaTeX phải bọc trong dấu đô-la (VD: $x^2 + 1 = 0$, $\\frac{1}{2}$). Tuyệt đối không dùng \\( hay \\) để bọc."""
-            
+            [CAU] Nội dung câu hỏi
+            [A] Đáp án A
+            [B] Đáp án B
+            [C] Đáp án C
+            [D] Đáp án D
+            [DAP_AN] A
+            [LOI_GIAI] Lời giải chi tiết
+            """
             res = call_ai_safely(prompt)
-            parsed_q = parse_ai_text(res.text)
-            
-            for q in parsed_q:
-                ai_questions.append({
-                    "q": q["question"], 
-                    "opts": self.format_options(q["answer"], [o for o in q["options"] if o != q["answer"]]), 
-                    "a": q["answer"], 
-                    "h": q["hint"], 
-                    "i_svg": "", 
-                    "i": None
-                })
-        except Exception:
+            ai_questions = parse_ai_text_v31(res.text)
+        except:
             pass 
 
         local_distinct_pool = self.get_38_distinct_local_questions()
@@ -413,17 +395,17 @@ class ExamGenerator:
 
         for i, q in enumerate(final_pool):
             self.exam.append({
-                "id": i + 1, "question": q["q"], "options": q["opts"],
-                "answer": q["a"], "hint": q["h"], "image_svg": q["i_svg"], "image": q["i"]
+                "id": i + 1, "question": q["question"] if "question" in q else q["q"], "options": q.get("options", q.get("opts")),
+                "answer": q.get("answer", q.get("a")), "hint": q.get("hint", q.get("h")), "image_svg": q.get("image_svg", q.get("i_svg")), "image": q.get("image", q.get("i"))
             })
             
         return self.exam
 
 # ==========================================
-# 5. GIAO DIỆN HỆ THỐNG
+# 5. GIAO DIỆN HỆ THỐNG V31
 # ==========================================
 def main():
-    st.set_page_config(page_title="Hệ Thống LMS V30", layout="wide", page_icon="🏫")
+    st.set_page_config(page_title="Hệ Thống LMS V31", layout="wide", page_icon="🏫")
     init_db()
     
     if 'current_user' not in st.session_state: st.session_state.current_user = None
@@ -453,7 +435,7 @@ def main():
                         st.error("❌ Sai tài khoản hoặc mật khẩu!")
         return
 
-    # --- SIDEBAR ---
+    # --- SIDEBAR V31 ---
     with st.sidebar:
         st.markdown(f"### 👤 {st.session_state.fullname}")
         role_map = {"core_admin": "👑 Admin Trường", "sub_admin": "🛡 Admin", "teacher": "👨‍🏫 Giáo viên", "student": "🎓 Học sinh"}
@@ -1216,35 +1198,36 @@ def main():
                     else:
                         if 'ai_pdf_preview' not in st.session_state: st.session_state.ai_pdf_preview = None
                         
-                        if st.button("🤖 Phân tích Đề bằng AI", type="primary"):
+                        if st.button("🤖 Phân tích Đề bằng AI V31", type="primary"):
                             if not exam_title: st.error("Vui lòng nhập tên bài thi!")
                             elif not uploaded_file: st.error("Vui lòng tải file đề thi lên!")
                             else:
-                                with st.spinner("AI đang quét bề mặt tài liệu và biên soạn lời giải... (Khoảng 10-30 giây)"):
+                                with st.spinner("Radar AI đang bóc tách TOÀN BỘ 40-50 CÂU HỎI. Quá trình này có thể mất đến 1 phút..."):
                                     file_bytes = uploaded_file.read()
                                     mime_type = uploaded_file.type
                                     
-                                    prompt = """Đọc đề thi trong tài liệu đính kèm. Trích xuất TOÀN BỘ câu hỏi.
-                                    CẢNH BÁO QUAN TRỌNG: Trích xuất ĐẦY ĐỦ 100% số câu hỏi có trong đề.
-                                    TUYỆT ĐỐI KHÔNG DÙNG JSON. Hãy trả về kết quả dưới dạng văn bản thô (Plain Text), tuân thủ CHÍNH XÁC cấu trúc thẻ Tag dưới đây cho mỗi câu hỏi (Bắt đầu mỗi câu bằng <Q> và kết thúc bằng </Q>):
+                                    # LỆNH THIẾT QUÂN LUẬT: Ép AI làm đủ 100% câu và dùng thẻ [CAU]
+                                    prompt = """Nhiệm vụ: Trích xuất TOÀN BỘ câu hỏi trắc nghiệm từ tài liệu đính kèm.
+                                    CẢNH BÁO QUAN TRỌNG: Đề thi thường có từ 40 đến 50 câu. Bạn BẮT BUỘC PHẢI trích xuất đầy đủ 100% số câu hỏi. TUYỆT ĐỐI KHÔNG ĐƯỢC LÀM TẮT, KHÔNG ĐƯỢC TÓM TẮT, KHÔNG ĐƯỢC DỪNG LẠI GIỮA CHỪNG. Hãy xử lý kiên nhẫn từ câu 1 đến câu cuối cùng.
+                                    
+                                    Định dạng đầu ra: Văn bản thô (Plain Text) với các thẻ đánh dấu cực kỳ đơn giản như sau cho MỖI CÂU HỎI:
 
-                                    <Q>
-                                    QUESTION: Nội dung câu hỏi
-                                    OPTA: Nội dung đáp án A
-                                    OPTB: Nội dung đáp án B
-                                    OPTC: Nội dung đáp án C
-                                    OPTD: Nội dung đáp án D
-                                    ANSWER: Chỉ ghi 1 chữ cái A, B, C hoặc D
-                                    HINT: Lời giải chi tiết
-                                    </Q>
+                                    [CAU] Nội dung câu hỏi
+                                    [A] Nội dung đáp án A
+                                    [B] Nội dung đáp án B
+                                    [C] Nội dung đáp án C
+                                    [D] Nội dung đáp án D
+                                    [DAP_AN] A
+                                    [LOI_GIAI] Viết lời giải chi tiết cho học sinh hiểu
 
                                     LƯU Ý TOÁN HỌC:
                                     - Ký hiệu LaTeX phải bọc trong dấu đô-la (VD: $x^2 + 1 = 0$, $\\frac{1}{2}$). 
-                                    - Tuyệt đối không dùng \\( hay \\) hay ngoặc đơn ( ) để bọc công thức."""
+                                    - KHÔNG DÙNG \\( hay \\) hay ngoặc đơn ( ) để bọc công thức.
+                                    """
                                     
                                     try:
                                         res = call_ai_safely(prompt, file_bytes, mime_type)
-                                        st.session_state.ai_pdf_preview = parse_ai_text(res.text)
+                                        st.session_state.ai_pdf_preview = parse_ai_text_v31(res.text)
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"Lỗi AI: {str(e)}")
