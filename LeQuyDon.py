@@ -39,7 +39,7 @@ except ImportError:
 VN_TZ = timezone(timedelta(hours=7))
 
 # --- MÃ API KEY BÍ MẬT CỦA ADMIN (CHỈ GHI 1 LẦN) ---
-GEMINI_API_KEY = "AIzaSyDFfDUSfvkIAVPrWy7jlPs1tykBv7553IY"
+GEMINI_API_KEY = "AIzaSyAAKymdzIpyMIr76LNcY__6CrZE4QQ1IpY"
 
 if AI_AVAILABLE and GEMINI_API_KEY and "DÁN_MÃ" not in GEMINI_API_KEY:
     try:
@@ -1142,3 +1142,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
