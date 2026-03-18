@@ -1,7 +1,7 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V20 SUPREME ULTIMATE (FINAL RADAR AI)
-# Đột phá: Radar tự động quét và lựa chọn mô hình AI hợp lệ từ Google (Diệt 100% lỗi 404).
-# Giữ nguyên: Biến PDF thành ảnh (PyMuPDF PIL), Đồ họa chuẩn SGK, Sinh 40 câu hỏi.
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V20 SUPREME ULTIMATE (FINAL PROMPT FIX)
+# Hoàn thiện: Tối ưu hóa câu lệnh (Prompt) ép AI phải tự giải toán ngắn gọn thay vì copy chữ mẫu.
+# Giữ nguyên: Radar dò Model chống 404, Biến PDF thành ảnh, Đồ họa chuẩn SGK, Sinh 40 câu hỏi.
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
@@ -39,7 +39,7 @@ except ImportError:
 VN_TZ = timezone(timedelta(hours=7))
 
 # --- MÃ API KEY BÍ MẬT CỦA ADMIN ---
-GEMINI_API_KEY = "AIzaSyAAKymdzIpyMIr76LNcY__6CrZE4QQ1IpY"
+GEMINI_API_KEY = "AIzaSyDFfDUSfvkIAVPrWy7jlPs1tykBv7553IY"
 
 # --- 🚀 BƯỚC ĐỘT PHÁ: RADAR TỰ ĐỘNG DÒ TÌM MODEL HỢP LỆ (KHÔNG BAO GIỜ 404) ---
 def call_ai_safely(prompt, file_bytes=None, mime_type=None):
@@ -306,7 +306,7 @@ class ExamGenerator:
             seed = time.time()
             prompt = f"""Mốc thời gian: {seed}. 
             Đóng vai Chuyên gia Tuyển sinh Toán học. Sáng tạo 5 CÂU HỎI trắc nghiệm Toán 9 thực tiễn đa dạng.
-            YÊU CẦU: Trả về ĐÚNG JSON nguyên khối: [{{"question": "...", "options": ["A", "B", "C", "D"], "answer": "...", "hint": "...", "image_svg": ""}}]"""
+            YÊU CẦU: Trả về ĐÚNG JSON nguyên khối: [{{"question": "...", "options": ["A", "B", "C", "D"], "answer": "...", "hint": "<Viết lời giải ngắn gọn hoặc gợi ý cách làm tại đây>", "image_svg": ""}}]"""
             
             res = call_ai_safely(prompt)
             raw_text = re.sub(r'```json\n?', '', res.text)
@@ -510,7 +510,6 @@ def main():
                             b64 = exam_row['file_data']
                             mime = exam_row['file_type']
                             
-                            # --- HIỂN THỊ PDF: CHUYỂN ẢNH CHỐNG MẶT MẾU ---
                             if 'pdf' in str(mime).lower():
                                 if not PDF_RENDERER_AVAILABLE:
                                     st.warning("Hệ thống thiếu PyMuPDF. Trình duyệt có thể chặn file này.")
@@ -594,7 +593,6 @@ def main():
                         ans_key = json.loads(exam_row['answer_key'])
                         num_q = len(ans_key)
                         
-                        # Lấy lời giải AI nếu có
                         ai_hints = []
                         if pd.notnull(exam_row.get('questions_json')) and str(exam_row.get('questions_json')).strip() != "":
                             try: ai_hints = json.loads(exam_row['questions_json'])
@@ -613,7 +611,6 @@ def main():
                                 else: 
                                     st.error(f"**Câu {i+1}: {stu_val}** ❌ (Đúng: {correct_val})")
                                     
-                                # Hiển thị Lời giải AI
                                 if ai_hints and len(ai_hints) > i:
                                     with st.expander("💡 Xem hướng dẫn giải từ AI"):
                                         st.markdown(ai_hints[i].get('hint', 'Chưa có lời giải chi tiết.'))
@@ -681,8 +678,8 @@ def main():
             if 'user_answers' not in st.session_state: st.session_state.user_answers = {}
             if 'is_submitted' not in st.session_state: st.session_state.is_submitted = False
 
-            if st.button("🔄 TẠO ĐỀ LUYỆN TẬP MỚI", use_container_width=True):
-                with st.spinner("Đang kết nối AI và vẽ đồ họa chuẩn SGK..."):
+            if st.button("🔄 TẠO ĐỀ LUYỆN TẬP ĐỘC BẢN", use_container_width=True):
+                with st.spinner("Đang kết nối AI và lấy 40 câu hỏi độc bản ngẫu nhiên..."):
                     gen = ExamGenerator()
                     st.session_state.exam_data = gen.generate_all()
                     st.session_state.user_answers = {str(q['id']): None for q in st.session_state.exam_data}
@@ -1034,7 +1031,7 @@ def main():
                             st.dataframe(df_stats[['Câu', 'Số HS làm sai']], use_container_width=True)
                         else: st.info("Cần có dữ liệu nộp bài để hệ thống phân tích.")
 
-        # --- TAB 4: PHÁT ĐỀ VÀ KIỂM DUYỆT AI ---
+        # --- TAB 4: PHÁT ĐỀ ---
         with tab_system:
             st.subheader("📤 Phát Bài Tập Cho Học Sinh")
             
@@ -1062,7 +1059,7 @@ def main():
                 if exam_type == "📤 Tải lên đề thi của tôi (File PDF/Ảnh)":
                     uploaded_file = st.file_uploader("1. Tải File Đề (Hỗ trợ PDF, JPG, PNG)", type=['pdf', 'jpg', 'png', 'jpeg'])
                     
-                    pdf_method = st.radio("2. Cấu hình Đáp án & Lời giải:", ["✍️ Nhập chuỗi đáp án thủ công", "🤖 Nhờ AI phân tích file và viết lời giải chi tiết (Khuyên dùng)"])
+                    pdf_method = st.radio("2. Cấu hình Đáp án & Lời giải:", ["✍️ Nhập chuỗi đáp án thủ công", "🤖 Nhờ AI đọc file, phân tích đáp án và viết lời giải (Khuyên dùng)"])
                     
                     if pdf_method == "✍️ Nhập chuỗi đáp án thủ công":
                         ans_input = st.text_input("Nhập chuỗi Đáp án Đúng (Viết liền, VD: ABCDABCD)")
@@ -1073,6 +1070,7 @@ def main():
                             else:
                                 ans_clean = list(ans_input.upper().replace(" ", "").replace(",", ""))
                                 valid_chars = all(char in ['A', 'B', 'C', 'D'] for char in ans_clean)
+                                # Fix lỗi 60.2 - Chèn chuỗi đúng vào answer_key
                                 if not valid_chars: 
                                     st.error("❌ Chuỗi đáp án bị lỗi! Chỉ được phép chứa các chữ A, B, C, D.")
                                 else:
@@ -1091,11 +1089,12 @@ def main():
                             if not exam_title: st.error("Vui lòng nhập tên bài thi!")
                             elif not uploaded_file: st.error("Vui lòng tải file đề thi lên!")
                             else:
-                                with st.spinner("AI đang quét bề mặt tài liệu và biên soạn lời giải... (Khoảng 10-20 giây)"):
+                                with st.spinner("AI đang quét bề mặt tài liệu và biên soạn lời giải... (Khoảng 10-30 giây)"):
                                     file_bytes = uploaded_file.read()
                                     mime_type = uploaded_file.type
                                     
-                                    prompt = "Đọc đề thi trong ảnh/tài liệu sau. Trích xuất toàn bộ câu hỏi thành danh sách JSON. Cấu trúc BẮT BUỘC: [{'id': 1, 'question': 'nội dung', 'options': ['A', 'B', 'C', 'D'], 'answer': 'A', 'hint': 'Giải thích chi tiết từng bước cho học sinh hiểu'}]. Chỉ xuất JSON, không xuất chữ nào khác."
+                                    # CẢI TIẾN CÂU LỆNH PROMPT ĐỂ AI PHẢI TỰ GIẢI
+                                    prompt = "Đọc đề thi trong ảnh/tài liệu sau. Trích xuất toàn bộ câu hỏi thành danh sách JSON. Cấu trúc BẮT BUỘC: [{'id': 1, 'question': 'nội dung', 'options': ['A', 'B', 'C', 'D'], 'answer': 'A', 'hint': '<Hãy tự viết lời giải ngắn gọn hoặc gợi ý cách làm cho câu hỏi này>'}]. Chỉ xuất JSON, không xuất chữ nào khác."
                                     
                                     try:
                                         res = call_ai_safely(prompt, file_bytes, mime_type)
@@ -1107,7 +1106,7 @@ def main():
                                         else:
                                             st.error("AI không thể bóc tách cấu trúc đề này.")
                                     except Exception as e:
-                                        st.error(f"Lỗi hệ thống: {str(e)}")
+                                        st.error(f"Lỗi AI: {str(e)}")
                                         
                         if st.session_state.ai_pdf_preview:
                             st.success("✅ AI đã hoàn tất bóc tách! Mời thầy/cô soát duyệt trước khi giao:")
@@ -1157,4 +1156,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
