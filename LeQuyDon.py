@@ -1,8 +1,7 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V36 SUPREME ULTIMATE (CHUNKING & PROGRESS BAR)
-# Đột phá tối thượng: Áp dụng công nghệ Quét Cuốn Chiếu (xé lẻ từng trang PDF) để trị triệt để bệnh "Lười" của AI.
-# Đảm bảo bóc tách 100% số lượng câu hỏi (40-50 câu) kèm lời giải chi tiết.
-# Giữ nguyên: Trình tự chữa lành lỗi JSON/LaTeX, Đồ họa Toán, Két sắt API.
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V37 SUPREME ULTIMATE (PERFECTED CORE)
+# Nền tảng: Công nghệ Quét Cuốn Chiếu (Chunking) từng trang PDF bằng Thẻ Tag (Bulletproof Parser).
+# Đột phá: Đưa số trang vào Prompt, ép AI tập trung quét sạch 100% câu hỏi và giải siêu chi tiết.
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
@@ -65,7 +64,7 @@ def format_math_text(text):
     text = re.sub(r'\\\[(.*?)\\\]', r'$$\1$$', text)
     return text
 
-# --- 🚀 THUẬT TOÁN "VIÊN ĐẠN BẠC" BÓC TÁCH VĂN BẢN TỰ CHỮA LÀNH ---
+# --- 🚀 THUẬT TOÁN "VIÊN ĐẠN BẠC" BÓC TÁCH VĂN BẢN (KHÔNG DÙNG JSON) ---
 def extract_field(tag, next_tag, text, is_last=False):
     if is_last:
         pattern = rf'{re.escape(tag)}[\s:]*(.*)'
@@ -76,7 +75,6 @@ def extract_field(tag, next_tag, text, is_last=False):
 
 def parse_bulletproof(raw_text):
     questions = []
-    # Cải tiến: Tách bằng @@Q@@ thay vì @@ID@@ vì AI hay quên ghi ID
     blocks = re.split(r'(?i)@@Q@@', raw_text)
     for block in blocks:
         if not block.strip() or '@@A@@' not in block: continue
@@ -101,7 +99,7 @@ def parse_bulletproof(raw_text):
             ans_val = options[idx] if 0 <= idx < 4 else options[0]
 
             questions.append({
-                "id": 0, # Sẽ được đánh số lại sau
+                "id": 0, 
                 "question": format_math_text(q),
                 "options": options,
                 "answer": ans_val,
@@ -111,7 +109,7 @@ def parse_bulletproof(raw_text):
             continue
     return questions
 
-# --- RADAR TỰ ĐỘNG DÒ TÌM MODEL ---
+# --- RADAR TỰ ĐỘNG DÒ TÌM MODEL ƯU TIÊN PRO ---
 def call_ai_safely(prompt, img_object=None):
     if not AI_AVAILABLE:
         raise Exception("Hệ thống thiếu thư viện google-generativeai.")
@@ -132,7 +130,6 @@ def call_ai_safely(prompt, img_object=None):
     contents = [prompt]
     if img_object:
         contents.append(img_object)
-        # Ưu tiên Model Pro để AI làm việc chăm chỉ, nếu hết quota thì lùi về Flash
         preferences = ['models/gemini-1.5-pro-latest', 'models/gemini-1.5-pro', 'models/gemini-1.5-flash']
     else:
         preferences = ['models/gemini-1.5-pro-latest', 'models/gemini-1.5-pro', 'models/gemini-1.5-flash']
@@ -357,8 +354,8 @@ class ExamGenerator:
     def generate_all(self):
         ai_questions = []
         try:
-            prompt = """Nhiệm vụ: Tạo 5 câu hỏi trắc nghiệm Toán 9. Trả về định dạng Plain Text.
-            Định dạng:
+            prompt = """Nhiệm vụ: Tạo 5 câu hỏi trắc nghiệm Toán 9. 
+            Trả về dạng Plain Text với các Tag bọc mỗi câu (bắt đầu bằng @@Q@@):
             @@Q@@ Câu hỏi
             @@A@@ Đáp án A
             @@B@@ Đáp án B
@@ -399,7 +396,7 @@ class ExamGenerator:
 # 5. GIAO DIỆN HỆ THỐNG
 # ==========================================
 def main():
-    st.set_page_config(page_title="Hệ Thống LMS V36", layout="wide", page_icon="🏫")
+    st.set_page_config(page_title="Hệ Thống LMS V37", layout="wide", page_icon="🏫")
     init_db()
     
     if 'current_user' not in st.session_state: st.session_state.current_user = None
@@ -814,7 +811,7 @@ def main():
                     if st.session_state.is_submitted:
                         if selected == q['answer']: 
                             st.success("✅ Đúng")
-                        elif selected is None or str(selected).strip() == "None":
+                        elif selected is None or str(selected).strip() in ["None", ""]:
                             st.error(f"❌ Chưa làm. Đáp án đúng: {q['answer']}")
                         else: 
                             st.error(f"❌ Sai. Đáp án đúng: {q['answer']}")
@@ -1192,78 +1189,89 @@ def main():
                     else:
                         if 'ai_pdf_preview' not in st.session_state: st.session_state.ai_pdf_preview = None
                         
-                        if st.button("🤖 Phân tích Đề bằng AI V36", type="primary"):
+                        if st.button("🤖 Phân tích Đề bằng AI", type="primary"):
                             if not exam_title: st.error("Vui lòng nhập tên bài thi!")
                             elif not uploaded_file: st.error("Vui lòng tải file đề thi lên!")
                             else:
                                 file_bytes = uploaded_file.read()
                                 mime_type = uploaded_file.type
                                 
-                                # 🚀 BƯỚC ĐỘT PHÁ V36: QUÉT CUỐN CHIẾU TỪNG TRANG PDF
+                                # 🚀 BƯỚC ĐỘT PHÁ V37: QUÉT CUỐN CHIẾU TỪNG TRANG (TRỊ LƯỜI 100%)
                                 if "pdf" in mime_type.lower():
                                     if not PDF_RENDERER_AVAILABLE:
                                         st.error("Thiếu thư viện PyMuPDF để xử lý PDF.")
                                     else:
                                         doc = fitz.open(stream=file_bytes, filetype="pdf")
-                                        total_pages = min(len(doc), 15) # Hỗ trợ tới 15 trang
+                                        total_pages = min(len(doc), 15) 
                                         progress_bar = st.progress(0)
                                         status_text = st.empty()
                                         
                                         all_parsed = []
                                         
-                                        prompt = """Trích xuất TOÀN BỘ câu hỏi trắc nghiệm Toán học CÓ TRONG BỨC ẢNH NÀY.
-                                        TRẢ VỀ ĐÚNG ĐỊNH DẠNG VĂN BẢN DƯỚI ĐÂY CHO TỪNG CÂU HỎI (Mỗi câu bắt đầu bằng @@Q@@):
-                                        @@Q@@ Nội dung câu hỏi
-                                        @@A@@ Nội dung đáp án A
-                                        @@B@@ Nội dung đáp án B
-                                        @@C@@ Nội dung đáp án C
-                                        @@D@@ Nội dung đáp án D
-                                        @@ANS@@ Chỉ ghi 1 chữ cái A, B, C hoặc D
-                                        @@HINT@@ Viết lời giải chi tiết
-                                        
-                                        LƯU Ý: Công thức Toán LaTeX phải bọc trong dấu đô-la (VD: $x^2+1=0$). KHÔNG dùng \\( hay \\)."""
-
                                         for page_num in range(total_pages):
-                                            status_text.markdown(f"**⏳ Đang quét trang {page_num + 1}/{total_pages}... (AI đang giải chi tiết, vui lòng đợi)**")
+                                            status_text.markdown(f"**⏳ Đang quét trang {page_num + 1}/{total_pages}... (AI đang cày ải giải chi tiết, vui lòng đợi)**")
                                             pix = doc.load_page(page_num).get_pixmap(dpi=150)
                                             img = Image.open(BytesIO(pix.tobytes("png")))
                                             
+                                            # Đưa số trang vào để AI không bị "lười"
+                                            page_prompt = f"""Đây là TRANG SỐ {page_num + 1} của một đề thi Toán.
+                                            Nhiệm vụ của bạn: Trích xuất TOÀN BỘ các câu hỏi trắc nghiệm CÓ TRONG TRANG NÀY.
+                                            
+                                            CẢNH BÁO TỐI CAO: 
+                                            - Phải trích xuất ĐẦY ĐỦ 100% số câu hỏi nhìn thấy trên trang này. KHÔNG ĐƯỢC BỎ SÓT.
+                                            - BẮT BUỘC PHẢI viết HƯỚNG DẪN GIẢI CHI TIẾT TỪNG BƯỚC cho mỗi câu. Không giải vắn tắt.
+
+                                            TRẢ VỀ ĐÚNG ĐỊNH DẠNG VĂN BẢN THÔ SAU:
+                                            @@Q@@ Nội dung câu hỏi
+                                            @@A@@ Đáp án A
+                                            @@B@@ Đáp án B
+                                            @@C@@ Đáp án C
+                                            @@D@@ Đáp án D
+                                            @@ANS@@ Chữ cái đúng (A/B/C/D)
+                                            @@HINT@@ Lời giải siêu chi tiết
+
+                                            LƯU Ý TOÁN HỌC: Mọi công thức Toán học LaTeX phải bọc trong dấu đô-la (VD: $x^2+1=0$). KHÔNG dùng \\( hay \\)."""
+                                            
                                             try:
-                                                res = call_ai_safely(prompt, img_object=img)
+                                                res = call_ai_safely(page_prompt, img_object=img)
                                                 page_q = parse_bulletproof(res.text)
                                                 all_parsed.extend(page_q)
                                             except Exception as e:
-                                                pass # Nếu trang đó không có câu hỏi (ví dụ trang bìa), bỏ qua
+                                                pass 
                                                 
                                             progress_bar.progress((page_num + 1) / total_pages)
-                                            time.sleep(3) # Tạm nghỉ 3s để tránh bị Google chặn Quota
+                                            time.sleep(3) # Nghỉ để tránh Google khóa quota
 
                                         if not all_parsed:
-                                            st.error("Không tìm thấy câu hỏi nào trong đề thi.")
+                                            st.error("Không tìm thấy câu hỏi nào trong đề thi. Bạn hãy kiểm tra lại file PDF.")
                                         else:
-                                            # Đánh số thứ tự lại từ 1 đến hết
+                                            # Đánh số ID chuẩn lại từ 1 đến hết
                                             for i, q in enumerate(all_parsed):
                                                 q['id'] = i + 1
                                             st.session_state.ai_pdf_preview = all_parsed
-                                            status_text.markdown(f"**✅ Đã quét xong {len(all_parsed)} câu hỏi trên toàn bộ đề thi!**")
+                                            status_text.markdown(f"**✅ Đã quét xong TOÀN BỘ {len(all_parsed)} câu hỏi của đề thi!**")
                                             st.rerun()
                                 else:
-                                    # Xử lý nếu file tải lên là 1 tấm ảnh JPG/PNG
-                                    with st.spinner("AI đang quét bề mặt tài liệu và biên soạn lời giải..."):
+                                    with st.spinner("AI đang quét ảnh và biên soạn lời giải..."):
                                         prompt = """Trích xuất TOÀN BỘ câu hỏi trắc nghiệm Toán học CÓ TRONG BỨC ẢNH NÀY.
-                                        TRẢ VỀ ĐÚNG ĐỊNH DẠNG VĂN BẢN DƯỚI ĐÂY CHO TỪNG CÂU HỎI (Mỗi câu bắt đầu bằng @@Q@@):
+                                        CẢNH BÁO TỐI CAO: Không được lười biếng. Phải quét đủ 100% câu hỏi có trong ảnh.
+                                        TRẢ VỀ ĐÚNG ĐỊNH DẠNG VĂN BẢN SAU (Mỗi câu bắt đầu bằng @@Q@@):
                                         @@Q@@ Nội dung câu hỏi
-                                        @@A@@ Nội dung đáp án A
-                                        @@B@@ Nội dung đáp án B
-                                        @@C@@ Nội dung đáp án C
-                                        @@D@@ Nội dung đáp án D
-                                        @@ANS@@ Chỉ ghi 1 chữ cái A, B, C hoặc D
+                                        @@A@@ Đáp án A
+                                        @@B@@ Đáp án B
+                                        @@C@@ Đáp án C
+                                        @@D@@ Đáp án D
+                                        @@ANS@@ Chữ cái đúng (A/B/C/D)
                                         @@HINT@@ Viết lời giải chi tiết
                                         """
                                         img = Image.open(BytesIO(file_bytes))
                                         try:
                                             res = call_ai_safely(prompt, img_object=img)
                                             parsed = parse_bulletproof(res.text)
+                                            
+                                            for i, q in enumerate(parsed):
+                                                q['id'] = i + 1
+                                                
                                             st.session_state.ai_pdf_preview = parsed
                                             st.rerun()
                                         except Exception as e:
@@ -1273,12 +1281,12 @@ def main():
                             ans_key_ai = []
                             with st.expander("🔍 XEM TRƯỚC ĐÁP ÁN & LỜI GIẢI TỪ AI", expanded=True):
                                 for q in st.session_state.ai_pdf_preview:
-                                    st.markdown(f"**Câu {q['id']}:** {format_math_text(q.get('question',''))}")
+                                    st.markdown(f"**Câu {q['id']}:** {q.get('question','')}")
                                     ans_letter = re.sub(r'[^A-D]', '', str(q.get('answer', 'A')).upper())
                                     final_ans = ans_letter[0] if ans_letter else 'A'
                                     ans_key_ai.append(final_ans)
                                     st.markdown(f"- ✅ **Đáp án đúng:** {final_ans}")
-                                    st.markdown(f"- 💡 **Lời giải:** {format_math_text(q.get('hint',''))}")
+                                    st.markdown(f"- 💡 **Lời giải:** {q.get('hint','')}")
                                     st.markdown("---")
                                     
                             c_duyet, c_huy = st.columns(2)
