@@ -30,10 +30,10 @@ except ImportError:
 VN_TZ = timezone(timedelta(hours=7))
 
 # --- DÁN MÃ API KEY BÍ MẬT CỦA ADMIN VÀO ĐÂY ---
-GEMINI_API_KEY = "DÁN_MÃ_API_CỦA_BẠN_VÀO_ĐÂY" 
+GEMINI_API_KEY = "AIzaSyDfFDUsfvkiAVPrWy7jlPs1tykBv7553IY" 
 
 # Khởi tạo AI Model trực tiếp & minh bạch
-if AI_AVAILABLE and GEMINI_API_KEY and GEMINI_API_KEY.strip() != "DÁN_MÃ_API_CỦA_BẠN_VÀO_ĐÂY":
+if AI_AVAILABLE and GEMINI_API_KEY and GEMINI_API_KEY.strip() != "AIzaSyDfFDUsfvkiAVPrWy7jlPs1tykBv7553IY":
     genai.configure(api_key=GEMINI_API_KEY.strip())
     ai_model = genai.GenerativeModel('gemini-1.5-flash')
 else:
@@ -1075,3 +1075,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
