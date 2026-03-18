@@ -1,7 +1,7 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V23 SUPREME ULTIMATE (BẢN TỰ ĐỘNG HOÀN TOÀN)
-# Đột phá: Lưu trữ API Key vĩnh viễn vào Database. Giải phóng Admin khỏi việc sửa code mỗi lần nâng cấp.
-# Giữ nguyên: Radar AI quét Model, Render PDF chống mặt mếu, Ép AI viết lời giải chi tiết.
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V24 SUPREME ULTIMATE (ANTI-JSON CRASH)
+# Xử lý triệt để: Lỗi Invalid Control Character khi AI bóc tách công thức Toán (LaTeX).
+# Giữ nguyên: Lưu API Key vào DB, Radar dò Model chống 404, Render PDF siêu nét.
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
@@ -21,10 +21,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from datetime import datetime, timedelta, timezone
 
-# --- THÊM THƯ VIỆN XỬ LÝ ẢNH CHUẨN ---
 from PIL import Image
 
-# --- KẾT NỐI GEMINI AI & PYMUPDF ---
 try:
     import google.generativeai as genai
     AI_AVAILABLE = True
@@ -32,14 +30,14 @@ except ImportError:
     AI_AVAILABLE = False
 
 try:
-    import fitz  # Thư viện PyMuPDF
+    import fitz  # PyMuPDF
     PDF_RENDERER_AVAILABLE = True
 except ImportError:
     PDF_RENDERER_AVAILABLE = False
 
 VN_TZ = timezone(timedelta(hours=7))
 
-# --- 🚀 ĐỘNG CƠ V23: KÉT SẮT LƯU TRỮ API KEY VĨNH CỬU ---
+# --- DATABASE VAULT ĐỂ LƯU API KEY ---
 def get_api_key():
     try:
         conn = sqlite3.connect('exam_db.sqlite')
@@ -58,14 +56,14 @@ def save_api_key(key_str):
     conn.commit()
     conn.close()
 
-# --- 🚀 ĐỘNG CƠ V23: RADAR TỰ ĐỘNG DÒ TÌM MODEL HỢP LỆ ---
+# --- 🚀 RADAR TỰ ĐỘNG DÒ TÌM MODEL ---
 def call_ai_safely(prompt, file_bytes=None, mime_type=None):
     if not AI_AVAILABLE:
         raise Exception("Hệ thống thiếu thư viện google-generativeai. Cần thêm vào requirements.txt")
     
     current_key = get_api_key()
     if not current_key or len(current_key) < 20 or "DÁN_MÃ" in current_key:
-        raise Exception("Hệ thống chưa được cấu hình AI. Admin Trường vui lòng đăng nhập và dán mã API Key ở Menu bên trái!")
+        raise Exception("Chưa cấu hình API Key. Admin Trường vui lòng vào Menu bên trái để lưu mã API.")
         
     genai.configure(api_key=current_key.strip())
     
@@ -81,7 +79,7 @@ def call_ai_safely(prompt, file_bytes=None, mime_type=None):
         needs_vision = True
         if "pdf" in mime_type.lower():
             if not PDF_RENDERER_AVAILABLE:
-                raise Exception("Thiếu thư viện PyMuPDF để xử lý PDF. Cần thêm vào requirements.txt")
+                raise Exception("Thiếu thư viện PyMuPDF để xử lý PDF.")
             doc = fitz.open(stream=file_bytes, filetype="pdf")
             for page_num in range(min(len(doc), 4)): 
                 pix = doc.load_page(page_num).get_pixmap(dpi=100) 
@@ -112,7 +110,7 @@ def call_ai_safely(prompt, file_bytes=None, mime_type=None):
         model = genai.GenerativeModel(clean_model_name)
         return model.generate_content(contents)
     except Exception as e:
-        raise Exception(f"Hệ thống đã chọn mô hình tốt nhất ({clean_model_name}) nhưng Google vẫn từ chối. Lỗi: {str(e)}")
+        raise Exception(f"Google từ chối xử lý bằng mô hình {clean_model_name}. Lỗi: {str(e)}")
 
 # ==========================================
 # 1. HÀM HỖ TRỢ EXCEL & REGEX 
@@ -151,7 +149,7 @@ def generate_username(fullname, dob):
     return f"{clean_name}{suffix}_{random.randint(10,99)}"
 
 # ==========================================
-# 2. CƠ SỞ DỮ LIỆU ĐA TẦNG V23
+# 2. CƠ SỞ DỮ LIỆU ĐA TẦNG
 # ==========================================
 def init_db():
     conn = sqlite3.connect('exam_db.sqlite')
@@ -179,9 +177,7 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT, deleted_by TEXT, entity_type TEXT, entity_name TEXT, reason TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
     
-    # BẢNG MỚI: LƯU TRỮ CÀI ĐẶT HỆ THỐNG BẢO MẬT
     c.execute('''CREATE TABLE IF NOT EXISTS system_settings (setting_key TEXT PRIMARY KEY, setting_value TEXT)''')
-    
     c.execute("INSERT OR IGNORE INTO users (username, password, role, fullname) VALUES ('maducnghi6789@gmail.com', 'admin123', 'core_admin', 'Admin Trường')")
     conn.commit(); conn.close()
 
@@ -269,7 +265,7 @@ def draw_dynamic_shadow(h_cot, bong_cot, bong_cay):
     return fig_to_base64(fig)
 
 # ==========================================
-# 4. ĐỘNG CƠ SINH ĐỀ CHUYÊN SÂU V23
+# 4. ĐỘNG CƠ SINH ĐỀ CHUYÊN SÂU
 # ==========================================
 class ExamGenerator:
     def __init__(self):
@@ -319,20 +315,28 @@ class ExamGenerator:
         ai_questions = []
         try:
             seed = time.time()
+            # BẢO VỆ PROMPT CHỐNG LỖI CÚ PHÁP JSON DO XUỐNG DÒNG HAY LATEX
             prompt = f"""Mốc thời gian: {seed}. 
             Đóng vai Chuyên gia Tuyển sinh Toán học. Sáng tạo 5 CÂU HỎI trắc nghiệm Toán 9 thực tiễn đa dạng.
-            YÊU CẦU: Trả về ĐÚNG JSON nguyên khối: [{{"question": "...", "options": ["A", "B", "C", "D"], "answer": "...", "hint": "Viết lời giải chi tiết hoặc gợi ý cách làm tại đây", "image_svg": ""}}]"""
+            YÊU CẦU: Trả về ĐÚNG JSON nguyên khối: [{{"id": 1, "question": "...", "options": ["A", "B", "C", "D"], "answer": "A", "hint": "Viết lời giải chi tiết tại đây", "image_svg": ""}}]
+            LƯU Ý ĐẶC BIỆT ĐỂ KHÔNG BỊ LỖI JSON:
+            1. Tuyệt đối không bấm Enter ngắt dòng bên trong nội dung chuỗi. Nếu cần ngắt dòng hãy dùng '\\n'.
+            2. Mọi công thức Toán học (LaTeX) phải được viết chuẩn với 2 dấu gạch chéo ngược, ví dụ: \\\\frac, \\\\sqrt.
+            3. Chỉ xuất JSON, không xuất câu dẫn giải thích."""
             
             res = call_ai_safely(prompt)
             raw_text = res.text.replace('```json', '').replace('```', '').strip()
             match = re.search(r'\[.*\]', raw_text, re.DOTALL)
             
             if match:
-                parsed_q = json.loads(match.group())
+                json_str = match.group()
+                # 3 LỚP BẢO VỆ ANTI-CRASH JSON: Quét dọn sạch ký tự điều khiển ẩn
+                json_str = re.sub(r'[\x00-\x1F]+', '', json_str)
+                parsed_q = json.loads(json_str, strict=False)
                 for q in parsed_q:
                     ai_questions.append({
-                        "q": q.get("question", "").strip(), "opts": self.format_options(q.get("answer", ""), [o for o in q.get("options",[]) if o != q.get("answer","")]), 
-                        "a": q.get("answer", ""), "h": q.get("hint", ""), "i_svg": q.get("image_svg", ""), "i": None
+                        "q": str(q.get("question", "")).strip(), "opts": self.format_options(str(q.get("answer", "")), [str(o) for o in q.get("options",[]) if str(o) != str(q.get("answer",""))]), 
+                        "a": str(q.get("answer", "")), "h": str(q.get("hint", "")), "i_svg": q.get("image_svg", ""), "i": None
                     })
         except Exception:
             pass 
@@ -350,10 +354,10 @@ class ExamGenerator:
         return self.exam
 
 # ==========================================
-# 5. GIAO DIỆN HỆ THỐNG V23
+# 5. GIAO DIỆN HỆ THỐNG V24
 # ==========================================
 def main():
-    st.set_page_config(page_title="Hệ Thống LMS V23", layout="wide", page_icon="🏫")
+    st.set_page_config(page_title="Hệ Thống LMS V24", layout="wide", page_icon="🏫")
     init_db()
     
     if 'current_user' not in st.session_state: st.session_state.current_user = None
@@ -361,7 +365,7 @@ def main():
     if 'fullname' not in st.session_state: st.session_state.fullname = None
 
     if st.session_state.current_user is None:
-        st.markdown("<h1 style='text-align: center; color: #2c3e50;'>🎓 HỆ THỐNG KIỂM TRA TRỰC TUYẾN V23</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center; color: #2c3e50;'>🎓 HỆ THỐNG KIỂM TRA TRỰC TUYẾN</h1>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1, 1.5, 1])
         with col2:
             with st.form("login_form"):
@@ -383,13 +387,12 @@ def main():
                         st.error("❌ Sai tài khoản hoặc mật khẩu!")
         return
 
-    # --- SIDEBAR V23: THÊM CẤU HÌNH API KEY (LƯU DATABASE) ---
+    # --- SIDEBAR V24 ---
     with st.sidebar:
         st.markdown(f"### 👤 {st.session_state.fullname}")
         role_map = {"core_admin": "👑 Admin Trường", "sub_admin": "🛡 Admin", "teacher": "👨‍🏫 Giáo viên", "student": "🎓 Học sinh"}
         st.markdown(f"**Vai trò:** {role_map.get(st.session_state.role, '')}")
         
-        # Chỉ Admin tối cao mới được quyền nạp và lưu Key
         if st.session_state.role == 'core_admin':
             st.markdown("---")
             st.markdown("### ⚙️ Cấu hình Hệ thống AI")
@@ -398,7 +401,7 @@ def main():
             if st.button("💾 Lưu API Key Vĩnh Viễn"):
                 if api_input:
                     save_api_key(api_input.strip())
-                    st.success("✅ Đã lưu API Key thành công! Kể từ nay khi nâng cấp App, bạn không cần phải dán lại mã nữa.")
+                    st.success("✅ Đã lưu API Key thành công!")
                     time.sleep(2)
                     st.rerun()
                 else:
@@ -435,7 +438,7 @@ def main():
     # GIAO DIỆN HỌC SINH 
     # ==========================
     if st.session_state.role == 'student':
-        tab_mand, tab_ai = st.tabs(["🔥 Bài kiểm tra Bắt buộc", "🤖 Đề tự luyện V23"])
+        tab_mand, tab_ai = st.tabs(["🔥 Bài kiểm tra Bắt buộc", "🤖 Đề tự luyện"])
         now_vn = datetime.now(VN_TZ)
         
         with tab_mand:
@@ -539,7 +542,6 @@ def main():
                             b64 = exam_row['file_data']
                             mime = exam_row['file_type']
                             
-                            # --- HIỂN THỊ PDF CHUYÊN NGHIỆP: CHUYỂN ẢNH CHỐNG MẶT MẾU ---
                             if 'pdf' in str(mime).lower():
                                 if not PDF_RENDERER_AVAILABLE:
                                     st.warning("Hệ thống thiếu PyMuPDF. Trình duyệt có thể chặn file này.")
@@ -623,12 +625,11 @@ def main():
                         ans_key = json.loads(exam_row['answer_key'])
                         num_q = len(ans_key)
                         
-                        # --- 💡 BƯỚC ĐỘT PHÁ GIAO DIỆN HỌC SINH: RÚT TRÍCH LỜI GIẢI AI AN TOÀN ---
                         ai_hints = []
                         q_json_raw = exam_row.get('questions_json')
                         if pd.notna(q_json_raw) and str(q_json_raw).strip() not in ["", "None", "nan", "NaN", "null"]:
                             try: 
-                                parsed = json.loads(str(q_json_raw))
+                                parsed = json.loads(str(q_json_raw), strict=False)
                                 if isinstance(parsed, list):
                                     ai_hints = parsed
                             except: 
@@ -651,7 +652,6 @@ def main():
                                 else: 
                                     st.error(f"**Câu {i+1}: {stu_val_display}** ❌ (Đúng: {correct_val})")
                                     
-                                # Hiển thị Lời giải AI Đẹp mắt
                                 if ai_hints and i < len(ai_hints):
                                     hint_data = ai_hints[i]
                                     if isinstance(hint_data, dict):
@@ -738,7 +738,7 @@ def main():
             if 'user_answers' not in st.session_state: st.session_state.user_answers = {}
             if 'is_submitted' not in st.session_state: st.session_state.is_submitted = False
 
-            if st.button("🔄 TẠO ĐỀ LUYỆN TẬP V23", use_container_width=True):
+            if st.button("🔄 TẠO ĐỀ LUYỆN TẬP TỰ ĐỘNG", use_container_width=True):
                 with st.spinner("Đang kết nối Radar AI và lấy 40 câu hỏi độc bản ngẫu nhiên..."):
                     gen = ExamGenerator()
                     st.session_state.exam_data = gen.generate_all()
@@ -792,7 +792,7 @@ def main():
     # GIAO DIỆN QUẢN TRỊ & GIÁO VIÊN
     # ==========================
     elif st.session_state.role in ['core_admin', 'sub_admin', 'teacher']:
-        st.title("⚙ Bảng Điều Khiển (LMS V23)")
+        st.title("⚙ Bảng Điều Khiển (LMS)")
         
         if st.session_state.role in ['core_admin', 'sub_admin']:
             tabs = st.tabs(["🏫 Lớp & Học sinh", "🛡️ Quản lý Nhân sự", "📊 Báo cáo Điểm", "📤 Phát Đề (Giao Bài)"])
@@ -1122,12 +1122,12 @@ def main():
                 e_time = c2.time_input("Giờ thu", value=datetime.strptime("23:59", "%H:%M").time())
                 
                 st.markdown("---")
-                exam_type = st.radio("Lựa chọn phương thức giao bài:", ["📤 Tải lên đề thi của tôi (File PDF/Ảnh)", "🤖 Sinh ngẫu nhiên từ Lõi V23 (40 Câu)"])
+                exam_type = st.radio("Lựa chọn phương thức giao bài:", ["📤 Tải lên đề thi của tôi (File PDF/Ảnh)", "🤖 Sinh ngẫu nhiên tự động (40 Câu)"])
                 
                 if exam_type == "📤 Tải lên đề thi của tôi (File PDF/Ảnh)":
                     uploaded_file = st.file_uploader("1. Tải File Đề (Hỗ trợ PDF, JPG, PNG)", type=['pdf', 'jpg', 'png', 'jpeg'])
                     
-                    pdf_method = st.radio("2. Cấu hình Đáp án & Lời giải:", ["✍️ Nhập chuỗi đáp án thủ công", "🤖 Nhờ Radar AI phân tích file và viết lời giải chi tiết (Khuyên dùng)"])
+                    pdf_method = st.radio("2. Cấu hình Đáp án & Lời giải:", ["✍️ Nhập chuỗi đáp án thủ công", "🤖 Nhờ AI quét đề, phân tích đáp án và viết lời giải (Khuyên dùng)"])
                     
                     if pdf_method == "✍️ Nhập chuỗi đáp án thủ công":
                         ans_input = st.text_input("Nhập chuỗi Đáp án Đúng (Viết liền, VD: ABCDABCD)")
@@ -1152,22 +1152,32 @@ def main():
                     else:
                         if 'ai_pdf_preview' not in st.session_state: st.session_state.ai_pdf_preview = None
                         
-                        if st.button("🤖 Phân tích Đề bằng Radar AI V23", type="primary"):
+                        if st.button("🤖 Phân tích Đề bằng AI", type="primary"):
                             if not exam_title: st.error("Vui lòng nhập tên bài thi!")
                             elif not uploaded_file: st.error("Vui lòng tải file đề thi lên!")
                             else:
-                                with st.spinner("Radar AI đang quét tài liệu và biên soạn lời giải... (Khoảng 10-30 giây)"):
+                                with st.spinner("AI đang quét bề mặt tài liệu và biên soạn lời giải... (Khoảng 10-30 giây)"):
                                     file_bytes = uploaded_file.read()
                                     mime_type = uploaded_file.type
                                     
-                                    prompt = "Đọc đề thi trong ảnh/tài liệu sau. Trích xuất toàn bộ câu hỏi thành danh sách JSON. Cấu trúc BẮT BUỘC: [{'id': 1, 'question': 'nội dung', 'options': ['A', 'B', 'C', 'D'], 'answer': 'A', 'hint': 'Ghi rõ lời giải chi tiết hoặc giải thích vì sao chọn đáp án này cho học sinh hiểu'}]. Chỉ xuất JSON, không xuất chữ nào khác."
+                                    # LƯU Ý MẠNH MẼ ĐỂ CHỐNG LỖI JSON TỪ AI
+                                    prompt = """Đọc đề thi trong ảnh/tài liệu đính kèm. Trích xuất toàn bộ câu hỏi thành danh sách JSON. 
+                                    Cấu trúc BẮT BUỘC: [{'id': 1, 'question': 'nội dung', 'options': ['A', 'B', 'C', 'D'], 'answer': 'A', 'hint': 'Viết lời giải chi tiết hoặc giải thích vì sao chọn đáp án này cho học sinh hiểu'}]. 
+                                    LƯU Ý ĐẶC BIỆT ĐỂ KHÔNG BỊ LỖI JSON:
+                                    1. Tuyệt đối không dùng phím Enter (xuống dòng) bên trong nội dung chuỗi. Nếu cần xuống dòng hãy gõ '\\n'.
+                                    2. Mọi công thức Toán học LaTeX bắt buộc phải dùng 2 dấu gạch chéo ngược (ví dụ: \\\\frac, \\\\sqrt, \\\\Delta).
+                                    3. Chỉ xuất JSON, không xuất bất kỳ chữ nào ngoài JSON."""
                                     
                                     try:
                                         res = call_ai_safely(prompt, file_bytes, mime_type)
                                         raw_text = res.text.replace('```json', '').replace('```', '').strip()
                                         match = re.search(r'\[.*\]', raw_text, re.DOTALL)
                                         if match:
-                                            st.session_state.ai_pdf_preview = json.loads(match.group())
+                                            json_str = match.group()
+                                            # BỘ LỌC CHỐNG INVALID CONTROL CHARACTER (Xóa \n, \t tàng hình do AI sinh ra)
+                                            json_str = re.sub(r'[\x00-\x1F]+', '', json_str)
+                                            # strict=False để Python dễ dãi hơn với chuỗi
+                                            st.session_state.ai_pdf_preview = json.loads(json_str, strict=False)
                                             st.rerun()
                                         else:
                                             st.error("AI không thể bóc tách cấu trúc đề này.")
@@ -1207,7 +1217,7 @@ def main():
                                     st.rerun()
                 
                 else:
-                    if st.button("🚀 Phát Đề AI (Trộn Ngẫu Nhiên 40 Câu Lõi V23)", type="primary"):
+                    if st.button("🚀 Phát Đề Tự Động (Trộn Ngẫu Nhiên 40 Câu)", type="primary"):
                         if exam_title:
                             gen = ExamGenerator()
                             fixed_exam = gen.generate_all()
