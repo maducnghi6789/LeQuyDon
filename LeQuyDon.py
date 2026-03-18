@@ -1,13 +1,13 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V20 SUPREME ULTIMATE (FINAL LOGIC FIX)
-# Sửa lỗi: Viết lại logic kiểm tra API Key thông minh và tự động hoàn toàn
-# Giữ nguyên: Đồ họa SVG, PyMuPDF chống mặt mếu, Tự động giải đề
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V20 SUPREME ULTIMATE (FINAL PDF FIX)
+# Fix Lỗi 61: Xử lý PDF bằng File API có vòng lặp chờ Active.
+# Fix Lỗi 58: Bắt buộc Render PDF thành ảnh (Chống mặt mếu 100%).
+# Giữ nguyên: Đồ họa Toán học, Lõi 40 câu hỏi, Admin Trường.
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
 
 import streamlit as st
-import streamlit.components.v1 as components
 import random
 import math
 import pandas as pd
@@ -16,12 +16,14 @@ import base64
 import json
 import re
 import time
+import os
+import tempfile
 from io import BytesIO
 import matplotlib.pyplot as plt
 import numpy as np
 from datetime import datetime, timedelta, timezone
 
-# --- KẾT NỐI GEMINI AI & PDF RENDERER ---
+# --- KẾT NỐI GEMINI AI & PYMUPDF ---
 try:
     import google.generativeai as genai
     AI_AVAILABLE = True
@@ -29,18 +31,17 @@ except ImportError:
     AI_AVAILABLE = False
 
 try:
-    import fitz  # PyMuPDF
+    import fitz  # Thư viện PyMuPDF
     PDF_RENDERER_AVAILABLE = True
 except ImportError:
     PDF_RENDERER_AVAILABLE = False
 
 VN_TZ = timezone(timedelta(hours=7))
 
-# --- MÃ API KEY ĐÃ ĐƯỢC GẮN CHUẨN XÁC ---
-GEMINI_API_KEY = "AIzaSyDgb9xK-3vzzYwwsB4LFfUOqlvEaG9uh0g" 
+# --- MÃ API KEY BÍ MẬT ĐÃ ĐƯỢC GẮN SẴN ---
+GEMINI_API_KEY = "AIzaSyDFfDUSfvkIAVPrWy7jlPs1tykBv7553IY"
 
-# KHỞI TẠO AI: Logic cực kỳ đơn giản, cứ có Key là chạy!
-if AI_AVAILABLE and len(GEMINI_API_KEY) > 20:
+if AI_AVAILABLE and GEMINI_API_KEY:
     try:
         genai.configure(api_key=GEMINI_API_KEY.strip())
         ai_model = genai.GenerativeModel('gemini-1.5-flash')
@@ -48,6 +49,45 @@ if AI_AVAILABLE and len(GEMINI_API_KEY) > 20:
         ai_model = None
 else:
     ai_model = None
+
+# --- 🛡️ HÀM GỌI AI THÔNG MINH (CHUYÊN TRỊ LỖI 61 PDF) ---
+def call_ai_safely(prompt, file_bytes=None, mime_type=None):
+    if not ai_model:
+        raise Exception("Không thể kết nối AI. Vui lòng kiểm tra lại API Key.")
+    
+    if file_bytes and mime_type:
+        if "pdf" in mime_type.lower():
+            # XỬ LÝ PDF: BẮT BUỘC DÙNG UPLOAD FILE API (Tránh lỗi 404/61)
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                tmp.write(file_bytes)
+                tmp_path = tmp.name
+            
+            uploaded_file = None
+            try:
+                uploaded_file = genai.upload_file(path=tmp_path, mime_type="application/pdf")
+                
+                # Vòng lặp chờ Google xử lý file xong (Tránh lỗi Not Supported)
+                while uploaded_file.state.name == 'PROCESSING':
+                    time.sleep(2)
+                    uploaded_file = genai.get_file(uploaded_file.name)
+                
+                if uploaded_file.state.name == 'FAILED':
+                    raise Exception("Google từ chối xử lý file PDF này.")
+                
+                res = ai_model.generate_content([prompt, uploaded_file])
+                return res
+            finally:
+                if uploaded_file:
+                    try: genai.delete_file(uploaded_file.name)
+                    except: pass
+                try: os.remove(tmp_path)
+                except: pass
+        else:
+            # File ảnh (JPG/PNG) có thể gửi trực tiếp inline
+            return ai_model.generate_content([prompt, {"mime_type": mime_type, "data": file_bytes}])
+    else:
+        # Chỉ có Text
+        return ai_model.generate_content(prompt)
 
 # ==========================================
 # 1. HÀM HỖ TRỢ EXCEL & REGEX 
@@ -239,8 +279,7 @@ class ExamGenerator:
             ("Hệ số góc của đường thẳng $3x + 2y - 5 = 0$ là:", "$-1.5$", ["1.5", "3", "2"]),
             ("Giá trị của $\\sin 30^\\circ + \\cos 60^\\circ$ là:", "1", ["$0$", "$\\sqrt{3}$", "$\\frac{1}{2}$"]),
             ("Tâm đường tròn ngoại tiếp tam giác vuông nằm ở đâu?", "Trung điểm cạnh huyền", ["Trực tâm", "Trọng tâm", "Giao 3 đường phân giác"]),
-            ("Phương trình nào sau đây là phương trình bậc nhất hai ẩn?", "$2x - 3y = 5$", ["$x^2 - y = 0$", "$x + y^2 = 1$", "$\\frac{1}{x} + y = 2$"]),
-            ("Hàm số $y = \\sqrt{m-2} \\cdot x + 3$ là hàm số bậc nhất khi:", "$m > 2$", ["$m \\ge 2$", "$m < 2$", "$m \\ne 2$"])
+            ("Phương trình nào sau đây là phương trình bậc nhất hai ẩn?", "$2x - 3y = 5$", ["$x^2 - y = 0$", "$x + y^2 = 1$", "$\\frac{1}{x} + y = 2$"])
         ]
         
         for tpl in diverse_templates:
@@ -250,26 +289,26 @@ class ExamGenerator:
 
     def generate_all(self):
         ai_questions = []
-        if ai_model:
-            try:
-                seed = time.time()
-                prompt = f"""Mốc thời gian: {seed}. Đóng vai Chuyên gia Tuyển sinh Toán học. Sáng tạo 5 CÂU HỎI trắc nghiệm Toán 9 thực tiễn đa dạng.
-                YÊU CẦU: Trả về ĐÚNG JSON nguyên khối: [{{"question": "...", "options": ["A", "B", "C", "D"], "answer": "...", "hint": "...", "image_svg": ""}}]"""
-                
-                res = ai_model.generate_content(prompt)
-                raw_text = re.sub(r'```json\n?', '', res.text)
-                raw_text = re.sub(r'```\n?', '', raw_text)
-                match = re.search(r'\[.*\]', raw_text, re.DOTALL)
-                
-                if match:
-                    parsed_q = json.loads(match.group())
-                    for q in parsed_q:
-                        ai_questions.append({
-                            "q": q.get("question", "").strip(), "opts": self.format_options(q.get("answer", ""), [o for o in q.get("options",[]) if o != q.get("answer","")]), 
-                            "a": q.get("answer", ""), "h": q.get("hint", ""), "i_svg": q.get("image_svg", ""), "i": None
-                        })
-            except Exception:
-                pass 
+        try:
+            seed = time.time()
+            prompt = f"""Mốc thời gian: {seed}. 
+            Đóng vai Chuyên gia Tuyển sinh Toán học. Sáng tạo 5 CÂU HỎI trắc nghiệm Toán 9 thực tiễn đa dạng.
+            YÊU CẦU: Trả về ĐÚNG JSON nguyên khối: [{{"question": "...", "options": ["A", "B", "C", "D"], "answer": "...", "hint": "...", "image_svg": ""}}]"""
+            
+            res = call_ai_safely(prompt)
+            raw_text = re.sub(r'```json\n?', '', res.text)
+            raw_text = re.sub(r'```\n?', '', raw_text)
+            match = re.search(r'\[.*\]', raw_text, re.DOTALL)
+            
+            if match:
+                parsed_q = json.loads(match.group())
+                for q in parsed_q:
+                    ai_questions.append({
+                        "q": q.get("question", "").strip(), "opts": self.format_options(q.get("answer", ""), [o for o in q.get("options",[]) if o != q.get("answer","")]), 
+                        "a": q.get("answer", ""), "h": q.get("hint", ""), "i_svg": q.get("image_svg", ""), "i": None
+                    })
+        except Exception:
+            pass 
 
         local_distinct_pool = self.get_38_distinct_local_questions()
         final_pool = (ai_questions + local_distinct_pool)[:40]
@@ -458,9 +497,11 @@ def main():
                             b64 = exam_row['file_data']
                             mime = exam_row['file_type']
                             
-                            # --- HIỂN THỊ PDF BẰNG PyMuPDF (TRUYỂN THÀNH ẢNH TRÁNH MẶT MẾU) ---
+                            # --- HIỂN THỊ PDF BẰNG PyMuPDF ĐỂ TRÁNH MẶT MẾU ---
                             if 'pdf' in str(mime).lower():
-                                if PDF_RENDERER_AVAILABLE:
+                                if not PDF_RENDERER_AVAILABLE:
+                                    st.error("🚨 HỆ THỐNG THIẾU THƯ VIỆN PYMUPDF. Vui lòng báo Admin thêm 'PyMuPDF' vào requirements.txt")
+                                else:
                                     try:
                                         pdf_bytes = base64.b64decode(b64)
                                         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
@@ -469,10 +510,7 @@ def main():
                                             pix = page.get_pixmap(dpi=150)
                                             st.image(pix.tobytes("png"), use_container_width=True)
                                     except Exception as e:
-                                        st.markdown(f'<embed src="data:application/pdf;base64,{b64}" width="100%" height="800px" type="application/pdf">', unsafe_allow_html=True)
-                                else:
-                                    st.markdown(f'<embed src="data:application/pdf;base64,{b64}" width="100%" height="800px" type="application/pdf">', unsafe_allow_html=True)
-                                    st.warning("⚠️ Trình duyệt chặn PDF? Yêu cầu Admin thêm 'PyMuPDF' vào file requirements.txt.")
+                                        st.error(f"Lỗi Render: {str(e)}")
                             else:
                                 st.markdown(f'<img src="data:{mime};base64,{b64}" width="100%">', unsafe_allow_html=True)
                                 
@@ -579,9 +617,9 @@ def main():
                                         pix = page.get_pixmap(dpi=150)
                                         st.image(pix.tobytes("png"), use_container_width=True)
                                 except:
-                                    st.markdown(f'<embed src="data:application/pdf;base64,{b64}" width="100%" height="800px" type="application/pdf">', unsafe_allow_html=True)
+                                    st.error("Lỗi Render ảnh. Vui lòng thử lại.")
                             elif 'pdf' in str(mime).lower():
-                                st.markdown(f'<embed src="data:application/pdf;base64,{b64}" width="100%" height="800px" type="application/pdf">', unsafe_allow_html=True)
+                                st.error("🚨 HỆ THỐNG THIẾU THƯ VIỆN PYMUPDF. Vui lòng báo Admin thêm 'PyMuPDF' vào requirements.txt")
                             else:
                                 st.markdown(f'<img src="data:{mime};base64,{b64}" width="100%">', unsafe_allow_html=True)
                     else:
@@ -628,8 +666,8 @@ def main():
             if 'user_answers' not in st.session_state: st.session_state.user_answers = {}
             if 'is_submitted' not in st.session_state: st.session_state.is_submitted = False
 
-            if st.button("🔄 TẠO ĐỀ LUYỆN TẬP ĐỘC BẢN", use_container_width=True):
-                with st.spinner("Đang kết nối AI và lấy 40 câu hỏi độc bản ngẫu nhiên..."):
+            if st.button("🔄 TẠO ĐỀ LUYỆN TẬP MỚI", use_container_width=True):
+                with st.spinner("Đang xáo trộn dữ liệu và vẽ đồ họa chuẩn SGK..."):
                     gen = ExamGenerator()
                     st.session_state.exam_data = gen.generate_all()
                     st.session_state.user_answers = {str(q['id']): None for q in st.session_state.exam_data}
@@ -981,7 +1019,7 @@ def main():
                             st.dataframe(df_stats[['Câu', 'Số HS làm sai']], use_container_width=True)
                         else: st.info("Cần có dữ liệu nộp bài để hệ thống phân tích.")
 
-        # --- TAB 4: PHÁT ĐỀ ---
+        # --- TAB 4: PHÁT ĐỀ VÀ KIỂM DUYỆT AI ---
         with tab_system:
             st.subheader("📤 Phát Bài Tập Cho Học Sinh")
             
@@ -1009,7 +1047,7 @@ def main():
                 if exam_type == "📤 Tải lên đề thi của tôi (File PDF/Ảnh)":
                     uploaded_file = st.file_uploader("1. Tải File Đề (Hỗ trợ PDF, JPG, PNG)", type=['pdf', 'jpg', 'png', 'jpeg'])
                     
-                    pdf_method = st.radio("2. Cấu hình Đáp án & Lời giải:", ["✍️ Nhập chuỗi đáp án thủ công", "🤖 Nhờ AI phân tích file và viết lời giải chi tiết (Khuyên dùng)"])
+                    pdf_method = st.radio("2. Cấu hình Đáp án & Lời giải:", ["✍️ Nhập chuỗi đáp án thủ công", "🤖 Nhờ AI đọc file, phân tích đáp án và viết lời giải (Khuyên dùng)"])
                     
                     if pdf_method == "✍️ Nhập chuỗi đáp án thủ công":
                         ans_input = st.text_input("Nhập chuỗi Đáp án Đúng (Viết liền, VD: ABCDABCD)")
@@ -1037,29 +1075,15 @@ def main():
                         if st.button("🤖 Phân tích Đề bằng AI", type="primary"):
                             if not exam_title: st.error("Vui lòng nhập tên bài thi!")
                             elif not uploaded_file: st.error("Vui lòng tải file đề thi lên!")
-                            elif not ai_model: st.error("❌ LỖI HỆ THỐNG: Chưa cấu hình API Key. Vui lòng kiểm tra dòng 38.")
                             else:
-                                with st.spinner("AI đang quét bề mặt tài liệu và biên soạn lời giải... (Khoảng 10-20 giây)"):
+                                with st.spinner("AI đang quét tài liệu và biên soạn lời giải... (Khoảng 10-20 giây)"):
                                     file_bytes = uploaded_file.read()
                                     mime_type = uploaded_file.type
                                     
                                     prompt = "Đọc đề thi trong ảnh/tài liệu sau. Trích xuất toàn bộ câu hỏi thành danh sách JSON. Cấu trúc BẮT BUỘC: [{'id': 1, 'question': 'nội dung', 'options': ['A', 'B', 'C', 'D'], 'answer': 'A', 'hint': 'Giải thích chi tiết từng bước cho học sinh hiểu'}]. Chỉ xuất JSON, không xuất chữ nào khác."
                                     
                                     try:
-                                        # TUYỆT CHIÊU XUYÊN TƯỜNG LỬA: NẾU LÀ PDF, CHỤP ẢNH LẠI BẰNG FITZ VÀ GỬI INLINE CHO AI
-                                        contents = [prompt]
-                                        if "pdf" in mime_type.lower():
-                                            if not PDF_RENDERER_AVAILABLE:
-                                                st.error("Lỗi: Máy chủ thiếu thư viện PyMuPDF. Hãy cấu hình requirements.txt!")
-                                                st.stop()
-                                            doc = fitz.open(stream=file_bytes, filetype="pdf")
-                                            for page_idx in range(min(len(doc), 5)): # Phân tích tối đa 5 trang
-                                                pix = doc.load_page(page_idx).get_pixmap(dpi=150)
-                                                contents.append({"mime_type": "image/png", "data": pix.tobytes("png")})
-                                        else:
-                                            contents.append({"mime_type": mime_type, "data": file_bytes})
-                                            
-                                        res = ai_model.generate_content(contents)
+                                        res = call_ai_safely(prompt, file_bytes, mime_type)
                                         raw_text = res.text.replace('```json', '').replace('```', '').strip()
                                         match = re.search(r'\[.*\]', raw_text, re.DOTALL)
                                         if match:
@@ -1068,7 +1092,7 @@ def main():
                                         else:
                                             st.error("AI không thể bóc tách cấu trúc đề này.")
                                     except Exception as e:
-                                        st.error(f"Lỗi kết nối AI: {str(e)}")
+                                        st.error(f"Lỗi hệ thống: {str(e)}")
                                         
                         if st.session_state.ai_pdf_preview:
                             st.success("✅ AI đã hoàn tất bóc tách! Mời thầy/cô soát duyệt trước khi giao:")
@@ -1095,8 +1119,8 @@ def main():
                                               (exam_title.strip(), s_str, e_str, target_class, b64, uploaded_file.type, json.dumps(ans_key_ai), json.dumps(st.session_state.ai_pdf_preview)))
                                     conn.commit()
                                     st.session_state.ai_pdf_preview = None
-                                    st.success("✅ Đã phát đề! Học sinh sẽ xem được lời giải AI sau khi nộp bài.")
-                                    time.sleep(1); st.rerun()
+                                    st.success("✅ Đã phát đề! Học sinh sẽ làm bài không bị lỗi 'mặt mếu' và xem được lời giải AI.")
+                                    time.sleep(2); st.rerun()
                             with c_huy:
                                 if st.button("❌ Hủy", use_container_width=True):
                                     st.session_state.ai_pdf_preview = None
@@ -1118,4 +1142,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
