@@ -1,8 +1,7 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V22 SUPREME ULTIMATE (SIÊU PHẨM HOÀN THIỆN)
-# Tác giả: Admin Trường & Chuyên gia AI
-# Cải tiến: Ép AI giải chi tiết, Hiển thị hộp thoại "Hướng dẫn giải" siêu đẹp cho Học sinh.
-# Giữ nguyên bản lõi: Radar AI quét Model, Render PDF chống mặt mếu, Đồ họa chuẩn SGK.
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V23 SUPREME ULTIMATE (BẢN TỰ ĐỘNG HOÀN TOÀN)
+# Đột phá: Lưu trữ API Key vĩnh viễn vào Database. Giải phóng Admin khỏi việc sửa code mỗi lần nâng cấp.
+# Giữ nguyên: Radar AI quét Model, Render PDF chống mặt mếu, Ép AI viết lời giải chi tiết.
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
@@ -40,22 +39,40 @@ except ImportError:
 
 VN_TZ = timezone(timedelta(hours=7))
 
-# --- ADMIN TRƯỜNG DÁN MÃ API KEY MỚI TINH & BÍ MẬT VÀO ĐÂY ---
-GEMINI_API_KEY = "AIzaSyDFfDUSfvkIAVPrWy7jlPs1tykBv7553IY"
+# --- 🚀 ĐỘNG CƠ V23: KÉT SẮT LƯU TRỮ API KEY VĨNH CỬU ---
+def get_api_key():
+    try:
+        conn = sqlite3.connect('exam_db.sqlite')
+        c = conn.cursor()
+        c.execute("SELECT setting_value FROM system_settings WHERE setting_key='GEMINI_API_KEY'")
+        res = c.fetchone()
+        conn.close()
+        return res[0] if res else ""
+    except:
+        return ""
 
-# --- 🚀 ĐỘNG CƠ V22: RADAR TỰ ĐỘNG DÒ TÌM MODEL HỢP LỆ ---
+def save_api_key(key_str):
+    conn = sqlite3.connect('exam_db.sqlite')
+    c = conn.cursor()
+    c.execute("INSERT OR REPLACE INTO system_settings (setting_key, setting_value) VALUES ('GEMINI_API_KEY', ?)", (key_str,))
+    conn.commit()
+    conn.close()
+
+# --- 🚀 ĐỘNG CƠ V23: RADAR TỰ ĐỘNG DÒ TÌM MODEL HỢP LỆ ---
 def call_ai_safely(prompt, file_bytes=None, mime_type=None):
     if not AI_AVAILABLE:
         raise Exception("Hệ thống thiếu thư viện google-generativeai. Cần thêm vào requirements.txt")
-    if not GEMINI_API_KEY or len(GEMINI_API_KEY) < 20 or "DÁN_MÃ" in GEMINI_API_KEY:
-        raise Exception("Bạn chưa cấu hình API Key. Vui lòng tạo mã mới ở Google AI Studio và dán vào dòng code!")
+    
+    current_key = get_api_key()
+    if not current_key or len(current_key) < 20 or "DÁN_MÃ" in current_key:
+        raise Exception("Hệ thống chưa được cấu hình AI. Admin Trường vui lòng đăng nhập và dán mã API Key ở Menu bên trái!")
         
-    genai.configure(api_key=GEMINI_API_KEY.strip())
+    genai.configure(api_key=current_key.strip())
     
     try:
         available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
     except Exception as e:
-        raise Exception(f"Google từ chối mã API của bạn. Chi tiết: {str(e)}")
+        raise Exception(f"Google từ chối mã API của bạn. Mã có thể đã bị khóa. Chi tiết: {str(e)}")
 
     contents = [prompt]
     needs_vision = False
@@ -134,7 +151,7 @@ def generate_username(fullname, dob):
     return f"{clean_name}{suffix}_{random.randint(10,99)}"
 
 # ==========================================
-# 2. CƠ SỞ DỮ LIỆU ĐA TẦNG V22
+# 2. CƠ SỞ DỮ LIỆU ĐA TẦNG V23
 # ==========================================
 def init_db():
     conn = sqlite3.connect('exam_db.sqlite')
@@ -161,6 +178,9 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS deletion_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT, deleted_by TEXT, entity_type TEXT, entity_name TEXT, reason TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
+    
+    # BẢNG MỚI: LƯU TRỮ CÀI ĐẶT HỆ THỐNG BẢO MẬT
+    c.execute('''CREATE TABLE IF NOT EXISTS system_settings (setting_key TEXT PRIMARY KEY, setting_value TEXT)''')
     
     c.execute("INSERT OR IGNORE INTO users (username, password, role, fullname) VALUES ('maducnghi6789@gmail.com', 'admin123', 'core_admin', 'Admin Trường')")
     conn.commit(); conn.close()
@@ -249,7 +269,7 @@ def draw_dynamic_shadow(h_cot, bong_cot, bong_cay):
     return fig_to_base64(fig)
 
 # ==========================================
-# 4. ĐỘNG CƠ SINH ĐỀ CHUYÊN SÂU V22
+# 4. ĐỘNG CƠ SINH ĐỀ CHUYÊN SÂU V23
 # ==========================================
 class ExamGenerator:
     def __init__(self):
@@ -301,7 +321,7 @@ class ExamGenerator:
             seed = time.time()
             prompt = f"""Mốc thời gian: {seed}. 
             Đóng vai Chuyên gia Tuyển sinh Toán học. Sáng tạo 5 CÂU HỎI trắc nghiệm Toán 9 thực tiễn đa dạng.
-            YÊU CẦU: Trả về ĐÚNG JSON nguyên khối: [{{"question": "...", "options": ["A", "B", "C", "D"], "answer": "...", "hint": "Ghi rõ hướng dẫn giải chi tiết tại đây", "image_svg": ""}}]"""
+            YÊU CẦU: Trả về ĐÚNG JSON nguyên khối: [{{"question": "...", "options": ["A", "B", "C", "D"], "answer": "...", "hint": "Viết lời giải chi tiết hoặc gợi ý cách làm tại đây", "image_svg": ""}}]"""
             
             res = call_ai_safely(prompt)
             raw_text = res.text.replace('```json', '').replace('```', '').strip()
@@ -330,10 +350,10 @@ class ExamGenerator:
         return self.exam
 
 # ==========================================
-# 5. GIAO DIỆN HỆ THỐNG V22
+# 5. GIAO DIỆN HỆ THỐNG V23
 # ==========================================
 def main():
-    st.set_page_config(page_title="Hệ Thống LMS V22", layout="wide", page_icon="🏫")
+    st.set_page_config(page_title="Hệ Thống LMS V23", layout="wide", page_icon="🏫")
     init_db()
     
     if 'current_user' not in st.session_state: st.session_state.current_user = None
@@ -341,7 +361,7 @@ def main():
     if 'fullname' not in st.session_state: st.session_state.fullname = None
 
     if st.session_state.current_user is None:
-        st.markdown("<h1 style='text-align: center; color: #2c3e50;'>🎓 HỆ THỐNG KIỂM TRA TRỰC TUYẾN V22</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center; color: #2c3e50;'>🎓 HỆ THỐNG KIỂM TRA TRỰC TUYẾN V23</h1>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1, 1.5, 1])
         with col2:
             with st.form("login_form"):
@@ -363,11 +383,26 @@ def main():
                         st.error("❌ Sai tài khoản hoặc mật khẩu!")
         return
 
-    # --- SIDEBAR ---
+    # --- SIDEBAR V23: THÊM CẤU HÌNH API KEY (LƯU DATABASE) ---
     with st.sidebar:
         st.markdown(f"### 👤 {st.session_state.fullname}")
         role_map = {"core_admin": "👑 Admin Trường", "sub_admin": "🛡 Admin", "teacher": "👨‍🏫 Giáo viên", "student": "🎓 Học sinh"}
         st.markdown(f"**Vai trò:** {role_map.get(st.session_state.role, '')}")
+        
+        # Chỉ Admin tối cao mới được quyền nạp và lưu Key
+        if st.session_state.role == 'core_admin':
+            st.markdown("---")
+            st.markdown("### ⚙️ Cấu hình Hệ thống AI")
+            current_key = get_api_key()
+            api_input = st.text_input("🔑 API Key Gemini:", type="password", value=current_key)
+            if st.button("💾 Lưu API Key Vĩnh Viễn"):
+                if api_input:
+                    save_api_key(api_input.strip())
+                    st.success("✅ Đã lưu API Key thành công! Kể từ nay khi nâng cấp App, bạn không cần phải dán lại mã nữa.")
+                    time.sleep(2)
+                    st.rerun()
+                else:
+                    st.error("Vui lòng nhập mã trước khi lưu.")
         
         if st.session_state.role == 'student':
             conn = sqlite3.connect('exam_db.sqlite')
@@ -400,7 +435,7 @@ def main():
     # GIAO DIỆN HỌC SINH 
     # ==========================
     if st.session_state.role == 'student':
-        tab_mand, tab_ai = st.tabs(["🔥 Bài kiểm tra Bắt buộc", "🤖 Đề tự luyện V22"])
+        tab_mand, tab_ai = st.tabs(["🔥 Bài kiểm tra Bắt buộc", "🤖 Đề tự luyện V23"])
         now_vn = datetime.now(VN_TZ)
         
         with tab_mand:
@@ -703,8 +738,8 @@ def main():
             if 'user_answers' not in st.session_state: st.session_state.user_answers = {}
             if 'is_submitted' not in st.session_state: st.session_state.is_submitted = False
 
-            if st.button("🔄 TẠO ĐỀ LUYỆN TẬP V22", use_container_width=True):
-                with st.spinner("Đang kết nối AI và lấy 40 câu hỏi độc bản ngẫu nhiên..."):
+            if st.button("🔄 TẠO ĐỀ LUYỆN TẬP V23", use_container_width=True):
+                with st.spinner("Đang kết nối Radar AI và lấy 40 câu hỏi độc bản ngẫu nhiên..."):
                     gen = ExamGenerator()
                     st.session_state.exam_data = gen.generate_all()
                     st.session_state.user_answers = {str(q['id']): None for q in st.session_state.exam_data}
@@ -730,7 +765,6 @@ def main():
                     disabled = st.session_state.is_submitted
                     ans_val = st.session_state.user_answers[str(q['id'])]
                     
-                    # Hiện thị đáp án đã chọn (hoặc Chưa làm nếu None)
                     idx_val = q['options'].index(ans_val) if ans_val in q['options'] else None
                     selected = st.radio("Chọn đáp án:", options=q['options'], index=idx_val, key=f"q_ai_{q['id']}", disabled=disabled, label_visibility="collapsed")
                     
@@ -758,7 +792,7 @@ def main():
     # GIAO DIỆN QUẢN TRỊ & GIÁO VIÊN
     # ==========================
     elif st.session_state.role in ['core_admin', 'sub_admin', 'teacher']:
-        st.title("⚙ Bảng Điều Khiển (LMS V22)")
+        st.title("⚙ Bảng Điều Khiển (LMS V23)")
         
         if st.session_state.role in ['core_admin', 'sub_admin']:
             tabs = st.tabs(["🏫 Lớp & Học sinh", "🛡️ Quản lý Nhân sự", "📊 Báo cáo Điểm", "📤 Phát Đề (Giao Bài)"])
@@ -1088,7 +1122,7 @@ def main():
                 e_time = c2.time_input("Giờ thu", value=datetime.strptime("23:59", "%H:%M").time())
                 
                 st.markdown("---")
-                exam_type = st.radio("Lựa chọn phương thức giao bài:", ["📤 Tải lên đề thi của tôi (File PDF/Ảnh)", "🤖 Sinh ngẫu nhiên từ Lõi V22 (40 Câu)"])
+                exam_type = st.radio("Lựa chọn phương thức giao bài:", ["📤 Tải lên đề thi của tôi (File PDF/Ảnh)", "🤖 Sinh ngẫu nhiên từ Lõi V23 (40 Câu)"])
                 
                 if exam_type == "📤 Tải lên đề thi của tôi (File PDF/Ảnh)":
                     uploaded_file = st.file_uploader("1. Tải File Đề (Hỗ trợ PDF, JPG, PNG)", type=['pdf', 'jpg', 'png', 'jpeg'])
@@ -1118,16 +1152,15 @@ def main():
                     else:
                         if 'ai_pdf_preview' not in st.session_state: st.session_state.ai_pdf_preview = None
                         
-                        if st.button("🤖 Phân tích Đề bằng Radar AI V22", type="primary"):
+                        if st.button("🤖 Phân tích Đề bằng Radar AI V23", type="primary"):
                             if not exam_title: st.error("Vui lòng nhập tên bài thi!")
                             elif not uploaded_file: st.error("Vui lòng tải file đề thi lên!")
                             else:
-                                with st.spinner("Radar AI đang quét tài liệu và tự giải đề... (Khoảng 10-30 giây)"):
+                                with st.spinner("Radar AI đang quét tài liệu và biên soạn lời giải... (Khoảng 10-30 giây)"):
                                     file_bytes = uploaded_file.read()
                                     mime_type = uploaded_file.type
                                     
-                                    # --- CẢI TIẾN LỜI GIẢI AI: ÉP AI TỰ GIẢI CHI TIẾT ---
-                                    prompt = "Đọc đề thi trong tài liệu đính kèm. Trích xuất toàn bộ câu hỏi thành danh sách JSON. Cấu trúc BẮT BUỘC: [{'id': 1, 'question': 'nội dung', 'options': ['A', 'B', 'C', 'D'], 'answer': 'A', 'hint': 'Ghi rõ lời giải chi tiết hoặc giải thích vì sao chọn đáp án này cho học sinh hiểu'}]. Chỉ xuất JSON, không xuất chữ nào khác."
+                                    prompt = "Đọc đề thi trong ảnh/tài liệu sau. Trích xuất toàn bộ câu hỏi thành danh sách JSON. Cấu trúc BẮT BUỘC: [{'id': 1, 'question': 'nội dung', 'options': ['A', 'B', 'C', 'D'], 'answer': 'A', 'hint': 'Ghi rõ lời giải chi tiết hoặc giải thích vì sao chọn đáp án này cho học sinh hiểu'}]. Chỉ xuất JSON, không xuất chữ nào khác."
                                     
                                     try:
                                         res = call_ai_safely(prompt, file_bytes, mime_type)
@@ -1174,7 +1207,7 @@ def main():
                                     st.rerun()
                 
                 else:
-                    if st.button("🚀 Phát Đề AI (Trộn Ngẫu Nhiên 40 Câu Lõi V22)", type="primary"):
+                    if st.button("🚀 Phát Đề AI (Trộn Ngẫu Nhiên 40 Câu Lõi V23)", type="primary"):
                         if exam_title:
                             gen = ExamGenerator()
                             fixed_exam = gen.generate_all()
