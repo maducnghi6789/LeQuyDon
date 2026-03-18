@@ -1,8 +1,8 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V31 SUPREME ULTIMATE (ANTI-LAZINESS PARSER)
-# Fix Lỗi AI lười (chỉ gõ 2 câu): Ép lệnh "Thiết quân luật" bắt bóc tách 100% đề thi.
-# Đột phá mới: Thuật toán cắt lớp bằng thẻ ngoặc vuông [CAU], [A], [B] siêu an toàn.
-# Giữ nguyên: Quét 10 trang PDF, Radar dò Model AI, Két sắt API Key.
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V32 SUPREME ULTIMATE (ANTI-LAZINESS)
+# Fix Lỗi AI lười (chỉ gõ 2 câu): Chuyển Radar ưu tiên model PRO thay vì FLASH. 
+# Bơm lệnh "Thiết quân luật" cực mạnh để ép AI bóc tách 100% đề thi.
+# Giữ nguyên: Trình tự động cắt lớp [CAU], Đồ họa Toán, Két sắt API.
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
@@ -38,7 +38,7 @@ except ImportError:
 
 VN_TZ = timezone(timedelta(hours=7))
 
-# --- DATABASE VAULT ĐỂ LƯU API KEY ---
+# --- DATABASE VAULT ĐỂ LƯU API KEY (BẢO MẬT TUYỆT ĐỐI) ---
 def get_api_key():
     try:
         conn = sqlite3.connect('exam_db.sqlite')
@@ -57,7 +57,7 @@ def save_api_key(key_str):
     conn.commit()
     conn.close()
 
-# --- BỘ LỌC DỊCH THUẬT TOÁN HỌC ---
+# --- BỘ LỌC DỊCH THUẬT TOÁN HỌC (CHỐNG LỖI RAW LATEX) ---
 def format_math_text(text):
     if not text: return ""
     text = str(text)
@@ -65,20 +65,17 @@ def format_math_text(text):
     text = re.sub(r'\\\[(.*?)\\\]', r'$$\1$$', text)
     return text
 
-# --- 🚀 THUẬT TOÁN "BẤT TỬ" CẮT LỚP CÂU HỎI TỪ VĂN BẢN THÔ ---
+# --- 🚀 THUẬT TOÁN BẤT TỬ CẮT LỚP CÂU HỎI TỪ VĂN BẢN THÔ ---
 def parse_ai_text_v31(raw_text):
     questions = []
-    # Tách văn bản thành các khối riêng biệt bắt đầu bằng [CAU]
     blocks = raw_text.split('[CAU]')
     
     for block in blocks:
         if not block.strip(): continue
         try:
-            # Kiểm tra an toàn xem có đủ thẻ tối thiểu không
             if '[A]' not in block or '[DAP_AN]' not in block: 
                 continue
             
-            # Cắt và lấy nội dung từng phần
             q_part = block.split('[A]')[0].strip()
             a_part = block.split('[A]')[1].split('[B]')[0].strip() if '[B]' in block else ""
             b_part = block.split('[B]')[1].split('[C]')[0].strip() if '[C]' in block else ""
@@ -89,13 +86,10 @@ def parse_ai_text_v31(raw_text):
             ans_letter = ans_hint_part.split('[LOI_GIAI]')[0].strip() if '[LOI_GIAI]' in ans_hint_part else ans_hint_part.strip()
             hint = ans_hint_part.split('[LOI_GIAI]')[1].strip() if '[LOI_GIAI]' in ans_hint_part else ""
 
-            # Xóa chữ "Câu 1:", "Bài 2:" ở đầu câu hỏi nếu AI lỡ viết vào
             q_part = re.sub(r'^(Câu|Bài)\s*\d+\s*[:\.]?\s*', '', q_part, flags=re.IGNORECASE)
 
-            # Chuẩn hóa Toán học cho 4 đáp án
             options = [format_math_text(a_part), format_math_text(b_part), format_math_text(c_part), format_math_text(d_part)]
             
-            # Khớp chữ cái với nội dung đáp án đúng
             ans_letter_clean = re.sub(r'[^A-D]', '', ans_letter.upper())
             if not ans_letter_clean: ans_letter_clean = 'A'
             letter_idx = ord(ans_letter_clean[0]) - ord('A')
@@ -112,14 +106,14 @@ def parse_ai_text_v31(raw_text):
             continue
             
     if not questions:
-        raise Exception("AI không bóc tách được câu hỏi nào. Nguyên nhân có thể do đề quá mờ hoặc AI bị quá tải.")
+        raise Exception("AI không bóc tách được câu hỏi nào. Đề thi có thể quá mờ hoặc AI từ chối đọc.")
         
     return questions
 
-# --- 🚀 RADAR TỰ ĐỘNG DÒ TÌM MODEL VÀ ÉP OUTPUT LỚN ---
+# --- 🚀 RADAR TỰ ĐỘNG ĐỔI TƯỚNG (ƯU TIÊN MODEL PRO ĐỂ TRỊ BỆNH LƯỜI) ---
 def call_ai_safely(prompt, file_bytes=None, mime_type=None):
     if not AI_AVAILABLE:
-        raise Exception("Hệ thống thiếu thư viện google-generativeai. Cần thêm vào requirements.txt")
+        raise Exception("Hệ thống thiếu thư viện google-generativeai.")
     
     current_key = get_api_key()
     if not current_key or len(current_key) < 20 or "DÁN_MÃ" in current_key:
@@ -149,10 +143,11 @@ def call_ai_safely(prompt, file_bytes=None, mime_type=None):
             img = Image.open(BytesIO(file_bytes))
             contents.append(img)
 
+    # ĐỘT PHÁ V32: CHUYỂN gemini-1.5-pro LÊN ĐẦU DANH SÁCH ĐỂ AI LÀM VIỆC CHĂM CHỈ HƠN
     if needs_vision:
-        preferences = ['models/gemini-1.5-flash', 'models/gemini-1.5-pro', 'models/gemini-1.0-pro-vision-latest']
+        preferences = ['models/gemini-1.5-pro', 'models/gemini-1.5-flash', 'models/gemini-1.0-pro-vision-latest']
     else:
-        preferences = ['models/gemini-1.5-flash', 'models/gemini-1.5-pro', 'models/gemini-pro']
+        preferences = ['models/gemini-1.5-pro', 'models/gemini-1.5-flash', 'models/gemini-pro']
         
     target_model = None
     for pref in preferences:
@@ -167,11 +162,11 @@ def call_ai_safely(prompt, file_bytes=None, mime_type=None):
     clean_model_name = target_model.replace("models/", "")
     
     try:
-        # ÉP MAX_OUTPUT_TOKENS = 8192 ĐỂ AI GÕ ĐỦ 40-50 CÂU KHÔNG BỊ HẾT HƠI
+        # Bơm Token lên tối đa để tránh đứt gánh giữa chừng
         model = genai.GenerativeModel(clean_model_name, generation_config={"max_output_tokens": 8192})
         return model.generate_content(contents)
     except Exception as e:
-        raise Exception(f"Lỗi khi AI phân tích ({clean_model_name}). Chi tiết: {str(e)}")
+        raise Exception(f"Lỗi khi AI {clean_model_name} phân tích. Chi tiết: {str(e)}")
 
 # ==========================================
 # 1. HÀM HỖ TRỢ EXCEL & REGEX 
@@ -370,23 +365,41 @@ class ExamGenerator:
         return pool
 
     def generate_all(self):
-        # AI Generator logic giữ nguyên nhưng dùng parse_ai_text_v31
         ai_questions = []
         try:
-            prompt = """Nhiệm vụ: Tạo 5 CÂU HỎI trắc nghiệm Toán 9 thực tiễn.
-            Trả về dạng Plain Text với cấu trúc ngoặc vuông.
+            prompt = """BẠN LÀ MỘT CỖ MÁY TRÍCH XUẤT DỮ LIỆU.
+            NHIỆM VỤ: Trích xuất TOÀN BỘ câu hỏi trắc nghiệm Toán học từ các hình ảnh đính kèm.
+            
+            CẢNH BÁO TỐI CAO:
+            - Đề thi có rất nhiều câu (có thể lên tới 40-50 câu).
+            - Bạn BẮT BUỘC PHẢI làm việc chăm chỉ, quét và xuất ĐẦY ĐỦ 100% các câu hỏi từ đầu đến cuối.
+            - NGHIÊM CẤM lười biếng. NGHIÊM CẤM viết tắt, NGHIÊM CẤM dùng dấu ba chấm (...), NGHIÊM CẤM ghi "tương tự cho các câu sau". Phải gõ từng câu một cho đến khi hết đề.
+            
+            ĐỊNH DẠNG BẮT BUỘC (Cho MỖI câu hỏi phải viết thành 1 Block y như mẫu):
+            [CAU] Ghi nội dung câu hỏi vào đây
+            [A] Nội dung đáp án A
+            [B] Nội dung đáp án B
+            [C] Nội dung đáp án C
+            [D] Nội dung đáp án D
+            [DAP_AN] Chỉ ghi 1 chữ cái A, B, C hoặc D
+            [LOI_GIAI] Viết lời giải chi tiết vào đây
 
-            [CAU] Nội dung câu hỏi
-            [A] Đáp án A
-            [B] Đáp án B
-            [C] Đáp án C
-            [D] Đáp án D
-            [DAP_AN] A
-            [LOI_GIAI] Lời giải chi tiết
+            QUY TẮC TOÁN HỌC: Mọi công thức Toán học phải bọc trong dấu đô-la (VD: $x^2 + 1 = 0$, $\\frac{1}{2}$). KHÔNG DÙNG \\( hay \\).
             """
+            
             res = call_ai_safely(prompt)
-            ai_questions = parse_ai_text_v31(res.text)
-        except:
+            parsed_q = parse_ai_text_v31(res.text)
+            
+            for q in parsed_q:
+                ai_questions.append({
+                    "q": q["question"], 
+                    "opts": self.format_options(q["answer"], [o for o in q["options"] if o != q["answer"]]), 
+                    "a": q["answer"], 
+                    "h": q["hint"], 
+                    "i_svg": "", 
+                    "i": None
+                })
+        except Exception:
             pass 
 
         local_distinct_pool = self.get_38_distinct_local_questions()
@@ -395,17 +408,17 @@ class ExamGenerator:
 
         for i, q in enumerate(final_pool):
             self.exam.append({
-                "id": i + 1, "question": q["question"] if "question" in q else q["q"], "options": q.get("options", q.get("opts")),
-                "answer": q.get("answer", q.get("a")), "hint": q.get("hint", q.get("h")), "image_svg": q.get("image_svg", q.get("i_svg")), "image": q.get("image", q.get("i"))
+                "id": i + 1, "question": q["q"], "options": q["opts"],
+                "answer": q["a"], "hint": q["h"], "image_svg": q["i_svg"], "image": q["i"]
             })
             
         return self.exam
 
 # ==========================================
-# 5. GIAO DIỆN HỆ THỐNG V31
+# 5. GIAO DIỆN HỆ THỐNG
 # ==========================================
 def main():
-    st.set_page_config(page_title="Hệ Thống LMS V31", layout="wide", page_icon="🏫")
+    st.set_page_config(page_title="Hệ Thống LMS V32", layout="wide", page_icon="🏫")
     init_db()
     
     if 'current_user' not in st.session_state: st.session_state.current_user = None
@@ -435,7 +448,7 @@ def main():
                         st.error("❌ Sai tài khoản hoặc mật khẩu!")
         return
 
-    # --- SIDEBAR V31 ---
+    # --- SIDEBAR ---
     with st.sidebar:
         st.markdown(f"### 👤 {st.session_state.fullname}")
         role_map = {"core_admin": "👑 Admin Trường", "sub_admin": "🛡 Admin", "teacher": "👨‍🏫 Giáo viên", "student": "🎓 Học sinh"}
@@ -1198,31 +1211,29 @@ def main():
                     else:
                         if 'ai_pdf_preview' not in st.session_state: st.session_state.ai_pdf_preview = None
                         
-                        if st.button("🤖 Phân tích Đề bằng AI V31", type="primary"):
+                        if st.button("🤖 Phân tích Đề bằng AI", type="primary"):
                             if not exam_title: st.error("Vui lòng nhập tên bài thi!")
                             elif not uploaded_file: st.error("Vui lòng tải file đề thi lên!")
                             else:
-                                with st.spinner("Radar AI đang bóc tách TOÀN BỘ 40-50 CÂU HỎI. Quá trình này có thể mất đến 1 phút..."):
+                                with st.spinner("AI đang cày ải đọc 40-50 câu hỏi... (Khoảng 20-40 giây)"):
                                     file_bytes = uploaded_file.read()
                                     mime_type = uploaded_file.type
                                     
-                                    # LỆNH THIẾT QUÂN LUẬT: Ép AI làm đủ 100% câu và dùng thẻ [CAU]
-                                    prompt = """Nhiệm vụ: Trích xuất TOÀN BỘ câu hỏi trắc nghiệm từ tài liệu đính kèm.
-                                    CẢNH BÁO QUAN TRỌNG: Đề thi thường có từ 40 đến 50 câu. Bạn BẮT BUỘC PHẢI trích xuất đầy đủ 100% số câu hỏi. TUYỆT ĐỐI KHÔNG ĐƯỢC LÀM TẮT, KHÔNG ĐƯỢC TÓM TẮT, KHÔNG ĐƯỢC DỪNG LẠI GIỮA CHỪNG. Hãy xử lý kiên nhẫn từ câu 1 đến câu cuối cùng.
-                                    
-                                    Định dạng đầu ra: Văn bản thô (Plain Text) với các thẻ đánh dấu cực kỳ đơn giản như sau cho MỖI CÂU HỎI:
+                                    prompt = """Nhiệm vụ: Bóc tách TOÀN BỘ câu hỏi trắc nghiệm Toán học từ tài liệu đính kèm.
+                                    CẢNH BÁO TỐI CAO:
+                                    - Đề thi có từ 40 đến 50 câu. Bạn là cỗ máy trích xuất, BẮT BUỘC PHẢI gõ lại đầy đủ 100% từ Câu 1 đến câu cuối cùng.
+                                    - NGHIÊM CẤM lười biếng. NGHIÊM CẤM dùng dấu ba chấm (...) hay các từ như "tương tự", "các câu còn lại". 
+                                    - Trả về dạng Plain Text, mỗi câu hỏi phải tuân thủ đúng Block sau:
 
                                     [CAU] Nội dung câu hỏi
                                     [A] Nội dung đáp án A
                                     [B] Nội dung đáp án B
                                     [C] Nội dung đáp án C
                                     [D] Nội dung đáp án D
-                                    [DAP_AN] A
-                                    [LOI_GIAI] Viết lời giải chi tiết cho học sinh hiểu
+                                    [DAP_AN] Chọn 1 chữ cái (A, B, C, D)
+                                    [LOI_GIAI] Lời giải chi tiết
 
-                                    LƯU Ý TOÁN HỌC:
-                                    - Ký hiệu LaTeX phải bọc trong dấu đô-la (VD: $x^2 + 1 = 0$, $\\frac{1}{2}$). 
-                                    - KHÔNG DÙNG \\( hay \\) hay ngoặc đơn ( ) để bọc công thức.
+                                    LƯU Ý TOÁN HỌC: Mọi công thức Toán học LaTeX phải bọc trong dấu đô-la (VD: $x^2 + 1 = 0$, $\\frac{1}{2}$). KHÔNG DÙNG \\( hay \\).
                                     """
                                     
                                     try:
