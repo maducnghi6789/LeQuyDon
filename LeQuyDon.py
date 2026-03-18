@@ -1,7 +1,6 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V20 SUPREME ULTIMATE (BẤT TỬ)
-# Fix triệt để 404/500/502 bằng Động cơ AI Fallback toàn diện
-# Giữ nguyên: Đồ họa SGK, Trộn đề độc bản, AI bóc tách PDF
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V20 SUPREME ULTIMATE (BẢN CHUẨN FINAL)
+# Đầy đủ tính năng: Đồ họa SGK, Trộn đề độc bản, AI File API chuyên dụng
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
@@ -39,10 +38,10 @@ except ImportError:
 
 VN_TZ = timezone(timedelta(hours=7))
 
-# --- MÃ API KEY CỦA GIÁM ĐỐC ---
-GEMINI_API_KEY = "AIzaSyBEoI3erNW5bhDb6_qdi81wjEsVVOw4Dqo" 
+# --- GIÁM ĐỐC DÁN MÃ API KEY MỚI VÀO ĐÂY (LƯU Ý BẢO MẬT) ---
+GEMINI_API_KEY = "AIzaSyDzGSZilGdQ-b3c9s7BDsXDSCoIU8Fnj3I" 
 
-if AI_AVAILABLE and GEMINI_API_KEY:
+if AI_AVAILABLE and GEMINI_API_KEY and GEMINI_API_KEY != "AIzaSyDzGSZilGdQ-b3c9s7BDsXDSCoIU8Fnj3I":
     try:
         genai.configure(api_key=GEMINI_API_KEY)
     except:
@@ -50,8 +49,8 @@ if AI_AVAILABLE and GEMINI_API_KEY:
 
 # --- 🛡️ ĐỘNG CƠ AI QUÉT MẠNG CHỐNG LỖI 404 (FALLBACK ENGINE) ---
 def generate_ai_content_with_fallback(prompt, file_bytes=None, mime_type=None):
-    if not AI_AVAILABLE or not GEMINI_API_KEY:
-        raise Exception("Chưa cấu hình API Key hoặc thư viện AI.")
+    if not AI_AVAILABLE or not GEMINI_API_KEY or GEMINI_API_KEY == "DÁN_MÃ_API_MỚI_CỦA_BẠN_VÀO_ĐÂY":
+        raise Exception("Chưa cấu hình API Key mới hoặc thư viện AI.")
 
     # Danh sách các model AI để quét dự phòng liên hoàn
     models_to_try = [
@@ -255,7 +254,6 @@ def draw_dynamic_shadow(h_cot, bong_cot, bong_cay):
     ax.plot([0, 0], [0, 3.5], 'k-', lw=3) 
     ax.plot([3, 3], [0, 1.9], 'g-', lw=4) 
     ax.plot([0, 6.8], [3.5, 0], 'b-', lw=1) 
-    
     ax.text(-0.3, 3.5, 'A', fontweight='bold')
     ax.text(-0.3, -0.3, 'B', fontweight='bold')
     ax.text(2.7, 2.0, 'C', fontweight='bold')
@@ -598,7 +596,7 @@ def main():
                             if f"mand_ans_{exam_id}" not in st.session_state:
                                 st.session_state[f"mand_ans_{exam_id}"] = {str(i+1): None for i in range(num_q)}
                             
-                            if AI_AVAILABLE and GEMINI_API_KEY and st.button("✨ Nhờ AI số hóa đề này thành trắc nghiệm thông minh"):
+                            if AI_AVAILABLE and GEMINI_API_KEY and GEMINI_API_KEY != "DÁN_MÃ_API_MỚI_CỦA_BẠN_VÀO_ĐÂY" and st.button("✨ Nhờ AI số hóa đề này thành trắc nghiệm thông minh"):
                                 with st.spinner("AI đang đọc tài liệu và phân loại..."):
                                     prompt = "Đọc đề thi này. Trích xuất toàn bộ câu hỏi thành danh sách JSON. Cấu trúc BẮT BUỘC: [{'id': 1, 'question': 'nội dung', 'options': ['A', 'B', 'C', 'D'], 'answer': 'A', 'hint': 'Lời giải chi tiết từng bước'}]."
                                     try:
@@ -692,7 +690,7 @@ def main():
                         
                         if pd.notnull(exam_row.get('questions_json')) and exam_row.get('questions_json') != "":
                             st.markdown("---")
-                            st.markdown("#### 💡 Lời giải chi tiết (AI phân tích)")
+                            st.markdown("#### 💡 Lời giải chi tiết")
                             try:
                                 ai_hints = json.loads(exam_row['questions_json'])
                                 for q in ai_hints:
@@ -1160,7 +1158,6 @@ def main():
                                         file_bytes = uploaded_file.read()
                                         prompt = "Đọc đề thi này (PDF/Ảnh). Trích xuất toàn bộ câu hỏi thành danh sách JSON. Cấu trúc BẮT BUỘC: [{'id': 1, 'question': 'nội dung', 'options': ['A', 'B', 'C', 'D'], 'answer': 'A', 'hint': 'Lời giải chi tiết từng bước'}]. LƯU Ý: Trường 'answer' CHỈ ĐƯỢC chứa 1 CHỮ CÁI A, B, C hoặc D. TUYỆT ĐỐI không xuất định dạng Markdown ```json."
                                         
-                                        # GỌI HÀM BẤT TỬ CỦA CHÚNG TA
                                         res = generate_ai_content_with_fallback(prompt, file_bytes, uploaded_file.type)
                                         
                                         raw_text = re.sub(r'```json\n?', '', res.text)
@@ -1171,43 +1168,43 @@ def main():
                                             st.session_state.pdf_ai_preview = json.loads(match.group())
                                             st.rerun()
                                         else:
-                                            st.error("AI không thể bóc tách được file này (Có thể file quá mờ hoặc định dạng lạ).")
+                                            st.error("AI không thể bóc tách được định dạng file này. Hãy đảm bảo ảnh/pdf rõ nét.")
                                     except Exception as e:
-                                        st.error(f"Lỗi hệ thống: {str(e)}")
+                                        st.error(f"Lỗi phân tích: {str(e)}")
                                         
-                        if st.session_state.pdf_ai_preview:
-                            st.success("✅ AI đã hoàn tất bóc tách! Mời thầy/cô soát duyệt:")
-                            ans_key_ai = []
-                            with st.expander("🔍 XEM TRƯỚC ĐÁP ÁN & LỜI GIẢI AI SOẠN", expanded=True):
-                                for q in st.session_state.pdf_ai_preview:
-                                    st.markdown(f"**Câu {q['id']}:** {q.get('question','')}")
-                                    ans_letter = re.sub(r'[^A-D]', '', str(q.get('answer', 'A')).upper())
-                                    final_ans = ans_letter[0] if ans_letter else 'A'
-                                    ans_key_ai.append(final_ans)
-                                    
-                                    st.markdown(f"- ✅ **Đáp án đúng:** {final_ans}")
-                                    st.markdown(f"- 💡 **Lời giải:** {q.get('hint','')}")
-                                    st.markdown("---")
-                            
-                            col_d, col_h = st.columns(2)
-                            with col_d:
-                                if st.button("🚀 XÁC NHẬN PHÁT ĐỀ NÀY", use_container_width=True):
-                                    uploaded_file.seek(0)
-                                    file_bytes = uploaded_file.read()
-                                    b64 = base64.b64encode(file_bytes).decode('utf-8')
-                                    s_str = f"{s_date} {s_time.strftime('%H:%M:%S')}"
-                                    e_str = f"{e_date} {e_time.strftime('%H:%M:%S')}"
-                                    
-                                    c.execute("INSERT INTO mandatory_exams (title, start_time, end_time, target_class, file_data, file_type, answer_key, questions_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
-                                              (exam_title.strip(), s_str, e_str, target_class, b64, uploaded_file.type, json.dumps(ans_key_ai), json.dumps(st.session_state.pdf_ai_preview)))
-                                    conn.commit()
-                                    st.session_state.pdf_ai_preview = None
-                                    st.success(f"✅ Đã phát đề thành công! Học sinh sẽ làm bài trên file và có thể xem lời giải chi tiết sau khi nộp.")
-                                    time.sleep(1); st.rerun()
-                            with col_h:
-                                if st.button("❌ Hủy & Thử lại", use_container_width=True):
-                                    st.session_state.pdf_ai_preview = None
-                                    st.rerun()
+                    if st.session_state.pdf_ai_preview:
+                        st.success("✅ AI đã hoàn tất bóc tách! Mời thầy/cô soát duyệt:")
+                        ans_key_ai = []
+                        with st.expander("🔍 XEM TRƯỚC ĐÁP ÁN & LỜI GIẢI AI SOẠN", expanded=True):
+                            for q in st.session_state.pdf_ai_preview:
+                                st.markdown(f"**Câu {q['id']}:** {q.get('question','')}")
+                                ans_letter = re.sub(r'[^A-D]', '', str(q.get('answer', 'A')).upper())
+                                final_ans = ans_letter[0] if ans_letter else 'A'
+                                ans_key_ai.append(final_ans)
+                                
+                                st.markdown(f"- ✅ **Đáp án đúng:** {final_ans}")
+                                st.markdown(f"- 💡 **Lời giải:** {q.get('hint','')}")
+                                st.markdown("---")
+                        
+                        col_d, col_h = st.columns(2)
+                        with col_d:
+                            if st.button("🚀 XÁC NHẬN PHÁT ĐỀ NÀY", use_container_width=True):
+                                uploaded_file.seek(0)
+                                file_bytes = uploaded_file.read()
+                                b64 = base64.b64encode(file_bytes).decode('utf-8')
+                                s_str = f"{s_date} {s_time.strftime('%H:%M:%S')}"
+                                e_str = f"{e_date} {e_time.strftime('%H:%M:%S')}"
+                                
+                                c.execute("INSERT INTO mandatory_exams (title, start_time, end_time, target_class, file_data, file_type, answer_key, questions_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
+                                          (exam_title.strip(), s_str, e_str, target_class, b64, uploaded_file.type, json.dumps(ans_key_ai), json.dumps(st.session_state.pdf_ai_preview)))
+                                conn.commit()
+                                st.session_state.pdf_ai_preview = None
+                                st.success(f"✅ Đã phát đề thành công! Học sinh sẽ làm bài trên file và có thể xem lời giải chi tiết sau khi nộp.")
+                                time.sleep(1); st.rerun()
+                        with col_h:
+                            if st.button("❌ Hủy & Thử lại", use_container_width=True):
+                                st.session_state.pdf_ai_preview = None
+                                st.rerun()
                 
                 else:
                     if st.button("🚀 Phát Đề AI (Trộn Ngẫu Nhiên 40 Câu)", type="primary"):
