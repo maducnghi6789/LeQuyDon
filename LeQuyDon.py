@@ -1,8 +1,8 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V25 SUPREME ULTIMATE (FINAL UI & MATH FIX)
-# Fix 1: Bộ lọc format_math_text() ép chuẩn hóa mọi công thức LaTeX của AI thành dấu $.
-# Fix 2: Bắt triệt để chữ "None" để hiển thị thành "Chưa làm" cực đẹp.
-# Giữ nguyên: Lưu API Key DB, Radar dò Model AI chống 404, Render PDF chống mặt mếu.
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V26 SUPREME ULTIMATE (ANTI-TRUNCATION)
+# Fix 1: Mở khóa giới hạn đọc PDF lên 10 trang (Quét sạch đề thi dài).
+# Fix 2: Tăng Max Output Tokens lên 8192 và ép Prompt để AI không bị "rớt câu" (Đủ 100% câu hỏi).
+# Giữ nguyên: Chống đè chữ Toán, Radar dò Model AI, PDF Render chống mặt mếu.
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
@@ -21,6 +21,7 @@ from io import BytesIO
 import matplotlib.pyplot as plt
 import numpy as np
 from datetime import datetime, timedelta, timezone
+
 from PIL import Image
 
 try:
@@ -30,7 +31,7 @@ except ImportError:
     AI_AVAILABLE = False
 
 try:
-    import fitz  # Thư viện PyMuPDF
+    import fitz  # PyMuPDF
     PDF_RENDERER_AVAILABLE = True
 except ImportError:
     PDF_RENDERER_AVAILABLE = False
@@ -65,10 +66,10 @@ def format_math_text(text):
     text = re.sub(r'\\\[(.*?)\\\]', r'$$\1$$', text)
     return text
 
-# --- 🚀 RADAR TỰ ĐỘNG DÒ TÌM MODEL ---
+# --- 🚀 RADAR TỰ ĐỘNG DÒ TÌM MODEL VÀ ÉP OUTPUT LỚN ---
 def call_ai_safely(prompt, file_bytes=None, mime_type=None):
     if not AI_AVAILABLE:
-        raise Exception("Hệ thống thiếu thư viện google-generativeai.")
+        raise Exception("Hệ thống thiếu thư viện google-generativeai. Cần thêm vào requirements.txt")
     
     current_key = get_api_key()
     if not current_key or len(current_key) < 20 or "DÁN_MÃ" in current_key:
@@ -90,7 +91,8 @@ def call_ai_safely(prompt, file_bytes=None, mime_type=None):
             if not PDF_RENDERER_AVAILABLE:
                 raise Exception("Thiếu thư viện PyMuPDF để xử lý PDF.")
             doc = fitz.open(stream=file_bytes, filetype="pdf")
-            for page_num in range(min(len(doc), 4)): 
+            # FIX: Nâng giới hạn từ 4 trang lên 10 trang để đọc trọn vẹn đề dài 40-50 câu
+            for page_num in range(min(len(doc), 10)): 
                 pix = doc.load_page(page_num).get_pixmap(dpi=100) 
                 img = Image.open(BytesIO(pix.tobytes("png")))
                 contents.append(img)
@@ -111,15 +113,16 @@ def call_ai_safely(prompt, file_bytes=None, mime_type=None):
             
     if not target_model:
         if available_models: target_model = available_models[0]
-        else: raise Exception("API Key của bạn không có quyền truy cập mô hình AI nào.")
+        else: raise Exception("API Key của bạn không có quyền truy cập AI.")
             
     clean_model_name = target_model.replace("models/", "")
     
     try:
-        model = genai.GenerativeModel(clean_model_name)
+        # FIX: Bơm thêm max_output_tokens=8192 để AI không bị hết hơi ngắt câu giữa chừng
+        model = genai.GenerativeModel(clean_model_name, generation_config={"max_output_tokens": 8192})
         return model.generate_content(contents)
     except Exception as e:
-        raise Exception(f"Hệ thống đã chọn mô hình tốt nhất ({clean_model_name}) nhưng Google vẫn từ chối. Lỗi: {str(e)}")
+        raise Exception(f"Lỗi khi AI phân tích ({clean_model_name}). Chi tiết: {str(e)}")
 
 # ==========================================
 # 1. HÀM HỖ TRỢ EXCEL & REGEX 
@@ -322,13 +325,12 @@ class ExamGenerator:
         try:
             seed = time.time()
             prompt = f"""Mốc thời gian: {seed}. 
-            Đóng vai Chuyên gia Tuyển sinh Toán học. Sáng tạo 5 CÂU HỎI trắc nghiệm Toán 9 thực tiễn.
-            YÊU CẦU: Trả về ĐÚNG JSON nguyên khối: [{{"id": 1, "question": "...", "options": ["A", "B", "C", "D"], "answer": "...", "hint": "Viết lời giải chi tiết tại đây", "image_svg": ""}}]
-            LƯU Ý ĐẶC BIỆT ĐỂ KHÔNG BỊ LỖI HIỂN THỊ:
-            1. KHÔNG bấm Enter ngắt dòng trong chuỗi. Dùng '\\n'.
-            2. Mọi công thức Toán học LaTeX phải dùng 2 gạch chéo (VD: \\\\frac, \\\\sqrt).
-            3. BAO BỌC TẤT CẢ công thức và số liệu bằng dấu $ (ví dụ: $x^2$, $S=\\\\frac{{1}}{{2}}$). Tuyệt đối không bọc bằng ngoặc đơn ( ).
-            4. Chỉ xuất JSON."""
+            Đóng vai Chuyên gia Tuyển sinh Toán học. Sáng tạo 5 CÂU HỎI trắc nghiệm Toán 9 thực tiễn đa dạng.
+            YÊU CẦU: Trả về ĐÚNG JSON nguyên khối: [{{"id": 1, "question": "...", "options": ["A", "B", "C", "D"], "answer": "A", "hint": "Viết lời giải chi tiết tại đây", "image_svg": ""}}]
+            LƯU Ý ĐẶC BIỆT ĐỂ KHÔNG BỊ LỖI JSON:
+            1. Tuyệt đối không bấm Enter ngắt dòng bên trong nội dung chuỗi. Nếu cần ngắt dòng hãy dùng '\\n'.
+            2. Mọi công thức Toán học (LaTeX) phải được viết chuẩn với 2 dấu gạch chéo ngược, ví dụ: \\\\frac, \\\\sqrt.
+            3. Chỉ xuất JSON, không xuất câu dẫn giải thích."""
             
             res = call_ai_safely(prompt)
             raw_text = res.text.replace('```json', '').replace('```', '').strip()
@@ -340,10 +342,10 @@ class ExamGenerator:
                 parsed_q = json.loads(json_str, strict=False)
                 for q in parsed_q:
                     ai_questions.append({
-                        "q": format_math_text(q.get("question", "").strip()), 
-                        "opts": self.format_options(format_math_text(q.get("answer", "")), [format_math_text(o) for o in q.get("options",[]) if format_math_text(o) != format_math_text(q.get("answer",""))]), 
-                        "a": format_math_text(q.get("answer", "")), 
-                        "h": format_math_text(q.get("hint", "")), 
+                        "q": format_math_text(str(q.get("question", "")).strip()), 
+                        "opts": self.format_options(format_math_text(str(q.get("answer", ""))), [format_math_text(str(o)) for o in q.get("options",[]) if str(o) != str(q.get("answer",""))]), 
+                        "a": format_math_text(str(q.get("answer", ""))), 
+                        "h": format_math_text(str(q.get("hint", ""))), 
                         "i_svg": q.get("image_svg", ""), 
                         "i": None
                     })
@@ -366,7 +368,7 @@ class ExamGenerator:
 # 5. GIAO DIỆN HỆ THỐNG
 # ==========================================
 def main():
-    st.set_page_config(page_title="Hệ Thống LMS V25", layout="wide", page_icon="🏫")
+    st.set_page_config(page_title="Hệ Thống LMS V26", layout="wide", page_icon="🏫")
     init_db()
     
     if 'current_user' not in st.session_state: st.session_state.current_user = None
@@ -654,7 +656,6 @@ def main():
                                 
                             for i in range(num_q):
                                 raw_val = saved_ans.get(str(i+1))
-                                # --- FIX LỖI HIỂN THỊ CHỮ NONE THÀNH "CHƯA LÀM" ---
                                 stu_val_display = "Chưa làm" if raw_val is None or str(raw_val).strip() == "None" else raw_val
                                 correct_val = ans_key[i]
                                 
@@ -705,7 +706,6 @@ def main():
                                 st.markdown(f'<div style="text-align:left;"><img src="data:image/png;base64,{q["image"]}" style="max-width:350px; margin-bottom: 10px;"></div>', unsafe_allow_html=True)
                             
                             u_ans = saved_ans.get(str(q['id']))
-                            # --- FIX LỖI HIỂN THỊ CHỮ NONE THÀNH "CHƯA LÀM" ---
                             stu_display = "Chưa làm" if u_ans is None or str(u_ans).strip() == "None" else u_ans
                             
                             idx_val = q['options'].index(u_ans) if u_ans in q['options'] else None
@@ -1139,7 +1139,7 @@ def main():
                 if exam_type == "📤 Tải lên đề thi của tôi (File PDF/Ảnh)":
                     uploaded_file = st.file_uploader("1. Tải File Đề (Hỗ trợ PDF, JPG, PNG)", type=['pdf', 'jpg', 'png', 'jpeg'])
                     
-                    pdf_method = st.radio("2. Cấu hình Đáp án & Lời giải:", ["✍️ Nhập chuỗi đáp án thủ công", "🤖 Nhờ AI phân tích file và viết lời giải chi tiết (Khuyên dùng)"])
+                    pdf_method = st.radio("2. Cấu hình Đáp án & Lời giải:", ["✍️ Nhập chuỗi đáp án thủ công", "🤖 Nhờ Radar AI phân tích file và viết lời giải chi tiết (Khuyên dùng)"])
                     
                     if pdf_method == "✍️ Nhập chuỗi đáp án thủ công":
                         ans_input = st.text_input("Nhập chuỗi Đáp án Đúng (Viết liền, VD: ABCDABCD)")
@@ -1164,23 +1164,23 @@ def main():
                     else:
                         if 'ai_pdf_preview' not in st.session_state: st.session_state.ai_pdf_preview = None
                         
-                        if st.button("🤖 Phân tích Đề bằng AI", type="primary"):
+                        if st.button("🤖 Phân tích Đề bằng Radar AI V26", type="primary"):
                             if not exam_title: st.error("Vui lòng nhập tên bài thi!")
                             elif not uploaded_file: st.error("Vui lòng tải file đề thi lên!")
                             else:
-                                with st.spinner("AI đang quét bề mặt tài liệu và biên soạn lời giải... (Khoảng 10-30 giây)"):
+                                with st.spinner("Radar AI đang quét tài liệu và biên soạn lời giải... (Khoảng 10-30 giây)"):
                                     file_bytes = uploaded_file.read()
                                     mime_type = uploaded_file.type
                                     
-                                    # LƯU Ý MẠNH MẼ ĐỂ CHỐNG LỖI JSON VÀ LỖI HIỂN THỊ TOÁN HỌC
-                                    prompt = """Đọc đề thi trong ảnh/tài liệu đính kèm. Trích xuất toàn bộ câu hỏi thành danh sách JSON. 
-                                    Cấu trúc BẮT BUỘC: [{'id': 1, 'question': 'nội dung', 'options': ['A', 'B', 'C', 'D'], 'answer': 'A', 'hint': 'Viết lời giải chi tiết hoặc giải thích vì sao chọn đáp án này cho học sinh hiểu'}]. 
-                                    LƯU Ý TUYỆT ĐỐI CHO ĐỊNH DẠNG TOÁN HỌC VÀ JSON:
+                                    # FIX: ÉP AI TRÍCH XUẤT 100% SỐ CÂU (CHỐNG TRUNCATION)
+                                    prompt = """Đọc đề thi trong ảnh/tài liệu đính kèm. Trích xuất TOÀN BỘ các câu hỏi thành danh sách JSON. 
+                                    CẢNH BÁO QUAN TRỌNG: Bạn phải quét và trích xuất ĐẦY ĐỦ 100% số câu hỏi có trong đề (TUYỆT ĐỐI KHÔNG BỎ SÓT CÂU NÀO, dù là 40 hay 50 câu).
+                                    Cấu trúc BẮT BUỘC: [{'id': 1, 'question': 'nội dung', 'options': ['A', 'B', 'C', 'D'], 'answer': 'A', 'hint': 'Ghi lời giải chi tiết cho học sinh hiểu'}]. 
+                                    LƯU Ý TUYỆT ĐỐI ĐỂ KHÔNG BỊ LỖI JSON:
                                     1. KHÔNG ngắt dòng (Enter) trong chuỗi. Dùng '\\n' nếu cần.
                                     2. Ký hiệu LaTeX phải dùng 2 dấu gạch chéo (VD: \\\\frac, \\\\sqrt).
-                                    3. TOÀN BỘ công thức, ký hiệu toán học, số liệu phải bọc trong dấu $ (ví dụ: $x^2+1=0$, $S=\\\\frac{1}{2}$). 
-                                    4. TUYỆT ĐỐI KHÔNG dùng ngoặc đơn ( ) hay \\( \\) hay \\[ \\] để bọc công thức.
-                                    5. Chỉ xuất JSON, không xuất chữ nào khác."""
+                                    3. TOÀN BỘ công thức, ký hiệu toán học phải bọc trong dấu $ (ví dụ: $x^2+1=0$, $S=\\\\frac{1}{2}$). 
+                                    4. Chỉ xuất JSON, không xuất chữ nào khác."""
                                     
                                     try:
                                         res = call_ai_safely(prompt, file_bytes, mime_type)
@@ -1197,7 +1197,7 @@ def main():
                                         st.error(f"Lỗi AI: {str(e)}")
                                         
                         if st.session_state.ai_pdf_preview:
-                            st.success("✅ AI đã hoàn tất bóc tách! Mời thầy/cô soát duyệt trước khi giao:")
+                            st.success(f"✅ AI đã bóc tách xong {len(st.session_state.ai_pdf_preview)} câu hỏi! Mời thầy/cô duyệt:")
                             ans_key_ai = []
                             with st.expander("🔍 XEM TRƯỚC ĐÁP ÁN & LỜI GIẢI TỪ AI", expanded=True):
                                 for q in st.session_state.ai_pdf_preview:
