@@ -41,7 +41,7 @@ except ImportError:
 VN_TZ = timezone(timedelta(hours=7))
 
 # --- ADMIN TRƯỜNG DÁN MÃ API KEY MỚI TINH & BÍ MẬT VÀO ĐÂY ---
-GEMINI_API_KEY = "AIzaSyAdMxKwK7I17CqcdfmUclp3JCD7rqKP3Pc"
+GEMINI_API_KEY = "AIzaSyCJri0N7lzuJoTeQhBz7WPQeACTcHJ7nwQ"
 
 # --- 🚀 ĐỘNG CƠ V21: RADAR TỰ ĐỘNG DÒ TÌM MODEL HỢP LỆ ---
 def call_ai_safely(prompt, file_bytes=None, mime_type=None):
@@ -1172,4 +1172,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
