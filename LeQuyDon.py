@@ -1,12 +1,13 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V20 SUPREME ULTIMATE (FINAL RADAR AI)
-# Đột phá: Radar tự động quét và lựa chọn mô hình AI hợp lệ từ Google (Diệt 100% lỗi 404).
-# Giữ nguyên: Biến PDF thành ảnh (PyMuPDF PIL), Đồ họa chuẩn SGK, Sinh 40 câu hỏi.
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V21 SUPREME ULTIMATE (BẢN CHUẨN HOÀN THIỆN)
+# Fix Lỗi 63: Khôi phục thư viện đồng hồ đếm ngược cho Học sinh (components)
+# Giữ nguyên: Radar AI V21, PyMuPDF Render Ảnh, Đồ họa SGK, 40 câu hỏi.
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
 
 import streamlit as st
+import streamlit.components.v1 as components  # ĐÃ KHÔI PHỤC DÒNG NÀY
 import random
 import math
 import pandas as pd
@@ -39,18 +40,18 @@ except ImportError:
 VN_TZ = timezone(timedelta(hours=7))
 
 # --- ADMIN TRƯỜNG DÁN MÃ API KEY MỚI TINH & BÍ MẬT VÀO ĐÂY ---
-GEMINI_API_KEY = "AIzaSyAdMxKwK7I17CqcdfmUclp3JCD7rqKP3Pc"
+GEMINI_API_KEY = "DÁN_MÃ_API_MỚI_TINH_CỦA_BẠN_VÀO_ĐÂY"
 
-# --- 🚀 BƯỚC ĐỘT PHÁ: RADAR TỰ ĐỘNG DÒ TÌM MODEL HỢP LỆ (KHÔNG BAO GIỜ 404) ---
+# --- 🚀 ĐỘNG CƠ V21: RADAR TỰ ĐỘNG DÒ TÌM MODEL HỢP LỆ ---
 def call_ai_safely(prompt, file_bytes=None, mime_type=None):
     if not AI_AVAILABLE:
         raise Exception("Hệ thống thiếu thư viện google-generativeai. Cần thêm vào requirements.txt")
     if not GEMINI_API_KEY or len(GEMINI_API_KEY) < 20 or "DÁN_MÃ" in GEMINI_API_KEY:
-        raise Exception("Bạn chưa cấu hình API Key. Vui lòng tạo mã mới ở Google AI Studio và dán vào dòng 39 của code!")
+        raise Exception("Bạn chưa cấu hình API Key. Vui lòng tạo mã mới ở Google AI Studio và dán vào dòng 40 của code!")
         
     genai.configure(api_key=GEMINI_API_KEY.strip())
     
-    # 1. HỎI GOOGLE XEM API NÀY ĐƯỢC PHÉP DÙNG NHỮNG MODEL NÀO
+    # 1. Hỏi Google xem API Key này được cấp quyền dùng Model nào
     try:
         available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
     except Exception as e:
@@ -59,14 +60,14 @@ def call_ai_safely(prompt, file_bytes=None, mime_type=None):
     contents = [prompt]
     needs_vision = False
     
-    # 2. XỬ LÝ FILE ẢNH HOẶC PDF (CHỐNG LỖI MẶT MẾU VÀ DUNG LƯỢNG)
+    # 2. Xử lý File Ảnh/PDF bằng cách biến thành PIL Image (Chống lỗi 404 File API)
     if file_bytes and mime_type:
         needs_vision = True
         if "pdf" in mime_type.lower():
             if not PDF_RENDERER_AVAILABLE:
                 raise Exception("Thiếu thư viện PyMuPDF để xử lý PDF. Cần thêm vào requirements.txt")
             doc = fitz.open(stream=file_bytes, filetype="pdf")
-            for page_num in range(min(len(doc), 4)):
+            for page_num in range(min(len(doc), 4)): # Quét tối đa 4 trang để tối ưu dung lượng
                 pix = doc.load_page(page_num).get_pixmap(dpi=100) 
                 img = Image.open(BytesIO(pix.tobytes("png")))
                 contents.append(img)
@@ -74,7 +75,7 @@ def call_ai_safely(prompt, file_bytes=None, mime_type=None):
             img = Image.open(BytesIO(file_bytes))
             contents.append(img)
 
-    # 3. LỰA CHỌN MODEL THÔNG MINH DỰA TRÊN DANH SÁCH GOOGLE TRẢ VỀ
+    # 3. Lựa chọn Model thông minh dựa trên kết quả Radar
     if needs_vision:
         preferences = ['models/gemini-1.5-flash', 'models/gemini-1.5-pro', 'models/gemini-1.0-pro-vision-latest', 'models/gemini-pro-vision']
     else:
@@ -92,10 +93,9 @@ def call_ai_safely(prompt, file_bytes=None, mime_type=None):
         else:
             raise Exception("API Key của bạn không có quyền truy cập mô hình AI nào.")
             
-    # Lấy tên sạch của model (xóa chữ 'models/')
     clean_model_name = target_model.replace("models/", "")
     
-    # 4. GỌI AI BẰNG MODEL ĐÃ CHỌN LỌC
+    # 4. Gửi lệnh cho AI
     try:
         model = genai.GenerativeModel(clean_model_name)
         return model.generate_content(contents)
@@ -139,7 +139,7 @@ def generate_username(fullname, dob):
     return f"{clean_name}{suffix}_{random.randint(10,99)}"
 
 # ==========================================
-# 2. CƠ SỞ DỮ LIỆU ĐA TẦNG V20
+# 2. CƠ SỞ DỮ LIỆU ĐA TẦNG V21
 # ==========================================
 def init_db():
     conn = sqlite3.connect('exam_db.sqlite')
@@ -254,7 +254,7 @@ def draw_dynamic_shadow(h_cot, bong_cot, bong_cay):
     return fig_to_base64(fig)
 
 # ==========================================
-# 4. ĐỘNG CƠ SINH ĐỀ CHUYÊN SÂU 
+# 4. ĐỘNG CƠ SINH ĐỀ CHUYÊN SÂU V21
 # ==========================================
 class ExamGenerator:
     def __init__(self):
@@ -306,11 +306,10 @@ class ExamGenerator:
             seed = time.time()
             prompt = f"""Mốc thời gian: {seed}. 
             Đóng vai Chuyên gia Tuyển sinh Toán học. Sáng tạo 5 CÂU HỎI trắc nghiệm Toán 9 thực tiễn đa dạng.
-            YÊU CẦU: Trả về ĐÚNG JSON nguyên khối: [{{"question": "...", "options": ["A", "B", "C", "D"], "answer": "...", "hint": "<Viết lời giải ngắn gọn hoặc gợi ý cách làm tại đây>", "image_svg": ""}}]"""
+            YÊU CẦU: Trả về ĐÚNG JSON nguyên khối: [{{"question": "...", "options": ["A", "B", "C", "D"], "answer": "...", "hint": "<Viết lời giải chi tiết hoặc gợi ý tại đây>", "image_svg": ""}}]"""
             
             res = call_ai_safely(prompt)
-            raw_text = re.sub(r'```json\n?', '', res.text)
-            raw_text = re.sub(r'```\n?', '', raw_text)
+            raw_text = res.text.replace('```json', '').replace('```', '').strip()
             match = re.search(r'\[.*\]', raw_text, re.DOTALL)
             
             if match:
@@ -324,10 +323,26 @@ class ExamGenerator:
             pass 
 
         local_distinct_pool = self.get_38_distinct_local_questions()
-        final_pool = (ai_questions + local_distinct_pool)[:40]
+        
+        if ai_questions:
+            num_ai = min(len(ai_questions), 10)
+            final_pool = ai_questions[:num_ai] + local_distinct_pool[:38 - num_ai]
+        else:
+            final_pool = local_distinct_pool[:38]
+
+        hsg_bank = [
+            {"q": "Cho các số thực dương $a, b, c$ thỏa mãn $a^2+b^2+c^2=3$. Tìm giá trị nhỏ nhất của biểu thức $P = \\frac{a^3}{\\sqrt{b^2+3}} + \\frac{b^3}{\\sqrt{c^2+3}} + \\frac{c^3}{\\sqrt{a^2+3}}$.", "a": r"$\frac{3}{2}$", "d": [r"1", r"$\frac{1}{2}$", r"3"], "h": "Sử dụng BĐT AM-GM và Bunhiacopxki."},
+            {"q": "Tìm tất cả các nghiệm nguyên $(x, y)$ thỏa mãn phương trình: $x^3 + y^3 = (x+y)^2$.", "a": "4 cặp: (0,0), (1,0), (0,1), (2,2)", "d": ["2 cặp", "Vô số cặp", "Vô nghiệm"], "h": "Phân tích $(x+y)(x^2-xy+y^2 - x - y) = 0$."},
+            {"q": "Trên bảng viết 2026 số 1. Mỗi lần cho phép xóa 2 số a, b bất kỳ và viết lại bằng số $a+b+ab$. Hỏi sau 2025 lần thực hiện, số còn lại trên bảng là bao nhiêu?", "a": "$2^{2026} - 1$", "d": ["$2026!$", "$2026^2$", "$2^{2025}$"], "h": "Dùng tính chất bất biến: $(a+1)(b+1) - 1 = a+b+ab$."},
+            {"q": "Giải phương trình vô tỷ: $\\sqrt{x - \\frac{1}{x}} - \\sqrt{1 - \\frac{1}{x}} = \\frac{x-1}{x}$.", "a": "$x = \\frac{1+\\sqrt{5}}{2}$", "d": ["$x = 2$", "$x = 1$", "Vô nghiệm"], "h": "Điều kiện $x \\ge 1$. Nhân lượng liên hợp 2 vế."}
+        ]
+        selected_hsg_raw = random.sample(hsg_bank, 2)
+        hsg_questions = [{"q": q["q"], "opts": self.format_options(q["a"], q["d"]), "a": q["a"], "h": q["h"], "i_svg": "", "i": None} for q in selected_hsg_raw]
+
+        final_pool.extend(hsg_questions)
         random.shuffle(final_pool)
 
-        for i, q in enumerate(final_pool):
+        for i, q in enumerate(final_pool[:40]):
             self.exam.append({
                 "id": i + 1, "question": q["q"], "options": q["opts"],
                 "answer": q["a"], "hint": q["h"], "image_svg": q["i_svg"], "image": q["i"]
@@ -336,10 +351,10 @@ class ExamGenerator:
         return self.exam
 
 # ==========================================
-# 5. GIAO DIỆN HỆ THỐNG V20
+# 5. GIAO DIỆN HỆ THỐNG V21
 # ==========================================
 def main():
-    st.set_page_config(page_title="Hệ Thống LMS V20", layout="wide", page_icon="🏫")
+    st.set_page_config(page_title="Hệ Thống LMS V21", layout="wide", page_icon="🏫")
     init_db()
     
     if 'current_user' not in st.session_state: st.session_state.current_user = None
@@ -347,7 +362,7 @@ def main():
     if 'fullname' not in st.session_state: st.session_state.fullname = None
 
     if st.session_state.current_user is None:
-        st.markdown("<h1 style='text-align: center; color: #2c3e50;'>🎓 HỆ THỐNG KIỂM TRA TRỰC TUYẾN V20</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center; color: #2c3e50;'>🎓 HỆ THỐNG KIỂM TRA TRỰC TUYẾN V21</h1>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1, 1.5, 1])
         with col2:
             with st.form("login_form"):
@@ -406,7 +421,7 @@ def main():
     # GIAO DIỆN HỌC SINH 
     # ==========================
     if st.session_state.role == 'student':
-        tab_mand, tab_ai = st.tabs(["🔥 Bài kiểm tra Bắt buộc", "🤖 Đề tự luyện"])
+        tab_mand, tab_ai = st.tabs(["🔥 Bài kiểm tra Bắt buộc", "🤖 Đề tự luyện V21"])
         now_vn = datetime.now(VN_TZ)
         
         with tab_mand:
@@ -510,7 +525,6 @@ def main():
                             b64 = exam_row['file_data']
                             mime = exam_row['file_type']
                             
-                            # --- HIỂN THỊ PDF CHUYÊN NGHIỆP: CHUYỂN ẢNH CHỐNG MẶT MẾU LỖI 58 ---
                             if 'pdf' in str(mime).lower():
                                 if not PDF_RENDERER_AVAILABLE:
                                     st.warning("Hệ thống thiếu PyMuPDF. Trình duyệt có thể chặn file này.")
@@ -594,7 +608,6 @@ def main():
                         ans_key = json.loads(exam_row['answer_key'])
                         num_q = len(ans_key)
                         
-                        # Lấy lời giải AI nếu có
                         ai_hints = []
                         if pd.notnull(exam_row.get('questions_json')) and str(exam_row.get('questions_json')).strip() != "":
                             try: ai_hints = json.loads(exam_row['questions_json'])
@@ -613,7 +626,6 @@ def main():
                                 else: 
                                     st.error(f"**Câu {i+1}: {stu_val}** ❌ (Đúng: {correct_val})")
                                     
-                                # Hiển thị Lời giải AI
                                 if ai_hints and len(ai_hints) > i:
                                     with st.expander("💡 Xem hướng dẫn giải từ AI"):
                                         st.markdown(ai_hints[i].get('hint', 'Chưa có lời giải chi tiết.'))
@@ -681,8 +693,8 @@ def main():
             if 'user_answers' not in st.session_state: st.session_state.user_answers = {}
             if 'is_submitted' not in st.session_state: st.session_state.is_submitted = False
 
-            if st.button("🔄 TẠO ĐỀ LUYỆN TẬP ĐỘC BẢN", use_container_width=True):
-                with st.spinner("Đang kết nối AI và lấy 40 câu hỏi độc bản ngẫu nhiên..."):
+            if st.button("🔄 TẠO ĐỀ LUYỆN TẬP V21", use_container_width=True):
+                with st.spinner("Đang kết nối Radar AI và lấy 40 câu hỏi độc bản ngẫu nhiên..."):
                     gen = ExamGenerator()
                     st.session_state.exam_data = gen.generate_all()
                     st.session_state.user_answers = {str(q['id']): None for q in st.session_state.exam_data}
@@ -727,7 +739,7 @@ def main():
     # GIAO DIỆN QUẢN TRỊ & GIÁO VIÊN
     # ==========================
     elif st.session_state.role in ['core_admin', 'sub_admin', 'teacher']:
-        st.title("⚙ Bảng Điều Khiển (LMS V20)")
+        st.title("⚙ Bảng Điều Khiển (LMS V21)")
         
         if st.session_state.role in ['core_admin', 'sub_admin']:
             tabs = st.tabs(["🏫 Lớp & Học sinh", "🛡️ Quản lý Nhân sự", "📊 Báo cáo Điểm", "📤 Phát Đề (Giao Bài)"])
@@ -1034,7 +1046,7 @@ def main():
                             st.dataframe(df_stats[['Câu', 'Số HS làm sai']], use_container_width=True)
                         else: st.info("Cần có dữ liệu nộp bài để hệ thống phân tích.")
 
-        # --- TAB 4: PHÁT ĐỀ ---
+        # --- TAB 4: PHÁT ĐỀ VÀ KIỂM DUYỆT AI ---
         with tab_system:
             st.subheader("📤 Phát Bài Tập Cho Học Sinh")
             
@@ -1057,12 +1069,12 @@ def main():
                 e_time = c2.time_input("Giờ thu", value=datetime.strptime("23:59", "%H:%M").time())
                 
                 st.markdown("---")
-                exam_type = st.radio("Lựa chọn phương thức giao bài:", ["📤 Tải lên đề thi của tôi (File PDF/Ảnh)", "🤖 Sinh ngẫu nhiên từ Lõi V20 (40 Câu)"])
+                exam_type = st.radio("Lựa chọn phương thức giao bài:", ["📤 Tải lên đề thi của tôi (File PDF/Ảnh)", "🤖 Sinh ngẫu nhiên từ Lõi V21 (40 Câu)"])
                 
                 if exam_type == "📤 Tải lên đề thi của tôi (File PDF/Ảnh)":
                     uploaded_file = st.file_uploader("1. Tải File Đề (Hỗ trợ PDF, JPG, PNG)", type=['pdf', 'jpg', 'png', 'jpeg'])
                     
-                    pdf_method = st.radio("2. Cấu hình Đáp án & Lời giải:", ["✍️ Nhập chuỗi đáp án thủ công", "🤖 Nhờ AI phân tích file và viết lời giải chi tiết (Khuyên dùng)"])
+                    pdf_method = st.radio("2. Cấu hình Đáp án & Lời giải:", ["✍️ Nhập chuỗi đáp án thủ công", "🤖 Nhờ Radar AI phân tích file và viết lời giải chi tiết (Khuyên dùng)"])
                     
                     if pdf_method == "✍️ Nhập chuỗi đáp án thủ công":
                         ans_input = st.text_input("Nhập chuỗi Đáp án Đúng (Viết liền, VD: ABCDABCD)")
@@ -1087,11 +1099,11 @@ def main():
                     else:
                         if 'ai_pdf_preview' not in st.session_state: st.session_state.ai_pdf_preview = None
                         
-                        if st.button("🤖 Phân tích Đề bằng AI", type="primary"):
+                        if st.button("🤖 Phân tích Đề bằng Radar AI V21", type="primary"):
                             if not exam_title: st.error("Vui lòng nhập tên bài thi!")
                             elif not uploaded_file: st.error("Vui lòng tải file đề thi lên!")
                             else:
-                                with st.spinner("AI đang quét bề mặt tài liệu và biên soạn lời giải... (Khoảng 10-30 giây)"):
+                                with st.spinner("Radar AI đang quét tài liệu và biên soạn lời giải... (Khoảng 10-30 giây)"):
                                     file_bytes = uploaded_file.read()
                                     mime_type = uploaded_file.type
                                     
@@ -1142,7 +1154,7 @@ def main():
                                     st.rerun()
                 
                 else:
-                    if st.button("🚀 Phát Đề AI (Trộn Ngẫu Nhiên 40 Câu Lõi V20)", type="primary"):
+                    if st.button("🚀 Phát Đề AI (Trộn Ngẫu Nhiên 40 Câu Lõi V21)", type="primary"):
                         if exam_title:
                             gen = ExamGenerator()
                             fixed_exam = gen.generate_all()
@@ -1157,4 +1169,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
