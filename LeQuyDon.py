@@ -1,6 +1,6 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V20 SUPREME ULTIMATE (FINAL - PDF RENDERER)
-# Cải tiến: Trình đọc PDF nhúng bằng JavaScript Blob (Vượt giới hạn Chrome, không cần tải về)
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V20 SUPREME ULTIMATE (FINAL PDF RENDERER)
+# Cải tiến: Trình Render PDF thành Hình ảnh siêu nét (Chống mặt mếu 100%, không cần tải về)
 # Giữ nguyên: Đồ họa SVG chuẩn SGK, Trộn đề độc bản 40 câu, Giao diện tinh gọn
 # ==========================================
 import matplotlib
@@ -35,12 +35,26 @@ except ImportError:
     except:
         AI_AVAILABLE = False
 
+# --- THƯ VIỆN ĐỌC PDF XUYÊN TƯỜNG LỬA (PyMuPDF) ---
+try:
+    import fitz  # PyMuPDF
+    PDF_RENDERER_AVAILABLE = True
+except ImportError:
+    import subprocess
+    import sys
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "PyMuPDF"])
+        import fitz
+        PDF_RENDERER_AVAILABLE = True
+    except:
+        PDF_RENDERER_AVAILABLE = False
+
 VN_TZ = timezone(timedelta(hours=7))
 
 # --- ADMIN TRƯỜNG DÁN MÃ API KEY BÍ MẬT VÀO ĐÂY (CHỈ CẦN DÁN 1 LẦN) ---
-GEMINI_API_KEY = "AIzaSyAuB3vlaiDyZ-vQqcwIcOTXZsjH_ePv4B0" 
+GEMINI_API_KEY = "DÁN_MÃ_API_CỦA_BẠN_VÀO_ĐÂY" 
 
-if AI_AVAILABLE and GEMINI_API_KEY and GEMINI_API_KEY != "AIzaSyAuB3vlaiDyZ-vQqcwIcOTXZsjH_ePv4B0":
+if AI_AVAILABLE and GEMINI_API_KEY and GEMINI_API_KEY != "DÁN_MÃ_API_CỦA_BẠN_VÀO_ĐÂY":
     try:
         genai.configure(api_key=GEMINI_API_KEY)
         ai_model = genai.GenerativeModel('gemini-1.5-flash')
@@ -201,7 +215,7 @@ def draw_dynamic_shadow(h_cot, bong_cot, bong_cay):
     return fig_to_base64(fig)
 
 # ==========================================
-# 4. ĐỘNG CƠ SINH ĐỀ CHUYÊN SÂU V20 (TỰ LUYỆN / TỰ ĐỘNG SINH ĐỀ GIAO)
+# 4. ĐỘNG CƠ SINH ĐỀ CHUYÊN SÂU 
 # ==========================================
 class ExamGenerator:
     def __init__(self):
@@ -423,7 +437,7 @@ def main():
         now_vn = datetime.now(VN_TZ)
         
         with tab_mand:
-            st.info("📌 Khu vực làm các bài thi chính thức trực tiếp trên App.")
+            st.info("📌 Khu vực làm các bài thi chính thức.")
             conn = sqlite3.connect('exam_db.sqlite')
             c = conn.cursor()
             
@@ -522,36 +536,26 @@ def main():
                             st.markdown("#### 📄 NỘI DUNG ĐỀ THI")
                             b64 = exam_row['file_data']
                             mime = exam_row['file_type']
-                            # --- 🛡️ HIỂN THỊ PDF TRỰC TIẾP BẰNG JAVASCRIPT BLOB ---
+                            
+                            # --- HIỂN THỊ PDF BẰNG PyMuPDF (TRUYỂN THÀNH ẢNH TRÁNH MẶT MẾU) ---
                             if 'pdf' in str(mime).lower():
-                                pdf_display_code = """
-                                <html>
-                                <head><style>body{margin:0;padding:0;}</style></head>
-                                <body>
-                                <script>
-                                    var base64str = "BASE64_STRING_HERE";
-                                    var binary = atob(base64str);
-                                    var len = binary.length;
-                                    var buffer = new ArrayBuffer(len);
-                                    var view = new Uint8Array(buffer);
-                                    for (var i = 0; i < len; i++) {
-                                        view[i] = binary.charCodeAt(i);
-                                    }
-                                    var blob = new Blob([view], { type: "application/pdf" });
-                                    var url = URL.createObjectURL(blob);
-                                    var iframe = document.createElement('iframe');
-                                    iframe.src = url + "#toolbar=0";
-                                    iframe.width = "100%";
-                                    iframe.height = "800px";
-                                    iframe.style.border = "none";
-                                    document.body.appendChild(iframe);
-                                </script>
-                                </body>
-                                </html>
-                                """.replace("BASE64_STRING_HERE", b64)
-                                components.html(pdf_display_code, height=800)
+                                if PDF_RENDERER_AVAILABLE:
+                                    try:
+                                        pdf_bytes = base64.b64decode(b64)
+                                        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+                                        for page_num in range(len(doc)):
+                                            page = doc.load_page(page_num)
+                                            pix = page.get_pixmap(dpi=150)
+                                            st.image(pix.tobytes("png"), use_container_width=True)
+                                    except Exception as e:
+                                        st.error("Lỗi Render PDF.")
+                                        st.markdown(f'<embed src="data:application/pdf;base64,{b64}" width="100%" height="800px" type="application/pdf">', unsafe_allow_html=True)
+                                else:
+                                    st.markdown(f'<embed src="data:application/pdf;base64,{b64}" width="100%" height="800px" type="application/pdf">', unsafe_allow_html=True)
+                                    st.warning("⚠️ Trình duyệt chặn PDF? Vui lòng yêu cầu Admin thêm 'PyMuPDF' vào file requirements.txt để tự động chuyển PDF thành ảnh.")
                             else:
                                 st.markdown(f'<img src="data:{mime};base64,{b64}" width="100%">', unsafe_allow_html=True)
+                                
                         with col_ans:
                             st.markdown("#### ✍️ PHIẾU TÔ TRẮC NGHIỆM")
                             if f"mand_ans_{exam_id}" not in st.session_state:
@@ -625,38 +629,25 @@ def main():
                                 if stu_val == correct_val: st.success(f"Câu {i+1}: {stu_val} ✅")
                                 else: st.error(f"Câu {i+1}: {stu_val} ❌ (Đ/A: {correct_val})")
                                 
-                        # Hiển thị lại PDF trong màn Xem lại để học sinh đối chiếu
                         st.markdown("---")
                         st.markdown("#### 📄 Xem lại Đề thi")
                         b64 = exam_row['file_data']
                         mime = exam_row['file_type']
+                        
+                        # --- RENDER LẠI PDF Ở MÀN REVIEW ---
                         if 'pdf' in str(mime).lower():
-                            pdf_display_code = """
-                            <html>
-                            <head><style>body{margin:0;padding:0;}</style></head>
-                            <body>
-                            <script>
-                                var base64str = "BASE64_STRING_HERE";
-                                var binary = atob(base64str);
-                                var len = binary.length;
-                                var buffer = new ArrayBuffer(len);
-                                var view = new Uint8Array(buffer);
-                                for (var i = 0; i < len; i++) {
-                                    view[i] = binary.charCodeAt(i);
-                                }
-                                var blob = new Blob([view], { type: "application/pdf" });
-                                var url = URL.createObjectURL(blob);
-                                var iframe = document.createElement('iframe');
-                                iframe.src = url + "#toolbar=0";
-                                iframe.width = "100%";
-                                iframe.height = "800px";
-                                iframe.style.border = "none";
-                                document.body.appendChild(iframe);
-                            </script>
-                            </body>
-                            </html>
-                            """.replace("BASE64_STRING_HERE", b64)
-                            components.html(pdf_display_code, height=800)
+                            if PDF_RENDERER_AVAILABLE:
+                                try:
+                                    pdf_bytes = base64.b64decode(b64)
+                                    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+                                    for page_num in range(len(doc)):
+                                        page = doc.load_page(page_num)
+                                        pix = page.get_pixmap(dpi=150)
+                                        st.image(pix.tobytes("png"), use_container_width=True)
+                                except Exception as e:
+                                    st.markdown(f'<embed src="data:application/pdf;base64,{b64}" width="100%" height="800px" type="application/pdf">', unsafe_allow_html=True)
+                            else:
+                                st.markdown(f'<embed src="data:application/pdf;base64,{b64}" width="100%" height="800px" type="application/pdf">', unsafe_allow_html=True)
                         else:
                             st.markdown(f'<img src="data:{mime};base64,{b64}" width="100%">', unsafe_allow_html=True)
                     else:
@@ -703,7 +694,7 @@ def main():
             if 'user_answers' not in st.session_state: st.session_state.user_answers = {}
             if 'is_submitted' not in st.session_state: st.session_state.is_submitted = False
 
-            if st.button("🔄 TẠO ĐỀ LUYỆN TẬP ĐỘC BẢN", use_container_width=True):
+            if st.button("🔄 TẠO ĐỀ LUYỆN TẬP MỚI", use_container_width=True):
                 with st.spinner("Đang xáo trộn dữ liệu và vẽ đồ họa chuẩn SGK..."):
                     gen = ExamGenerator()
                     st.session_state.exam_data = gen.generate_all()
