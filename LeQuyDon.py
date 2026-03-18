@@ -1,7 +1,7 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V21 SUPREME (BẢN ĐÁNH BÓNG GIAO DIỆN TỐI ƯU)
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V22 SUPREME ULTIMATE (SIÊU PHẨM HOÀN THIỆN)
 # Tác giả: Admin Trường & Chuyên gia AI
-# Cải tiến: Biến chữ 'None' thành 'Chưa làm', Trình bày Lời giải AI siêu đẹp cho Học sinh.
+# Cải tiến: Ép AI giải chi tiết, Hiển thị hộp thoại "Hướng dẫn giải" siêu đẹp cho Học sinh.
 # Giữ nguyên bản lõi: Radar AI quét Model, Render PDF chống mặt mếu, Đồ họa chuẩn SGK.
 # ==========================================
 import matplotlib
@@ -41,18 +41,17 @@ except ImportError:
 VN_TZ = timezone(timedelta(hours=7))
 
 # --- ADMIN TRƯỜNG DÁN MÃ API KEY MỚI TINH & BÍ MẬT VÀO ĐÂY ---
-GEMINI_API_KEY = "AIzaSyCJri0N7lzuJoTeQhBz7WPQeACTcHJ7nwQ"
+GEMINI_API_KEY = "AIzaSyDFfDUSfvkIAVPrWy7jlPs1tykBv7553IY"
 
-# --- 🚀 ĐỘNG CƠ V21: RADAR TỰ ĐỘNG DÒ TÌM MODEL HỢP LỆ ---
+# --- 🚀 ĐỘNG CƠ V22: RADAR TỰ ĐỘNG DÒ TÌM MODEL HỢP LỆ ---
 def call_ai_safely(prompt, file_bytes=None, mime_type=None):
     if not AI_AVAILABLE:
         raise Exception("Hệ thống thiếu thư viện google-generativeai. Cần thêm vào requirements.txt")
     if not GEMINI_API_KEY or len(GEMINI_API_KEY) < 20 or "DÁN_MÃ" in GEMINI_API_KEY:
-        raise Exception("Bạn chưa cấu hình API Key. Vui lòng tạo mã mới ở Google AI Studio và dán vào dòng 40 của code!")
+        raise Exception("Bạn chưa cấu hình API Key. Vui lòng tạo mã mới ở Google AI Studio và dán vào dòng code!")
         
     genai.configure(api_key=GEMINI_API_KEY.strip())
     
-    # 1. Hỏi Google xem API Key này được cấp quyền dùng Model nào
     try:
         available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
     except Exception as e:
@@ -61,14 +60,13 @@ def call_ai_safely(prompt, file_bytes=None, mime_type=None):
     contents = [prompt]
     needs_vision = False
     
-    # 2. Xử lý File Ảnh/PDF bằng cách biến thành PIL Image (Chống lỗi 404 File API)
     if file_bytes and mime_type:
         needs_vision = True
         if "pdf" in mime_type.lower():
             if not PDF_RENDERER_AVAILABLE:
                 raise Exception("Thiếu thư viện PyMuPDF để xử lý PDF. Cần thêm vào requirements.txt")
             doc = fitz.open(stream=file_bytes, filetype="pdf")
-            for page_num in range(min(len(doc), 4)): # Quét tối đa 4 trang để tối ưu dung lượng
+            for page_num in range(min(len(doc), 4)): 
                 pix = doc.load_page(page_num).get_pixmap(dpi=100) 
                 img = Image.open(BytesIO(pix.tobytes("png")))
                 contents.append(img)
@@ -76,7 +74,6 @@ def call_ai_safely(prompt, file_bytes=None, mime_type=None):
             img = Image.open(BytesIO(file_bytes))
             contents.append(img)
 
-    # 3. Lựa chọn Model thông minh dựa trên kết quả Radar
     if needs_vision:
         preferences = ['models/gemini-1.5-flash', 'models/gemini-1.5-pro', 'models/gemini-1.0-pro-vision-latest', 'models/gemini-pro-vision']
     else:
@@ -89,14 +86,11 @@ def call_ai_safely(prompt, file_bytes=None, mime_type=None):
             break
             
     if not target_model:
-        if available_models:
-            target_model = available_models[0]
-        else:
-            raise Exception("API Key của bạn không có quyền truy cập mô hình AI nào.")
+        if available_models: target_model = available_models[0]
+        else: raise Exception("API Key của bạn không có quyền truy cập mô hình AI nào.")
             
     clean_model_name = target_model.replace("models/", "")
     
-    # 4. Gửi lệnh cho AI
     try:
         model = genai.GenerativeModel(clean_model_name)
         return model.generate_content(contents)
@@ -140,7 +134,7 @@ def generate_username(fullname, dob):
     return f"{clean_name}{suffix}_{random.randint(10,99)}"
 
 # ==========================================
-# 2. CƠ SỞ DỮ LIỆU ĐA TẦNG V21
+# 2. CƠ SỞ DỮ LIỆU ĐA TẦNG V22
 # ==========================================
 def init_db():
     conn = sqlite3.connect('exam_db.sqlite')
@@ -255,7 +249,7 @@ def draw_dynamic_shadow(h_cot, bong_cot, bong_cay):
     return fig_to_base64(fig)
 
 # ==========================================
-# 4. ĐỘNG CƠ SINH ĐỀ CHUYÊN SÂU V21
+# 4. ĐỘNG CƠ SINH ĐỀ CHUYÊN SÂU V22
 # ==========================================
 class ExamGenerator:
     def __init__(self):
@@ -307,7 +301,7 @@ class ExamGenerator:
             seed = time.time()
             prompt = f"""Mốc thời gian: {seed}. 
             Đóng vai Chuyên gia Tuyển sinh Toán học. Sáng tạo 5 CÂU HỎI trắc nghiệm Toán 9 thực tiễn đa dạng.
-            YÊU CẦU: Trả về ĐÚNG JSON nguyên khối: [{{"question": "...", "options": ["A", "B", "C", "D"], "answer": "...", "hint": "<Viết lời giải chi tiết hoặc gợi ý tại đây>", "image_svg": ""}}]"""
+            YÊU CẦU: Trả về ĐÚNG JSON nguyên khối: [{{"question": "...", "options": ["A", "B", "C", "D"], "answer": "...", "hint": "Ghi rõ hướng dẫn giải chi tiết tại đây", "image_svg": ""}}]"""
             
             res = call_ai_safely(prompt)
             raw_text = res.text.replace('```json', '').replace('```', '').strip()
@@ -336,10 +330,10 @@ class ExamGenerator:
         return self.exam
 
 # ==========================================
-# 5. GIAO DIỆN HỆ THỐNG V21
+# 5. GIAO DIỆN HỆ THỐNG V22
 # ==========================================
 def main():
-    st.set_page_config(page_title="Hệ Thống LMS V21", layout="wide", page_icon="🏫")
+    st.set_page_config(page_title="Hệ Thống LMS V22", layout="wide", page_icon="🏫")
     init_db()
     
     if 'current_user' not in st.session_state: st.session_state.current_user = None
@@ -347,7 +341,7 @@ def main():
     if 'fullname' not in st.session_state: st.session_state.fullname = None
 
     if st.session_state.current_user is None:
-        st.markdown("<h1 style='text-align: center; color: #2c3e50;'>🎓 HỆ THỐNG KIỂM TRA TRỰC TUYẾN V21</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center; color: #2c3e50;'>🎓 HỆ THỐNG KIỂM TRA TRỰC TUYẾN V22</h1>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1, 1.5, 1])
         with col2:
             with st.form("login_form"):
@@ -406,7 +400,7 @@ def main():
     # GIAO DIỆN HỌC SINH 
     # ==========================
     if st.session_state.role == 'student':
-        tab_mand, tab_ai = st.tabs(["🔥 Bài kiểm tra Bắt buộc", "🤖 Đề tự luyện V21"])
+        tab_mand, tab_ai = st.tabs(["🔥 Bài kiểm tra Bắt buộc", "🤖 Đề tự luyện V22"])
         now_vn = datetime.now(VN_TZ)
         
         with tab_mand:
@@ -510,6 +504,7 @@ def main():
                             b64 = exam_row['file_data']
                             mime = exam_row['file_type']
                             
+                            # --- HIỂN THỊ PDF CHUYÊN NGHIỆP: CHUYỂN ẢNH CHỐNG MẶT MẾU ---
                             if 'pdf' in str(mime).lower():
                                 if not PDF_RENDERER_AVAILABLE:
                                     st.warning("Hệ thống thiếu PyMuPDF. Trình duyệt có thể chặn file này.")
@@ -593,18 +588,23 @@ def main():
                         ans_key = json.loads(exam_row['answer_key'])
                         num_q = len(ans_key)
                         
-                        # Lấy lời giải AI nếu có
+                        # --- 💡 BƯỚC ĐỘT PHÁ GIAO DIỆN HỌC SINH: RÚT TRÍCH LỜI GIẢI AI AN TOÀN ---
                         ai_hints = []
-                        if pd.notnull(exam_row.get('questions_json')) and str(exam_row.get('questions_json')).strip() != "":
-                            try: ai_hints = json.loads(exam_row['questions_json'])
-                            except: pass
+                        q_json_raw = exam_row.get('questions_json')
+                        if pd.notna(q_json_raw) and str(q_json_raw).strip() not in ["", "None", "nan", "NaN", "null"]:
+                            try: 
+                                parsed = json.loads(str(q_json_raw))
+                                if isinstance(parsed, list):
+                                    ai_hints = parsed
+                            except: 
+                                pass
 
                         col_pdf_rev, col_ans_rev = st.columns([1.5, 1])
                         
                         with col_ans_rev:
                             st.markdown("#### 📝 Kết quả & Lời giải AI")
                             if not ai_hints:
-                                st.caption("*(Bài thi này được giao thủ công nên không kèm lời giải AI)*")
+                                st.info("💡 Bài thi này chưa được tích hợp lời giải AI (Do giáo viên giao bằng phương pháp thủ công hoặc được tạo từ phiên bản cũ).")
                                 
                             for i in range(num_q):
                                 raw_val = saved_ans.get(str(i+1))
@@ -617,10 +617,17 @@ def main():
                                     st.error(f"**Câu {i+1}: {stu_val_display}** ❌ (Đúng: {correct_val})")
                                     
                                 # Hiển thị Lời giải AI Đẹp mắt
-                                if ai_hints and len(ai_hints) > i:
-                                    with st.expander(f"💡 Xem lời giải Câu {i+1}"):
-                                        st.markdown(f"**Đề bài:** {ai_hints[i].get('question', '')}")
-                                        st.markdown(f"**Hướng dẫn:** {ai_hints[i].get('hint', 'Chưa có lời giải chi tiết.')}")
+                                if ai_hints and i < len(ai_hints):
+                                    hint_data = ai_hints[i]
+                                    if isinstance(hint_data, dict):
+                                        h_text = hint_data.get('hint', '')
+                                        q_text = hint_data.get('question', '')
+                                        
+                                        if h_text and h_text.lower() not in ['none', 'null', '']:
+                                            with st.expander(f"💡 Xem hướng dẫn giải Câu {i+1}"):
+                                                if q_text:
+                                                    st.markdown(f"**Đề bài:** {q_text}")
+                                                st.markdown(f"**Hướng dẫn:** {h_text}")
                                 st.markdown("---")
                                 
                         with col_pdf_rev:
@@ -696,7 +703,7 @@ def main():
             if 'user_answers' not in st.session_state: st.session_state.user_answers = {}
             if 'is_submitted' not in st.session_state: st.session_state.is_submitted = False
 
-            if st.button("🔄 TẠO ĐỀ LUYỆN TẬP ĐỘC BẢN", use_container_width=True):
+            if st.button("🔄 TẠO ĐỀ LUYỆN TẬP V22", use_container_width=True):
                 with st.spinner("Đang kết nối AI và lấy 40 câu hỏi độc bản ngẫu nhiên..."):
                     gen = ExamGenerator()
                     st.session_state.exam_data = gen.generate_all()
@@ -722,15 +729,24 @@ def main():
                     
                     disabled = st.session_state.is_submitted
                     ans_val = st.session_state.user_answers[str(q['id'])]
-                    selected = st.radio("Chọn đáp án:", options=q['options'], index=q['options'].index(ans_val) if ans_val in q['options'] else None, key=f"q_ai_{q['id']}", disabled=disabled, label_visibility="collapsed")
+                    
+                    # Hiện thị đáp án đã chọn (hoặc Chưa làm nếu None)
+                    idx_val = q['options'].index(ans_val) if ans_val in q['options'] else None
+                    selected = st.radio("Chọn đáp án:", options=q['options'], index=idx_val, key=f"q_ai_{q['id']}", disabled=disabled, label_visibility="collapsed")
                     
                     if not disabled: 
                         st.session_state.user_answers[str(q['id'])] = selected
                         
                     if st.session_state.is_submitted:
-                        if selected == q['answer']: st.success("✅ Đúng")
-                        else: st.error(f"❌ Sai. Đáp án đúng: {q['answer']}")
-                        with st.expander("📖 Xem Lời Giải Chi Tiết"): st.markdown(q.get('hint', ''), unsafe_allow_html=True)
+                        if selected == q['answer']: 
+                            st.success("✅ Đúng")
+                        elif selected is None:
+                            st.error(f"❌ Chưa làm. Đáp án đúng: {q['answer']}")
+                        else: 
+                            st.error(f"❌ Sai. Đáp án đúng: {q['answer']}")
+                            
+                        with st.expander("📖 Xem Lời Giải Chi Tiết"): 
+                            st.markdown(q.get('hint', ''), unsafe_allow_html=True)
                     st.markdown("---")
                 
                 if not st.session_state.is_submitted:
@@ -742,7 +758,7 @@ def main():
     # GIAO DIỆN QUẢN TRỊ & GIÁO VIÊN
     # ==========================
     elif st.session_state.role in ['core_admin', 'sub_admin', 'teacher']:
-        st.title("⚙ Bảng Điều Khiển (LMS V21)")
+        st.title("⚙ Bảng Điều Khiển (LMS V22)")
         
         if st.session_state.role in ['core_admin', 'sub_admin']:
             tabs = st.tabs(["🏫 Lớp & Học sinh", "🛡️ Quản lý Nhân sự", "📊 Báo cáo Điểm", "📤 Phát Đề (Giao Bài)"])
@@ -1049,7 +1065,7 @@ def main():
                             st.dataframe(df_stats[['Câu', 'Số HS làm sai']], use_container_width=True)
                         else: st.info("Cần có dữ liệu nộp bài để hệ thống phân tích.")
 
-        # --- TAB 4: PHÁT ĐỀ ---
+        # --- TAB 4: PHÁT ĐỀ VÀ KIỂM DUYỆT AI ---
         with tab_system:
             st.subheader("📤 Phát Bài Tập Cho Học Sinh")
             
@@ -1072,12 +1088,12 @@ def main():
                 e_time = c2.time_input("Giờ thu", value=datetime.strptime("23:59", "%H:%M").time())
                 
                 st.markdown("---")
-                exam_type = st.radio("Lựa chọn phương thức giao bài:", ["📤 Tải lên đề thi của tôi (File PDF/Ảnh)", "🤖 Sinh ngẫu nhiên từ Lõi V21 (40 Câu)"])
+                exam_type = st.radio("Lựa chọn phương thức giao bài:", ["📤 Tải lên đề thi của tôi (File PDF/Ảnh)", "🤖 Sinh ngẫu nhiên từ Lõi V22 (40 Câu)"])
                 
                 if exam_type == "📤 Tải lên đề thi của tôi (File PDF/Ảnh)":
                     uploaded_file = st.file_uploader("1. Tải File Đề (Hỗ trợ PDF, JPG, PNG)", type=['pdf', 'jpg', 'png', 'jpeg'])
                     
-                    pdf_method = st.radio("2. Cấu hình Đáp án & Lời giải:", ["✍️ Nhập chuỗi đáp án thủ công", "🤖 Nhờ AI phân tích file và viết lời giải chi tiết (Khuyên dùng)"])
+                    pdf_method = st.radio("2. Cấu hình Đáp án & Lời giải:", ["✍️ Nhập chuỗi đáp án thủ công", "🤖 Nhờ Radar AI phân tích file và viết lời giải chi tiết (Khuyên dùng)"])
                     
                     if pdf_method == "✍️ Nhập chuỗi đáp án thủ công":
                         ans_input = st.text_input("Nhập chuỗi Đáp án Đúng (Viết liền, VD: ABCDABCD)")
@@ -1102,15 +1118,16 @@ def main():
                     else:
                         if 'ai_pdf_preview' not in st.session_state: st.session_state.ai_pdf_preview = None
                         
-                        if st.button("🤖 Phân tích Đề bằng Radar AI V21", type="primary"):
+                        if st.button("🤖 Phân tích Đề bằng Radar AI V22", type="primary"):
                             if not exam_title: st.error("Vui lòng nhập tên bài thi!")
                             elif not uploaded_file: st.error("Vui lòng tải file đề thi lên!")
                             else:
-                                with st.spinner("Radar AI đang quét tài liệu và biên soạn lời giải... (Khoảng 10-30 giây)"):
+                                with st.spinner("Radar AI đang quét tài liệu và tự giải đề... (Khoảng 10-30 giây)"):
                                     file_bytes = uploaded_file.read()
                                     mime_type = uploaded_file.type
                                     
-                                    prompt = "Đọc đề thi trong ảnh/tài liệu sau. Trích xuất toàn bộ câu hỏi thành danh sách JSON. Cấu trúc BẮT BUỘC: [{'id': 1, 'question': 'nội dung', 'options': ['A', 'B', 'C', 'D'], 'answer': 'A', 'hint': '<Hãy tự viết lời giải ngắn gọn hoặc gợi ý cách làm cho câu hỏi này>'}]. Chỉ xuất JSON, không xuất chữ nào khác."
+                                    # --- CẢI TIẾN LỜI GIẢI AI: ÉP AI TỰ GIẢI CHI TIẾT ---
+                                    prompt = "Đọc đề thi trong tài liệu đính kèm. Trích xuất toàn bộ câu hỏi thành danh sách JSON. Cấu trúc BẮT BUỘC: [{'id': 1, 'question': 'nội dung', 'options': ['A', 'B', 'C', 'D'], 'answer': 'A', 'hint': 'Ghi rõ lời giải chi tiết hoặc giải thích vì sao chọn đáp án này cho học sinh hiểu'}]. Chỉ xuất JSON, không xuất chữ nào khác."
                                     
                                     try:
                                         res = call_ai_safely(prompt, file_bytes, mime_type)
@@ -1157,7 +1174,7 @@ def main():
                                     st.rerun()
                 
                 else:
-                    if st.button("🚀 Phát Đề AI (Trộn Ngẫu Nhiên 40 Câu Lõi V21)", type="primary"):
+                    if st.button("🚀 Phát Đề AI (Trộn Ngẫu Nhiên 40 Câu Lõi V22)", type="primary"):
                         if exam_title:
                             gen = ExamGenerator()
                             fixed_exam = gen.generate_all()
@@ -1172,5 +1189,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
