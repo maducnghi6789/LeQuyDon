@@ -1,6 +1,6 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V20 SUPREME ULTIMATE (FINAL FIX 404)
-# Cải tiến: Bộ chuyển đổi Model AI Tự động (Auto-Fallback Engine)
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V20 SUPREME ULTIMATE (FINAL FIX LỖI 50)
+# Cải tiến: Sử dụng File API chuyên dụng để đọc PDF không giới hạn
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
@@ -15,6 +15,8 @@ import base64
 import json
 import re
 import time
+import os
+import tempfile
 from io import BytesIO
 import matplotlib.pyplot as plt
 import numpy as np
@@ -28,7 +30,7 @@ except ImportError:
     import subprocess
     import sys
     try:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "google-generativeai"])
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "google-generativeai>=0.5.2"])
         import google.generativeai as genai
         AI_AVAILABLE = True
     except:
@@ -45,30 +47,44 @@ if AI_AVAILABLE and GEMINI_API_KEY:
     except:
         pass
 
-# --- BỘ CHUYỂN ĐỔI MODEL TỰ ĐỘNG (CHỐNG LỖI 404) ---
-def get_ai_response(prompt, file_data=None, file_type=None):
-    if not AI_AVAILABLE or not GEMINI_API_KEY: 
+# --- HÀM GỌI AI CHUYÊN SÂU (CHỐNG LỖI 404 & PDF OVERLOAD) ---
+def call_gemini_safe(prompt, file_bytes=None, mime_type=None):
+    if not AI_AVAILABLE or not GEMINI_API_KEY:
         raise Exception("Chưa cấu hình API Key hoặc thư viện AI.")
     
-    # Danh sách các model từ mới nhất đến bản ổn định cũ
-    models_to_try = ['gemini-1.5-flash-latest', 'gemini-1.5-pro-latest', 'gemini-pro-vision', 'gemini-1.5-flash']
-    content = [prompt]
-    if file_data and file_type:
-        content.append({"mime_type": file_type, "data": file_data})
+    # Sử dụng model chuẩn nhất hiện nay
+    model = genai.GenerativeModel('gemini-1.5-flash')
     
-    last_err = ""
-    for m_name in models_to_try:
-        try:
-            model = genai.GenerativeModel(m_name)
-            res = model.generate_content(content)
-            return res
-        except Exception as e:
-            last_err = str(e)
-            if "404" in last_err or "not found" in last_err.lower():
-                continue # Nếu lỗi 404, tiếp tục thử model tiếp theo
-            else:
-                raise e # Lỗi khác (như sai API Key) thì báo ngay
-    raise Exception(f"Lỗi hệ thống: Không tìm thấy Model AI phù hợp. Chi tiết: {last_err}")
+    if file_bytes and mime_type:
+        # XỬ LÝ RIÊNG CHO FILE PDF BẰNG UPLOAD API CỦA GOOGLE
+        if "pdf" in mime_type.lower():
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                tmp.write(file_bytes)
+                tmp_path = tmp.name
+            try:
+                # Tải file lên máy chủ Google AI
+                uploaded_ai_file = genai.upload_file(path=tmp_path, mime_type=mime_type)
+                
+                # Yêu cầu AI đọc file đã tải lên
+                response = model.generate_content([prompt, uploaded_ai_file])
+                
+                # Dọn dẹp bộ nhớ an toàn
+                try: genai.delete_file(uploaded_ai_file.name)
+                except: pass
+                try: os.remove(tmp_path)
+                except: pass
+                
+                return response
+            except Exception as e:
+                try: os.remove(tmp_path)
+                except: pass
+                raise Exception(f"Lỗi đọc PDF từ Google API: {str(e)}")
+        else:
+            # Nếu là ảnh (JPG, PNG) thì gửi trực tiếp (Inline Data) an toàn
+            return model.generate_content([prompt, {"mime_type": mime_type, "data": file_bytes}])
+    else:
+        # Chỉ có Text
+        return model.generate_content(prompt)
 
 # ==========================================
 # 1. HÀM HỖ TRỢ EXCEL & REGEX 
@@ -147,7 +163,7 @@ def log_deletion(deleted_by, entity_type, entity_name, reason):
     conn.commit(); conn.close()
 
 # ==========================================
-# 3. ĐỒ HỌA TOÁN HỌC ĐỘNG CHUẨN SGK
+# 3. ĐỒ HỌA TOÁN HỌC ĐỘNG CHUẨN SGK (CHỐNG ĐÈ CHỮ)
 # ==========================================
 def fig_to_base64(fig):
     buf = BytesIO()
@@ -209,7 +225,6 @@ def draw_dynamic_shadow(h_cot, bong_cot, bong_cay):
     ax.plot([0, 0], [0, 3.5], 'k-', lw=3) 
     ax.plot([3, 3], [0, 1.9], 'g-', lw=4) 
     ax.plot([0, 6.8], [3.5, 0], 'b-', lw=1) 
-    
     ax.text(-0.3, 3.5, 'A', fontweight='bold')
     ax.text(-0.3, -0.3, 'B', fontweight='bold')
     ax.text(2.7, 2.0, 'C', fontweight='bold')
@@ -320,11 +335,11 @@ class ExamGenerator:
                 prompt = f"""Mốc thời gian: {seed}. 
                 Đóng vai Chuyên gia Tuyển sinh Toán học. Sáng tạo 5 CÂU HỎI trắc nghiệm Toán 9 thực tiễn đa dạng.
                 YÊU CẦU:
-                1. TUYỆT ĐỐI KHÔNG GHI NHÃN ĐỘ KHÓ (như [Nhận biết], [Vận dụng]). Nội dung đi thẳng vào câu hỏi.
+                1. TUYỆT ĐỐI KHÔNG GHI NHÃN ĐỘ KHÓ. Nội dung đi thẳng vào câu hỏi.
                 2. Với câu hỏi cần hình SVG: Phải dùng thẻ viewBox. Chữ số BẮT BUỘC dùng dx, dy để cách xa nét vẽ.
                 3. Trả về ĐÚNG JSON nguyên khối: [{{"question": "...", "options": ["A", "B", "C", "D"], "answer": "...", "hint": "...", "image_svg": ""}}]"""
                 
-                res = get_ai_response(prompt)
+                res = call_gemini_safe(prompt)
                 raw_text = re.sub(r'```json\n?', '', res.text)
                 raw_text = re.sub(r'```\n?', '', raw_text)
                 match = re.search(r'\[.*\]', raw_text, re.DOTALL)
@@ -674,7 +689,7 @@ def main():
             if 'is_submitted' not in st.session_state: st.session_state.is_submitted = False
 
             if st.button("🔄 TẠO ĐỀ LUYỆN TẬP ĐỘC BẢN", use_container_width=True):
-                with st.spinner("Đang kết nối AI và lấy 40 câu hỏi độc bản ngẫu nhiên..."):
+                with st.spinner("Hệ thống đang xáo trộn dữ liệu và tải hình ảnh chuẩn SGK..."):
                     gen = ExamGenerator()
                     st.session_state.exam_data = gen.generate_all()
                     st.session_state.user_answers = {str(q['id']): None for q in st.session_state.exam_data}
@@ -1078,20 +1093,22 @@ def main():
                     if 'pdf_ai_preview' not in st.session_state: st.session_state.pdf_ai_preview = None
                     
                     if st.button("🤖 Phân tích Đề bằng AI", type="primary"):
-                        if not exam_title: 
+                        if not AI_AVAILABLE:
+                            st.error("❌ LỖI MÁY CHỦ: Thiếu thư viện AI. Hãy thiết lập requirements.txt chứa 'google-generativeai>=0.5.2'.")
+                        elif not exam_title: 
                             st.error("Vui lòng nhập tên bài thi!")
                         elif not uploaded_file: 
                             st.error("Vui lòng tải file đề thi lên!")
-                        elif not AI_AVAILABLE: 
-                            st.error("❌ Máy chủ thiếu thư viện AI. Hãy tạo file requirements.txt chứa 'google-generativeai'.")
+                        elif not ai_model: 
+                            st.error("❌ Chưa cấu hình API Key Gemini hợp lệ!")
                         else:
-                            with st.spinner("AI đang đọc ảnh/PDF, trích xuất đáp án và soạn lời giải chi tiết..."):
+                            with st.spinner("AI đang đọc tài liệu và phân tích đáp án chuyên sâu..."):
                                 try:
                                     uploaded_file.seek(0)
                                     file_bytes = uploaded_file.read()
-                                    prompt = "Đọc đề thi này. Trích xuất toàn bộ câu hỏi thành danh sách JSON. Cấu trúc BẮT BUỘC: [{'id': 1, 'question': 'nội dung', 'options': ['A', 'B', 'C', 'D'], 'answer': 'A', 'hint': 'Lời giải chi tiết từng bước'}]. LƯU Ý: Trường 'answer' CHỈ ĐƯỢC chứa 1 CHỮ CÁI A, B, C hoặc D."
+                                    prompt = "Đọc đề thi này (PDF/Ảnh). Trích xuất toàn bộ câu hỏi thành danh sách JSON. Cấu trúc BẮT BUỘC: [{'id': 1, 'question': 'nội dung', 'options': ['A', 'B', 'C', 'D'], 'answer': 'A', 'hint': 'Lời giải chi tiết từng bước'}]. LƯU Ý: Trường 'answer' CHỈ ĐƯỢC chứa 1 CHỮ CÁI A, B, C hoặc D. TUYỆT ĐỐI không xuất định dạng Markdown ```json."
                                     
-                                    res = get_ai_response(prompt, file_bytes, uploaded_file.type)
+                                    res = call_gemini_safe(prompt, file_bytes, uploaded_file.type)
                                     
                                     raw_text = re.sub(r'```json\n?', '', res.text)
                                     raw_text = re.sub(r'```\n?', '', raw_text)
@@ -1101,9 +1118,9 @@ def main():
                                         st.session_state.pdf_ai_preview = json.loads(match.group())
                                         st.rerun()
                                     else:
-                                        st.error("AI không thể bóc tách được định dạng file này. Hãy đảm bảo ảnh/pdf rõ nét.")
+                                        st.error("AI không thể bóc tách được file này (Có thể file quá mờ hoặc định dạng lạ).")
                                 except Exception as e:
-                                    st.error(f"Lỗi phân tích: {str(e)}")
+                                    st.error(f"Lỗi kết nối AI: {str(e)}")
                                     
                     if st.session_state.pdf_ai_preview:
                         st.success("✅ AI đã hoàn tất bóc tách! Mời thầy/cô soát duyệt:")
