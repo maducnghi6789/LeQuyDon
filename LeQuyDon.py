@@ -1,13 +1,14 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V21 SUPREME ULTIMATE (BẢN CHUẨN HOÀN THIỆN)
-# Fix Lỗi 63: Khôi phục thư viện đồng hồ đếm ngược cho Học sinh (components)
-# Giữ nguyên: Radar AI V21, PyMuPDF Render Ảnh, Đồ họa SGK, 40 câu hỏi.
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V21 SUPREME (BẢN ĐÁNH BÓNG GIAO DIỆN TỐI ƯU)
+# Tác giả: Admin Trường & Chuyên gia AI
+# Cải tiến: Biến chữ 'None' thành 'Chưa làm', Trình bày Lời giải AI siêu đẹp cho Học sinh.
+# Giữ nguyên bản lõi: Radar AI quét Model, Render PDF chống mặt mếu, Đồ họa chuẩn SGK.
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
 
 import streamlit as st
-import streamlit.components.v1 as components  # ĐÃ KHÔI PHỤC DÒNG NÀY
+import streamlit.components.v1 as components
 import random
 import math
 import pandas as pd
@@ -40,7 +41,7 @@ except ImportError:
 VN_TZ = timezone(timedelta(hours=7))
 
 # --- ADMIN TRƯỜNG DÁN MÃ API KEY MỚI TINH & BÍ MẬT VÀO ĐÂY ---
-GEMINI_API_KEY = "AIzaSyAdMxKwK7I17CqcdfmUclp3JCD7rqKP3Pc"
+GEMINI_API_KEY = "DÁN_MÃ_API_CỦA_BẠN_VÀO_ĐÂY"
 
 # --- 🚀 ĐỘNG CƠ V21: RADAR TỰ ĐỘNG DÒ TÌM MODEL HỢP LỆ ---
 def call_ai_safely(prompt, file_bytes=None, mime_type=None):
@@ -323,26 +324,10 @@ class ExamGenerator:
             pass 
 
         local_distinct_pool = self.get_38_distinct_local_questions()
-        
-        if ai_questions:
-            num_ai = min(len(ai_questions), 10)
-            final_pool = ai_questions[:num_ai] + local_distinct_pool[:38 - num_ai]
-        else:
-            final_pool = local_distinct_pool[:38]
-
-        hsg_bank = [
-            {"q": "Cho các số thực dương $a, b, c$ thỏa mãn $a^2+b^2+c^2=3$. Tìm giá trị nhỏ nhất của biểu thức $P = \\frac{a^3}{\\sqrt{b^2+3}} + \\frac{b^3}{\\sqrt{c^2+3}} + \\frac{c^3}{\\sqrt{a^2+3}}$.", "a": r"$\frac{3}{2}$", "d": [r"1", r"$\frac{1}{2}$", r"3"], "h": "Sử dụng BĐT AM-GM và Bunhiacopxki."},
-            {"q": "Tìm tất cả các nghiệm nguyên $(x, y)$ thỏa mãn phương trình: $x^3 + y^3 = (x+y)^2$.", "a": "4 cặp: (0,0), (1,0), (0,1), (2,2)", "d": ["2 cặp", "Vô số cặp", "Vô nghiệm"], "h": "Phân tích $(x+y)(x^2-xy+y^2 - x - y) = 0$."},
-            {"q": "Trên bảng viết 2026 số 1. Mỗi lần cho phép xóa 2 số a, b bất kỳ và viết lại bằng số $a+b+ab$. Hỏi sau 2025 lần thực hiện, số còn lại trên bảng là bao nhiêu?", "a": "$2^{2026} - 1$", "d": ["$2026!$", "$2026^2$", "$2^{2025}$"], "h": "Dùng tính chất bất biến: $(a+1)(b+1) - 1 = a+b+ab$."},
-            {"q": "Giải phương trình vô tỷ: $\\sqrt{x - \\frac{1}{x}} - \\sqrt{1 - \\frac{1}{x}} = \\frac{x-1}{x}$.", "a": "$x = \\frac{1+\\sqrt{5}}{2}$", "d": ["$x = 2$", "$x = 1$", "Vô nghiệm"], "h": "Điều kiện $x \\ge 1$. Nhân lượng liên hợp 2 vế."}
-        ]
-        selected_hsg_raw = random.sample(hsg_bank, 2)
-        hsg_questions = [{"q": q["q"], "opts": self.format_options(q["a"], q["d"]), "a": q["a"], "h": q["h"], "i_svg": "", "i": None} for q in selected_hsg_raw]
-
-        final_pool.extend(hsg_questions)
+        final_pool = (ai_questions + local_distinct_pool)[:40]
         random.shuffle(final_pool)
 
-        for i, q in enumerate(final_pool[:40]):
+        for i, q in enumerate(final_pool):
             self.exam.append({
                 "id": i + 1, "question": q["q"], "options": q["opts"],
                 "answer": q["a"], "hint": q["h"], "image_svg": q["i_svg"], "image": q["i"]
@@ -608,6 +593,7 @@ def main():
                         ans_key = json.loads(exam_row['answer_key'])
                         num_q = len(ans_key)
                         
+                        # Lấy lời giải AI nếu có
                         ai_hints = []
                         if pd.notnull(exam_row.get('questions_json')) and str(exam_row.get('questions_json')).strip() != "":
                             try: ai_hints = json.loads(exam_row['questions_json'])
@@ -617,18 +603,24 @@ def main():
                         
                         with col_ans_rev:
                             st.markdown("#### 📝 Kết quả & Lời giải AI")
+                            if not ai_hints:
+                                st.caption("*(Bài thi này được giao thủ công nên không kèm lời giải AI)*")
+                                
                             for i in range(num_q):
-                                stu_val = saved_ans.get(str(i+1), "Chưa chọn")
+                                raw_val = saved_ans.get(str(i+1))
+                                stu_val_display = "Chưa làm" if raw_val is None else raw_val
                                 correct_val = ans_key[i]
                                 
-                                if stu_val == correct_val: 
-                                    st.success(f"**Câu {i+1}: {stu_val}** ✅")
+                                if raw_val == correct_val: 
+                                    st.success(f"**Câu {i+1}: {stu_val_display}** ✅")
                                 else: 
-                                    st.error(f"**Câu {i+1}: {stu_val}** ❌ (Đúng: {correct_val})")
+                                    st.error(f"**Câu {i+1}: {stu_val_display}** ❌ (Đúng: {correct_val})")
                                     
+                                # Hiển thị Lời giải AI Đẹp mắt
                                 if ai_hints and len(ai_hints) > i:
-                                    with st.expander("💡 Xem hướng dẫn giải từ AI"):
-                                        st.markdown(ai_hints[i].get('hint', 'Chưa có lời giải chi tiết.'))
+                                    with st.expander(f"💡 Xem lời giải Câu {i+1}"):
+                                        st.markdown(f"**Đề bài:** {ai_hints[i].get('question', '')}")
+                                        st.markdown(f"**Hướng dẫn:** {ai_hints[i].get('hint', 'Chưa có lời giải chi tiết.')}")
                                 st.markdown("---")
                                 
                         with col_pdf_rev:
@@ -658,11 +650,22 @@ def main():
                                 st.markdown(f"<div style='margin: 15px 0; display:flex; justify-content:center;'>{q['image_svg']}</div>", unsafe_allow_html=True)
                             elif q.get('image'): 
                                 st.markdown(f'<div style="text-align:left;"><img src="data:image/png;base64,{q["image"]}" style="max-width:350px; margin-bottom: 10px;"></div>', unsafe_allow_html=True)
+                            
                             u_ans = saved_ans.get(str(q['id']))
-                            st.radio("Đã chọn:", options=q['options'], index=q['options'].index(u_ans) if u_ans in q['options'] else None, key=f"rev_{exam_id}_{q['id']}", disabled=True, label_visibility="collapsed")
-                            if u_ans == q['answer']: st.success("✅ Chính xác")
-                            else: st.error(f"❌ Sai. Đáp án đúng: {q['answer']}")
-                            with st.expander("📖 Xem Lời Giải Chi Tiết"): st.markdown(q.get('hint', ''), unsafe_allow_html=True)
+                            stu_display = "Chưa làm" if u_ans is None else u_ans
+                            
+                            idx_val = q['options'].index(u_ans) if u_ans in q['options'] else None
+                            st.radio("Đã chọn:", options=q['options'], index=idx_val, key=f"rev_{exam_id}_{q['id']}", disabled=True, label_visibility="collapsed")
+                            
+                            if u_ans == q['answer']: 
+                                st.success("✅ Chính xác")
+                            elif u_ans is None: 
+                                st.error(f"❌ Chưa làm. Đáp án đúng: {q['answer']}")
+                            else: 
+                                st.error(f"❌ Sai. Đáp án đúng: {q['answer']}")
+                                
+                            with st.expander("📖 Xem Lời Giải Chi Tiết"): 
+                                st.markdown(q.get('hint', ''), unsafe_allow_html=True)
                             st.markdown("---")
                             
                     if st.button("⬅️ Trở lại danh sách"):
@@ -693,8 +696,8 @@ def main():
             if 'user_answers' not in st.session_state: st.session_state.user_answers = {}
             if 'is_submitted' not in st.session_state: st.session_state.is_submitted = False
 
-            if st.button("🔄 TẠO ĐỀ LUYỆN TẬP V21", use_container_width=True):
-                with st.spinner("Đang kết nối Radar AI và lấy 40 câu hỏi độc bản ngẫu nhiên..."):
+            if st.button("🔄 TẠO ĐỀ LUYỆN TẬP ĐỘC BẢN", use_container_width=True):
+                with st.spinner("Đang kết nối AI và lấy 40 câu hỏi độc bản ngẫu nhiên..."):
                     gen = ExamGenerator()
                     st.session_state.exam_data = gen.generate_all()
                     st.session_state.user_answers = {str(q['id']): None for q in st.session_state.exam_data}
@@ -1046,7 +1049,7 @@ def main():
                             st.dataframe(df_stats[['Câu', 'Số HS làm sai']], use_container_width=True)
                         else: st.info("Cần có dữ liệu nộp bài để hệ thống phân tích.")
 
-        # --- TAB 4: PHÁT ĐỀ VÀ KIỂM DUYỆT AI ---
+        # --- TAB 4: PHÁT ĐỀ ---
         with tab_system:
             st.subheader("📤 Phát Bài Tập Cho Học Sinh")
             
@@ -1074,7 +1077,7 @@ def main():
                 if exam_type == "📤 Tải lên đề thi của tôi (File PDF/Ảnh)":
                     uploaded_file = st.file_uploader("1. Tải File Đề (Hỗ trợ PDF, JPG, PNG)", type=['pdf', 'jpg', 'png', 'jpeg'])
                     
-                    pdf_method = st.radio("2. Cấu hình Đáp án & Lời giải:", ["✍️ Nhập chuỗi đáp án thủ công", "🤖 Nhờ Radar AI phân tích file và viết lời giải chi tiết (Khuyên dùng)"])
+                    pdf_method = st.radio("2. Cấu hình Đáp án & Lời giải:", ["✍️ Nhập chuỗi đáp án thủ công", "🤖 Nhờ AI phân tích file và viết lời giải chi tiết (Khuyên dùng)"])
                     
                     if pdf_method == "✍️ Nhập chuỗi đáp án thủ công":
                         ans_input = st.text_input("Nhập chuỗi Đáp án Đúng (Viết liền, VD: ABCDABCD)")
@@ -1169,4 +1172,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
