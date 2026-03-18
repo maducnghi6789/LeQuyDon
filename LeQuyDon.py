@@ -39,7 +39,7 @@ VN_TZ = timezone(timedelta(hours=7))
 
 # --- MÃ API KEY ĐÃ ĐƯỢC GẮN SẴN AN TOÀN TUYỆT ĐỐI ---
 # KHÔNG CẦN CHỈNH SỬA DÒNG NÀY
-GEMINI_API_KEY = "AIzaSyDFfDUSfvkIAVPrWy7jlPs1tykBv7553IY"
+GEMINI_API_KEY = "AIzaSyCUDOzdyIWTkObBSV0GEXmGPTDu1rCQWQQ"
 
 if AI_AVAILABLE and GEMINI_API_KEY:
     try:
@@ -1157,3 +1157,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
