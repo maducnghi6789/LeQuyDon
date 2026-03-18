@@ -1,6 +1,7 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V20 SUPREME ULTIMATE (FIX NAME ERROR 52)
-# Cải tiến: An toàn hóa biến ai_model và thuật toán Fallback PDF AI
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V20 SUPREME ULTIMATE (BẤT TỬ)
+# Fix triệt để 404/500/502 bằng Động cơ AI Fallback toàn diện
+# Giữ nguyên: Đồ họa SGK, Trộn đề độc bản, AI bóc tách PDF
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
@@ -41,50 +42,79 @@ VN_TZ = timezone(timedelta(hours=7))
 # --- MÃ API KEY CỦA GIÁM ĐỐC ---
 GEMINI_API_KEY = "AIzaSyBEoI3erNW5bhDb6_qdi81wjEsVVOw4Dqo" 
 
-# ĐỊNH NGHĨA TOÀN CỤC BIẾN ai_model (Fix lỗi 52)
 if AI_AVAILABLE and GEMINI_API_KEY:
     try:
         genai.configure(api_key=GEMINI_API_KEY)
-        ai_model = genai.GenerativeModel('gemini-1.5-flash')
     except:
-        ai_model = None
-else:
-    ai_model = None
+        pass
 
-# --- HÀM GỌI AI CHUYÊN SÂU (CHỐNG LỖI 404 & PDF OVERLOAD) ---
-def call_gemini_safe(prompt, file_bytes=None, mime_type=None):
-    if not ai_model:
-        raise Exception("Chưa kết nối được AI Gemini. Vui lòng kiểm tra API Key.")
-    
+# --- 🛡️ ĐỘNG CƠ AI QUÉT MẠNG CHỐNG LỖI 404 (FALLBACK ENGINE) ---
+def generate_ai_content_with_fallback(prompt, file_bytes=None, mime_type=None):
+    if not AI_AVAILABLE or not GEMINI_API_KEY:
+        raise Exception("Chưa cấu hình API Key hoặc thư viện AI.")
+
+    # Danh sách các model AI để quét dự phòng liên hoàn
+    models_to_try = [
+        'gemini-1.5-flash',
+        'gemini-1.5-flash-latest',
+        'gemini-1.5-pro',
+        'gemini-1.5-pro-latest',
+        'gemini-pro-vision',
+        'gemini-pro'
+    ]
+
+    last_error = ""
+
+    # KỊCH BẢN 1: XỬ LÝ FILE PDF/ẢNH (DÙNG UPLOAD API HOẶC INLINE)
     if file_bytes and mime_type:
         if "pdf" in mime_type.lower():
+            # Xử lý PDF bằng File API
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                tmp.write(file_bytes)
+                tmp_path = tmp.name
+
+            uploaded_file = None
             try:
-                # Cách 1: Thử dùng File API chuyên dụng cho PDF
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-                    tmp.write(file_bytes)
-                    tmp_path = tmp.name
+                uploaded_file = genai.upload_file(path=tmp_path, mime_type=mime_type)
                 
-                uploaded_ai_file = genai.upload_file(path=tmp_path, mime_type=mime_type)
-                response = ai_model.generate_content([prompt, uploaded_ai_file])
-                
-                # Dọn dẹp
-                try: genai.delete_file(uploaded_ai_file.name)
-                except: pass
+                for m_name in models_to_try:
+                    try:
+                        model = genai.GenerativeModel(m_name)
+                        res = model.generate_content([prompt, uploaded_file])
+                        return res
+                    except Exception as e:
+                        last_error = str(e)
+                        continue # Bỏ qua model lỗi, quét model tiếp theo
+                        
+                raise Exception(f"Đã quét mọi Model nhưng bị Google từ chối. Lỗi cuối: {last_error}")
+            finally:
+                if uploaded_file:
+                    try: genai.delete_file(uploaded_file.name)
+                    except: pass
                 try: os.remove(tmp_path)
                 except: pass
-                
-                return response
-            except Exception as e:
-                # Cách 2 (Fallback): Lùi về gửi trực tiếp inline nếu máy chủ chặn File API
-                try: os.remove(tmp_path)
-                except: pass
-                return ai_model.generate_content([prompt, {"mime_type": mime_type, "data": file_bytes}])
         else:
-            # File ảnh
-            return ai_model.generate_content([prompt, {"mime_type": mime_type, "data": file_bytes}])
+            # Nếu là Ảnh thông thường (JPG, PNG)
+            contents = [prompt, {"mime_type": mime_type, "data": file_bytes}]
+            for m_name in models_to_try:
+                try:
+                    model = genai.GenerativeModel(m_name)
+                    return model.generate_content(contents)
+                except Exception as e:
+                    last_error = str(e)
+                    continue
+            raise Exception(f"Lỗi phân tích Ảnh AI: {last_error}")
+            
+    # KỊCH BẢN 2: CHỈ CÓ VĂN BẢN (SINH ĐỀ TỰ LUYỆN)
     else:
-        # Chỉ văn bản
-        return ai_model.generate_content(prompt)
+        for m_name in models_to_try:
+            try:
+                model = genai.GenerativeModel(m_name)
+                return model.generate_content(prompt)
+            except Exception as e:
+                last_error = str(e)
+                continue
+        raise Exception(f"Lỗi Sinh đề AI: {last_error}")
 
 # ==========================================
 # 1. HÀM HỖ TRỢ EXCEL & REGEX 
@@ -163,7 +193,7 @@ def log_deletion(deleted_by, entity_type, entity_name, reason):
     conn.commit(); conn.close()
 
 # ==========================================
-# 3. ĐỒ HỌA TOÁN HỌC ĐỘNG CHUẨN SGK 
+# 3. ĐỒ HỌA TOÁN HỌC ĐỘNG CHUẨN SGK
 # ==========================================
 def fig_to_base64(fig):
     buf = BytesIO()
@@ -194,6 +224,7 @@ def draw_dynamic_thales(AE, EB, AF, FC):
     ax.text(0.5, 1.5, 'E', ha='right', fontsize=11, fontweight='bold')
     ax.text(2.4, 1.5, 'F', ha='left', fontsize=11, fontweight='bold')
     ax.text(2.6, 2.3, '$EF // BC$', style='italic', fontsize=10)
+    
     ax.text(0.6, 2.3, str(AE), color='red', fontsize=10, rotation=63)
     ax.text(0.2, 0.8, str(EB), color='red', fontsize=10, rotation=63)
     ax.text(2.0, 2.3, str(AF), color='red', fontsize=10, rotation=-63)
@@ -211,6 +242,7 @@ def draw_dynamic_altitude(BH, HC, AH):
     ax.text(-0.3, 3.1, 'B', fontsize=11, fontweight='bold')
     ax.text(4.2, -0.2, 'C', fontsize=11, fontweight='bold')
     ax.text(1.6, 2.1, 'H', fontsize=11, fontweight='bold')
+    
     ax.text(0.5, 2.6, str(BH), color='red', fontsize=10, rotation=-36)
     ax.text(2.8, 1.0, str(HC), color='red', fontsize=10, rotation=-36)
     ax.text(0.8, 0.8, str(AH), color='red', fontsize=10, rotation=53)
@@ -223,11 +255,13 @@ def draw_dynamic_shadow(h_cot, bong_cot, bong_cay):
     ax.plot([0, 0], [0, 3.5], 'k-', lw=3) 
     ax.plot([3, 3], [0, 1.9], 'g-', lw=4) 
     ax.plot([0, 6.8], [3.5, 0], 'b-', lw=1) 
+    
     ax.text(-0.3, 3.5, 'A', fontweight='bold')
     ax.text(-0.3, -0.3, 'B', fontweight='bold')
     ax.text(2.7, 2.0, 'C', fontweight='bold')
     ax.text(2.7, -0.3, 'D', fontweight='bold')
     ax.text(6.9, -0.1, 'M', fontweight='bold')
+    
     ax.text(-0.8, 1.5, f"{h_cot}m", color='red')
     ax.text(1.5, -0.4, f"{bong_cot - bong_cay}m", color='red')
     ax.text(4.5, -0.4, f"{bong_cay}m", color='red')
@@ -326,7 +360,7 @@ class ExamGenerator:
 
     def generate_all(self):
         ai_questions = []
-        if ai_model:
+        if AI_AVAILABLE:
             try:
                 seed = time.time()
                 prompt = f"""Mốc thời gian: {seed}. 
@@ -336,7 +370,7 @@ class ExamGenerator:
                 2. Với câu hỏi cần hình SVG: Phải dùng thẻ viewBox. Chữ số BẮT BUỘC dùng dx, dy để cách xa nét vẽ.
                 3. Trả về ĐÚNG JSON nguyên khối: [{{"question": "...", "options": ["A", "B", "C", "D"], "answer": "...", "hint": "...", "image_svg": ""}}]"""
                 
-                res = call_gemini_safe(prompt)
+                res = generate_ai_content_with_fallback(prompt)
                 raw_text = re.sub(r'```json\n?', '', res.text)
                 raw_text = re.sub(r'```\n?', '', raw_text)
                 match = re.search(r'\[.*\]', raw_text, re.DOTALL)
@@ -564,18 +598,17 @@ def main():
                             if f"mand_ans_{exam_id}" not in st.session_state:
                                 st.session_state[f"mand_ans_{exam_id}"] = {str(i+1): None for i in range(num_q)}
                             
-                            # --- Nút nhờ AI số hóa cho Học sinh ---
                             if AI_AVAILABLE and GEMINI_API_KEY and st.button("✨ Nhờ AI số hóa đề này thành trắc nghiệm thông minh"):
                                 with st.spinner("AI đang đọc tài liệu và phân loại..."):
                                     prompt = "Đọc đề thi này. Trích xuất toàn bộ câu hỏi thành danh sách JSON. Cấu trúc BẮT BUỘC: [{'id': 1, 'question': 'nội dung', 'options': ['A', 'B', 'C', 'D'], 'answer': 'A', 'hint': 'Lời giải chi tiết từng bước'}]."
                                     try:
                                         file_b = base64.b64decode(exam_row['file_data'])
-                                        res = call_gemini_safe(prompt, file_b, exam_row['file_type'])
+                                        res = generate_ai_content_with_fallback(prompt, file_b, exam_row['file_type'])
                                         match = re.search(r'\[.*\]', res.text, re.DOTALL)
                                         if match: 
                                             st.session_state[f"ai_digitized_{exam_id}"] = json.loads(match.group())
                                     except Exception as e: 
-                                        st.error(f"Lỗi AI: Không thể đọc file PDF/Ảnh này.")
+                                        st.error(f"Lỗi AI: Không thể đọc file PDF/Ảnh này. Chi tiết: {str(e)}")
                                         
                             if f"ai_digitized_{exam_id}" in st.session_state:
                                 st.markdown("---")
@@ -710,8 +743,8 @@ def main():
             if 'user_answers' not in st.session_state: st.session_state.user_answers = {}
             if 'is_submitted' not in st.session_state: st.session_state.is_submitted = False
 
-            if st.button("🔄 TẠO ĐỀ LUYỆN TẬP MỚI", use_container_width=True):
-                with st.spinner("Đang xáo trộn dữ liệu và vẽ đồ họa chuẩn SGK..."):
+            if st.button("🔄 TẠO ĐỀ LUYỆN TẬP ĐỘC BẢN", use_container_width=True):
+                with st.spinner("Đang xáo trộn dữ liệu và tải hình ảnh chuẩn SGK..."):
                     gen = ExamGenerator()
                     st.session_state.exam_data = gen.generate_all()
                     st.session_state.user_answers = {str(q['id']): None for q in st.session_state.exam_data}
@@ -1127,7 +1160,8 @@ def main():
                                         file_bytes = uploaded_file.read()
                                         prompt = "Đọc đề thi này (PDF/Ảnh). Trích xuất toàn bộ câu hỏi thành danh sách JSON. Cấu trúc BẮT BUỘC: [{'id': 1, 'question': 'nội dung', 'options': ['A', 'B', 'C', 'D'], 'answer': 'A', 'hint': 'Lời giải chi tiết từng bước'}]. LƯU Ý: Trường 'answer' CHỈ ĐƯỢC chứa 1 CHỮ CÁI A, B, C hoặc D. TUYỆT ĐỐI không xuất định dạng Markdown ```json."
                                         
-                                        res = call_gemini_safe(prompt, file_bytes, uploaded_file.type)
+                                        # GỌI HÀM BẤT TỬ CỦA CHÚNG TA
+                                        res = generate_ai_content_with_fallback(prompt, file_bytes, uploaded_file.type)
                                         
                                         raw_text = re.sub(r'```json\n?', '', res.text)
                                         raw_text = re.sub(r'```\n?', '', raw_text)
@@ -1139,7 +1173,7 @@ def main():
                                         else:
                                             st.error("AI không thể bóc tách được file này (Có thể file quá mờ hoặc định dạng lạ).")
                                     except Exception as e:
-                                        st.error(f"Lỗi AI: {str(e)}")
+                                        st.error(f"Lỗi hệ thống: {str(e)}")
                                         
                         if st.session_state.pdf_ai_preview:
                             st.success("✅ AI đã hoàn tất bóc tách! Mời thầy/cô soát duyệt:")
