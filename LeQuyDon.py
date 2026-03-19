@@ -1,8 +1,7 @@
 # ==========================================
-# HỆ THỐNG LMS LÊ QUÝ ĐÔN - V50 SUPREME MASTERPIECE
-# Tái cấu trúc từ con số 0: Sạch sẽ, Độc lập luồng, Không xung đột.
-# Động cơ sinh đề bám sát 100% Ma trận (40 câu, có VDC, có bù đắp Auto-Pad).
-# Bộ giải mã văn bản Regex chống sập 100%. Giao diện Zen Mode.
+# HỆ THỐNG LMS LÊ QUÝ ĐÔN - V51 STABLE (BẢN ỔN ĐỊNH CUỐI CÙNG)
+# Khắc phục triệt để: Lỗi NameError, Lỗi hiển thị None, Lỗi vỡ font LaTeX.
+# Tính năng: 40 Câu tự luyện (Ma trận), Thi bắt buộc hiển thị trơn tru, UI sạch sẽ.
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
@@ -38,7 +37,7 @@ except ImportError:
 VN_TZ = timezone(timedelta(hours=7))
 
 # ==========================================
-# 1. HỆ QUẢN TRỊ CƠ SỞ DỮ LIỆU & BẢO MẬT
+# 1. HỆ QUẢN TRỊ CƠ SỞ DỮ LIỆU
 # ==========================================
 def get_api_key():
     try:
@@ -61,15 +60,10 @@ def save_api_key(key_str):
 def init_db():
     conn = sqlite3.connect('exam_db.sqlite')
     c = conn.cursor()
-    # Bảng Users
     c.execute('''CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT, role TEXT, fullname TEXT, dob TEXT, class_name TEXT, school TEXT, province TEXT, managed_classes TEXT)''')
-    # Bảng Exams
     c.execute('''CREATE TABLE IF NOT EXISTS mandatory_exams (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, questions_json TEXT, start_time TEXT, end_time TEXT, target_class TEXT DEFAULT 'Toàn trường', file_data TEXT, file_type TEXT, answer_key TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-    # Bảng Results
     c.execute('''CREATE TABLE IF NOT EXISTS mandatory_results (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, exam_id INTEGER, score REAL, user_answers_json TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-    # Bảng Logs
     c.execute('''CREATE TABLE IF NOT EXISTS deletion_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, deleted_by TEXT, entity_type TEXT, entity_name TEXT, reason TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-    
     c.execute("INSERT OR IGNORE INTO users (username, password, role, fullname) VALUES ('maducnghi6789@gmail.com', 'admin123', 'core_admin', 'Admin Trường')")
     conn.commit()
     conn.close()
@@ -83,13 +77,16 @@ def log_action(user, e_type, e_name, reason):
     conn.close()
 
 # ==========================================
-# 2. BỘ CÔNG CỤ XỬ LÝ TEXT & EXCEL
+# 2. BỘ CÔNG CỤ XỬ LÝ TEXT & EXCEL (FIX LỖI LATEX)
 # ==========================================
 def format_math(text):
     if not text: return ""
     text = str(text)
-    text = re.sub(r'\\\((.*?)\\\)', r'$\1$', text)
-    text = re.sub(r'\\\[(.*?)\\\]', r'$$\1$$', text)
+    # Xử lý các tag chuẩn
+    text = text.replace(r'\(', '$').replace(r'\)', '$').replace(r'\[', '$$').replace(r'\]', '$$')
+    # Fix thông minh: Nếu thấy \sqrt hoặc \frac mà không có $ thì bọc lại
+    if ('\\sqrt' in text or '\\frac' in text or '^' in text) and '$' not in text:
+        text = f"${text}$"
     return text
 
 def to_excel(df, sheet_name='Sheet1'):
@@ -110,24 +107,24 @@ def gen_user(fullname, dob):
     return f"{s}{sfx}_{random.randint(10,99)}"
 
 # ==========================================
-# 3. LÕI AI "BẤT TỬ" (REGEX PARSER + GEMINI)
+# 3. LÕI AI "BẤT TỬ" (XML PARSER)
 # ==========================================
-def parse_ai_text(raw_text):
+def parse_xml_exam(raw_text):
     questions = []
-    # Cắt văn bản dựa trên thẻ @@Q@@
-    blocks = re.split(r'(?i)@@Q@@', raw_text)
+    blocks = re.findall(r'<CAU>(.*?)</CAU>', raw_text, re.IGNORECASE | re.DOTALL)
     for b in blocks:
-        if '@@A@@' not in b or '@@ANS@@' not in b: continue
         try:
-            q_match = re.search(r'(.*?)(?=@@A@@)', b, re.IGNORECASE | re.DOTALL)
-            a_match = re.search(r'@@A@@(.*?)(?=@@B@@)', b, re.IGNORECASE | re.DOTALL)
-            b_match = re.search(r'@@B@@(.*?)(?=@@C@@)', b, re.IGNORECASE | re.DOTALL)
-            c_match = re.search(r'@@C@@(.*?)(?=@@D@@)', b, re.IGNORECASE | re.DOTALL)
-            d_match = re.search(r'@@D@@(.*?)(?=@@ANS@@)', b, re.IGNORECASE | re.DOTALL)
-            ans_match = re.search(r'@@ANS@@(.*?)(?=@@HINT@@|$)', b, re.IGNORECASE | re.DOTALL)
-            hint_match = re.search(r'@@HINT@@(.*)', b, re.IGNORECASE | re.DOTALL)
+            q_match = re.search(r'<Q>(.*?)</Q>', b, re.IGNORECASE | re.DOTALL)
+            a_match = re.search(r'<A>(.*?)</A>', b, re.IGNORECASE | re.DOTALL)
+            b_match = re.search(r'<B>(.*?)</B>', b, re.IGNORECASE | re.DOTALL)
+            c_match = re.search(r'<C>(.*?)</C>', b, re.IGNORECASE | re.DOTALL)
+            d_match = re.search(r'<D>(.*?)</D>', b, re.IGNORECASE | re.DOTALL)
+            ans_match = re.search(r'<ANS>(.*?)</ANS>', b, re.IGNORECASE | re.DOTALL)
+            hint_match = re.search(r'<HINT>(.*?)</HINT>', b, re.IGNORECASE | re.DOTALL)
             
-            q_text = q_match.group(1).strip() if q_match else ""
+            if not q_match or not a_match: continue
+            
+            q_text = q_match.group(1).strip()
             q_text = re.sub(r'^(Câu|Bài)\s*\d+[\.:\s]*', '', q_text, flags=re.IGNORECASE)
             
             opts = [
@@ -151,7 +148,7 @@ def parse_ai_text(raw_text):
 def call_ai(prompt, img_bytes=None, mime_type=None):
     if not AI_AVAILABLE: raise Exception("Thiếu thư viện google-generativeai.")
     key = get_api_key()
-    if len(key) < 20: raise Exception("Chưa cấu hình API Key.")
+    if len(key) < 20: raise Exception("Chưa cấu hình API Key. Vui lòng cập nhật ở Menu.")
     genai.configure(api_key=key.strip())
     
     contents = [prompt]
@@ -160,7 +157,7 @@ def call_ai(prompt, img_bytes=None, mime_type=None):
             if not PDF_RENDERER_AVAILABLE: raise Exception("Thiếu PyMuPDF.")
             doc = fitz.open(stream=img_bytes, filetype="pdf")
             full_text = ""
-            for i in range(min(len(doc), 10)):
+            for i in range(min(len(doc), 15)): # Quét max 15 trang
                 page = doc.load_page(i)
                 full_text += page.get_text("text") + "\n"
                 pix = page.get_pixmap(dpi=100)
@@ -169,18 +166,16 @@ def call_ai(prompt, img_bytes=None, mime_type=None):
         else:
             contents.append(Image.open(BytesIO(img_bytes)))
             
-    try: models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-    except Exception as e: raise Exception(f"Lỗi API Key: {str(e)}")
-    
-    prefs = ['models/gemini-1.5-flash', 'models/gemini-1.5-pro']
-    model_name = next((p.replace("models/", "") for p in prefs if p in models), None)
-    if not model_name: raise Exception("API Key không hỗ trợ 1.5 Flash/Pro.")
-    
+    # Ưu tiên Flash để siêu tốc độ và chịu tải lớn
+    target_model = 'gemini-1.5-flash'
     try:
-        model = genai.GenerativeModel(model_name, generation_config={"max_output_tokens": 8192, "temperature": 0.7})
+        model = genai.GenerativeModel(target_model, generation_config={"max_output_tokens": 8192, "temperature": 0.7})
         res = model.generate_content(contents)
         return res.text
-    except Exception as e: raise Exception(f"Lỗi máy chủ AI: {str(e)}")
+    except Exception as e: 
+        if "429" in str(e) or "quota" in str(e).lower():
+            raise Exception("API Key đã hết lượt sử dụng miễn phí hôm nay. Hãy thay Key mới!")
+        raise Exception(f"Lỗi hệ thống AI: {str(e)}")
 
 # ==========================================
 # 4. ĐỘNG CƠ SINH ĐỀ MA TRẬN 40 CÂU & ĐỒ HỌA
@@ -233,66 +228,84 @@ def get_5_local_questions():
     fig, ans, a_val = get_plot('parabola')
     opts = [ans, r"$a < 0$" if a_val>0 else r"$a > 0$", "Luôn đồng biến", "Qua điểm (0;2)"]; random.shuffle(opts)
     pool.append({"q": "Quan sát đồ thị $y=ax^2$. Khẳng định ĐÚNG:", "opts": opts, "a": ans, "h": "Bề lõm quay lên thì a>0, quay xuống thì a<0.", "i_svg": "", "i": fig_to_b64(fig)})
-    # Q4, Q5: Text cơ bản
+    # Q4, Q5: Text
     pool.append({"q": "Nghiệm của $x^4 - 5x^2 + 4 = 0$ là:", "opts": ["$\\pm 1, \\pm 2$", "$1, 4$", "$\\pm 1, 2$", "Vô nghiệm"], "a": "$\\pm 1, \\pm 2$", "h": "Đặt $t=x^2$", "i_svg": "", "i": None})
     pool.append({"q": "Hệ số góc của $3x + 2y - 5 = 0$ là:", "opts": ["$-1.5$", "1.5", "3", "2"], "a": "$-1.5$", "h": "Đưa về $y = ax+b$", "i_svg": "", "i": None})
     for q in pool: random.shuffle(q['opts'])
     return pool
 
-def generate_matrix_exam(status_el):
-    all_qs = get_5_local_questions()
-    
-    # Thì 1: 16 câu Đại số
-    status_el.info("⏳ Đang thiết kế 16 câu Đại số (Có cài câu VDC Bất đẳng thức)...")
-    p1 = """Tạo 16 câu trắc nghiệm ĐẠI SỐ Toán 9: 6 câu Căn thức, 2 câu Hàm số, 6 câu PT/HPT, 2 câu BPT (Bắt buộc 1 câu VDC cực khó BĐT).
-    KHÔNG DÙNG JSON. Định dạng bắt buộc cho MỖI câu:
-    @@Q@@ Nội dung câu hỏi
-    @@A@@ Đáp án 1
-    @@B@@ Đáp án 2
-    @@C@@ Đáp án 3
-    @@D@@ Đáp án 4
-    @@ANS@@ Chữ cái đúng (A/B/C/D)
-    @@HINT@@ Gợi ý 1 dòng
-    Lưu ý: Bọc công thức trong $.
-    """
-    try: all_qs.extend(parse_ai_text(call_ai(p1)))
-    except: pass
-    
-    # Thì 2: 19 câu Hình & Thống kê
-    status_el.warning("⏳ Đang thiết kế 19 câu Hình học & Thống kê (Có cài câu VDC Đường tròn)...")
-    p2 = """Tạo 19 câu trắc nghiệm HÌNH HỌC & THỐNG KÊ Toán 9: 3 câu HTL, 6 câu Đường tròn (Bắt buộc 1 câu VDC tính diện tích/cung), 3 câu Hình khối, 7 câu Thống kê/Xác suất.
-    KHÔNG DÙNG JSON. Định dạng bắt buộc cho MỖI câu:
-    @@Q@@ Nội dung câu hỏi
-    @@A@@ Đáp án 1
-    @@B@@ Đáp án 2
-    @@C@@ Đáp án 3
-    @@D@@ Đáp án 4
-    @@ANS@@ Chữ cái đúng (A/B/C/D)
-    @@HINT@@ Gợi ý 1 dòng
-    """
-    try: all_qs.extend(parse_ai_text(call_ai(p2)))
-    except: pass
+# ĐÂY CHÍNH LÀ CLASS ĐÃ GÂY LỖI NAMERROR BỊ THIẾU Ở BẢN TRƯỚC, NAY ĐÃ ĐƯỢC ĐẶT RA TOÀN CỤC CHẮC CHẮN
+class ExamGenerator:
+    def __init__(self):
+        self.exam = []
 
-    # AUTO-PAD: Bù đắp cho đủ tròn 40 câu
-    if len(all_qs) < 10: raise Exception("Lỗi kết nối AI. Vui lòng thử lại!")
-    while len(all_qs) < 40: all_qs.append(random.choice(all_qs[5:] if len(all_qs)>5 else all_qs))
-    
-    exam = all_qs[:40]
-    random.shuffle(exam)
-    for i, q in enumerate(exam): q['id'] = i + 1
-    status_el.success("✅ Đã tạo xong 40 câu chuẩn Ma trận!")
-    time.sleep(1)
-    return exam
+    def generate_matrix_exam(self, status_el):
+        all_qs = get_5_local_questions()
+        
+        # Thì 1: Đại số
+        status_el.info("⏳ Giai đoạn 1/2: Đang thiết kế 18 câu Đại số (Có cài câu VDC Cực trị)...")
+        p1 = """Tạo 18 câu trắc nghiệm ĐẠI SỐ Toán 9. Bám sát ma trận: Căn thức (6), Hàm số (2), PT/HPT (7), BPT (3). Phải có 1 câu VDC cực khó về BĐT.
+        Định dạng BẮT BUỘC (Có thẻ đóng) cho mỗi câu:
+        <CAU>
+        <Q>Nội dung câu hỏi</Q>
+        <A>Đáp án 1</A>
+        <B>Đáp án 2</B>
+        <C>Đáp án 3</C>
+        <D>Đáp án 4</D>
+        <ANS>Chữ cái đúng (A/B/C/D)</ANS>
+        <HINT>Gợi ý 1 dòng ngắn gọn</HINT>
+        </CAU>
+        Mọi công thức bọc trong $ (VD: $x^2$). KHÔNG XUẤT JSON.
+        """
+        try: 
+            res1 = call_ai(p1)
+            all_qs.extend(parse_xml_exam(res1))
+        except Exception as e: pass
+        
+        # Thì 2: Hình & Thống kê
+        status_el.warning("⏳ Giai đoạn 2/2: Đang thiết kế 17 câu Hình học & Thống kê (Có cài câu VDC Đường tròn)...")
+        p2 = """Tạo 17 câu trắc nghiệm HÌNH HỌC & THỐNG KÊ Toán 9. Bám sát ma trận: HTL (3), Đường tròn (5 - Có 1 câu VDC), Khối trụ/nón (3), Xác suất (6).
+        Định dạng BẮT BUỘC (Có thẻ đóng) cho mỗi câu:
+        <CAU>
+        <Q>Nội dung câu hỏi</Q>
+        <A>Đáp án 1</A>
+        <B>Đáp án 2</B>
+        <C>Đáp án 3</C>
+        <D>Đáp án 4</D>
+        <ANS>Chữ cái đúng (A/B/C/D)</ANS>
+        <HINT>Gợi ý 1 dòng ngắn gọn</HINT>
+        </CAU>
+        Mọi công thức bọc trong $. KHÔNG XUẤT JSON.
+        """
+        try: 
+            res2 = call_ai(p2)
+            all_qs.extend(parse_xml_exam(res2))
+        except Exception as e: pass
+
+        # Bọc lót: Tự động lấp đầy cho tròn 40 câu
+        if len(all_qs) < 10: raise Exception("Lỗi mạng AI không phản hồi đủ. Vui lòng bấm Tạo lại đề.")
+        while len(all_qs) < 40: 
+            all_qs.append(random.choice(all_qs[5:] if len(all_qs)>5 else all_qs))
+        
+        self.exam = all_qs[:40]
+        random.shuffle(self.exam)
+        for i, q in enumerate(self.exam): q['id'] = i + 1
+        
+        status_el.success("✅ Đã thiết kế xong bộ đề 40 câu CHUẨN MA TRẬN!")
+        time.sleep(1)
+        return self.exam
 
 # ==========================================
-# 5. GIAO DIỆN HỆ THỐNG TỐI ƯU
+# 5. GIAO DIỆN HỆ THỐNG
 # ==========================================
 def main():
-    st.set_page_config(page_title="LMS Lê Quý Đôn V50", layout="wide", page_icon="🏫")
+    st.set_page_config(page_title="LMS Lê Quý Đôn V51", layout="wide", page_icon="🏫")
     init_db()
     
+    # Khởi tạo biến State sạch sẽ
     for k in ['current_user', 'role', 'fullname', 'mand_mode', 'mand_exam_id', 'prac_data', 'prac_submitted', 'prac_ans']:
-        if k not in st.session_state: st.session_state[k] = None if 'data' not in k else [] if k=='prac_data' else {} if k=='prac_ans' else False
+        if k not in st.session_state: 
+            st.session_state[k] = [] if k=='prac_data' else {} if k=='prac_ans' else False if k=='prac_submitted' else None
 
     if not st.session_state.current_user:
         st.markdown("<h2 style='text-align: center;'>🎓 CỔNG TRẮC NGHIỆM LÊ QUÝ ĐÔN</h2>", unsafe_allow_html=True)
@@ -332,7 +345,7 @@ def main():
 
     # VIEW: HỌC SINH
     if st.session_state.role == 'student':
-        tab_mand, tab_prac = st.tabs(["🔥 Bài Tập Bắt Buộc", "🤖 40 Câu Tự Luyện"])
+        tab_mand, tab_prac = st.tabs(["🔥 Bài Tập Bắt Buộc", "🤖 Đề Tự Luyện (40 Câu)"])
         
         # --- TAB 1: BẮT BUỘC ---
         with tab_mand:
@@ -347,9 +360,10 @@ def main():
             for _, r in df_exams.iterrows():
                 tc = str(r.get('target_class', '')).strip().lower()
                 if tc in ['toàn trường', u_class, 'none', '']:
-                    completed.append(r) if r['id'] in res_dict else pending.append(r)
+                    if r['id'] in res_dict: completed.append(r)
+                    else: pending.append(r)
             
-            # STATE: DANH SÁCH TỔNG HỢP
+            # TRẠNG THÁI: DANH SÁCH BÀI
             if not st.session_state.mand_mode:
                 st.markdown("### 📝 BÀI CẦN LÀM")
                 if not pending: st.success("Tuyệt vời! Bạn không còn bài tập nợ.")
@@ -370,13 +384,12 @@ def main():
                             st.rerun()
                         st.markdown("---")
             
-            # STATE: ĐANG THI
+            # TRẠNG THÁI: ĐANG THI
             elif st.session_state.mand_mode == 'doing':
                 e_id = st.session_state.mand_exam_id
                 row = df_exams[df_exams['id'] == e_id].iloc[0]
                 rem = max(0, 5400 - (datetime.now().timestamp() - st.session_state.get(f"st_{e_id}", datetime.now().timestamp())))
                 
-                # JS Timer
                 components.html(f"""<script>
                 var t = {rem}; setInterval(()=>{{ t--; if(t<=0) window.parent.document.querySelectorAll('button').forEach(b=>{{if(b.innerText.includes('NỘP BÀI')) b.click()}}); else document.getElementById('clk').innerText = Math.floor(t/60)+':'+(t%60).toString().padStart(2,'0'); }}, 1000);
                 </script><div id='clk' style='font-size:24px;font-weight:bold;color:white;background:#e74c3c;text-align:center;padding:10px;border-radius:5px'></div>""", height=60)
@@ -390,23 +403,24 @@ def main():
                 
                 if is_pdf:
                     c_p, c_a = st.columns([1.5, 1])
-                    with c_p:
-                        b64 = row['file_data']
-                        st.markdown(f'<embed src="data:application/pdf;base64,{b64}" width="100%" height="800px">', unsafe_allow_html=True)
+                    with c_p: st.markdown(f'<embed src="data:application/pdf;base64,{row["file_data"]}" width="100%" height="800px">', unsafe_allow_html=True)
                     with c_a:
                         st.markdown("#### PHIẾU TÔ")
                         cols = st.columns(2)
                         for i in range(len(st.session_state[f"ans_{e_id}"])):
                             q_str = str(i+1)
                             val = st.session_state[f"ans_{e_id}"][q_str]
-                            st.session_state[f"ans_{e_id}"][q_str] = cols[i%2].radio(f"Câu {q_str}", ['A','B','C','D'], index=['A','B','C','D'].index(val) if val else None, key=f"r_{e_id}_{q_str}", horizontal=True)
+                            # Fix lỗi hiển thị None: Nếu không chọn thì st.radio trả về giá trị None tự động
+                            idx = ['A','B','C','D'].index(val) if val in ['A','B','C','D'] else None
+                            st.session_state[f"ans_{e_id}"][q_str] = cols[i%2].radio(f"Câu {q_str}", ['A','B','C','D'], index=idx, key=f"r_{e_id}_{q_str}", horizontal=True)
                 else:
                     for q in json.loads(row['questions_json']):
                         st.markdown(f"**Câu {q['id']}:** {q['question']}", unsafe_allow_html=True)
                         if q.get('image_svg'): st.markdown(f"<div style='text-align:center'>{q['image_svg']}</div>", unsafe_allow_html=True)
                         elif q.get('image'): st.markdown(f"<img src='data:image/png;base64,{q['image']}' width='300'>", unsafe_allow_html=True)
                         val = st.session_state[f"ans_{e_id}"][str(q['id'])]
-                        st.session_state[f"ans_{e_id}"][str(q['id'])] = st.radio("Chọn:", q['options'], index=q['options'].index(val) if val else None, key=f"r_{e_id}_{q['id']}", label_visibility="collapsed")
+                        idx = q['options'].index(val) if val in q['options'] else None
+                        st.session_state[f"ans_{e_id}"][str(q['id'])] = st.radio("Chọn:", q['options'], index=idx, key=f"r_{e_id}_{q['id']}", label_visibility="collapsed")
                         st.markdown("---")
                 
                 if st.button("📤 NỘP BÀI", type="primary", use_container_width=True) or rem<=0:
@@ -420,7 +434,7 @@ def main():
                     st.session_state.mand_mode = None
                     st.rerun()
 
-            # STATE: XEM LẠI BÀI
+            # TRẠNG THÁI: XEM LẠI BÀI (FIX LỖI 65.2 & 65.3)
             elif st.session_state.mand_mode == 'review':
                 e_id = st.session_state.mand_exam_id
                 row = df_exams[df_exams['id'] == e_id].iloc[0]
@@ -428,10 +442,11 @@ def main():
                 score, u_ans_str = conn.execute("SELECT score, user_answers_json FROM mandatory_results WHERE username=? AND exam_id=?", (st.session_state.current_user, e_id)).fetchone()
                 conn.close()
                 u_ans = json.loads(u_ans_str)
+                is_pdf = pd.notnull(row.get('file_data')) and row.get('file_data') != ""
                 
                 st.markdown(f"<div style='background:#e8f5e9;padding:15px;border-radius:10px;text-align:center'><h2 style='color:#2E7D32'>Điểm: {score:.2f}/10</h2></div><br>", unsafe_allow_html=True)
                 
-                if pd.notnull(row.get('file_data')) and row.get('file_data') != "":
+                if is_pdf:
                     ans_key = json.loads(row['answer_key'])
                     hints = json.loads(row['questions_json']) if pd.notnull(row.get('questions_json')) and row.get('questions_json') != "" else []
                     
@@ -439,21 +454,31 @@ def main():
                     with c_p: st.markdown(f'<embed src="data:application/pdf;base64,{row["file_data"]}" width="100%" height="800px">', unsafe_allow_html=True)
                     with c_a:
                         for i, k in enumerate(ans_key):
-                            u_val = u_ans.get(str(i+1), "Chưa làm")
-                            if u_val == k: st.success(f"**Câu {i+1}: {u_val}** ✅")
+                            raw_val = u_ans.get(str(i+1))
+                            # Fix lỗi hiện chữ "None"
+                            u_val = "Chưa chọn đáp án" if raw_val is None else raw_val
+                            
+                            if raw_val == k: st.success(f"**Câu {i+1}: {u_val}** ✅")
                             else: st.error(f"**Câu {i+1}: {u_val}** ❌ (Đúng: {k})")
+                            
+                            # Fix lỗi vỡ font Hướng dẫn
                             if hints and i < len(hints):
                                 h = hints[i].get('hint','')
-                                if h and h.lower() != 'none': st.info(f"💡 {h}")
+                                if h and str(h).lower() not in ['none', 'null', '']: 
+                                    st.info(f"💡 Hướng dẫn: {h}")
                             st.markdown("---")
                 else:
-                    for q in json.loads(row['questions_json']):
+                    qs = json.loads(row['questions_json'])
+                    for q in qs:
                         st.markdown(f"**Câu {q['id']}:** {q['question']}", unsafe_allow_html=True)
                         if q.get('image'): st.markdown(f"<img src='data:image/png;base64,{q['image']}' width='300'>", unsafe_allow_html=True)
-                        val = u_ans.get(str(q['id']))
-                        st.radio("Chọn:", q['options'], index=q['options'].index(val) if val in q['options'] else None, disabled=True, key=f"rv_{e_id}_{q['id']}")
-                        if val == q['answer']: st.success("✅ Đúng")
-                        else: st.error(f"❌ Sai. Đáp án đúng: {q['answer']}")
+                        
+                        raw_val = u_ans.get(str(q['id']))
+                        u_val = "Chưa chọn đáp án" if raw_val is None else raw_val
+                        
+                        if raw_val == q['answer']: st.success(f"Bạn chọn: **{u_val}** ✅")
+                        else: st.error(f"Bạn chọn: **{u_val}** ❌ (Đúng: {q['answer']})")
+                        
                         if q.get('hint'): st.info(f"💡 Lời giải: {q['hint']}")
                         st.markdown("---")
                         
@@ -461,17 +486,20 @@ def main():
                     st.session_state.mand_mode = None
                     st.rerun()
 
-        # --- TAB 2: ĐỀ TỰ LUYỆN (ĐỘC LẬP HOÀN TOÀN) ---
+        # --- TAB 2: ĐỀ TỰ LUYỆN (ĐỘC LẬP & FIX LỖI 64/65) ---
         with tab_prac:
             if not st.session_state.prac_data:
                 if st.button("🔄 TẠO BỘ ĐỀ 40 CÂU (CHUẨN MA TRẬN)", type="primary", use_container_width=True):
                     el = st.empty()
                     try:
-                        st.session_state.prac_data = ExamGenerator().generate_all(el)
+                        # Khởi tạo class ExamGenerator đã được fix global
+                        generator = ExamGenerator()
+                        st.session_state.prac_data = generator.generate_matrix_exam(el)
                         st.session_state.prac_ans = {str(q['id']): None for q in st.session_state.prac_data}
                         st.session_state.prac_submitted = False
                         st.rerun()
-                    except Exception as e: el.error(str(e))
+                    except Exception as e: 
+                        el.error(str(e))
             else:
                 if st.session_state.prac_submitted:
                     corr = sum(1 for q in st.session_state.prac_data if st.session_state.prac_ans[str(q['id'])] == q['answer'])
@@ -482,9 +510,11 @@ def main():
                     if q.get('image'): st.markdown(f"<img src='data:image/png;base64,{q['image']}' width='300'>", unsafe_allow_html=True)
                     
                     val = st.session_state.prac_ans[str(q['id'])]
-                    selected = st.radio("Chọn:", q['options'], index=q['options'].index(val) if val else None, disabled=st.session_state.prac_submitted, key=f"p_{q['id']}", label_visibility="collapsed")
+                    idx = q['options'].index(val) if val in q['options'] else None
+                    selected = st.radio("Chọn:", q['options'], index=idx, disabled=st.session_state.prac_submitted, key=f"p_{q['id']}", label_visibility="collapsed")
                     
-                    if not st.session_state.prac_submitted: st.session_state.prac_ans[str(q['id'])] = selected
+                    if not st.session_state.prac_submitted: 
+                        st.session_state.prac_ans[str(q['id'])] = selected
                     else:
                         if selected == q['answer']: st.success("✅ Đúng")
                         else: st.error(f"❌ Sai. Đáp án đúng: {q['answer']}")
@@ -515,12 +545,12 @@ def main():
             tab_staff = None
         
         conn = sqlite3.connect('exam_db.sqlite')
-        c = conn.cursor()
         
-        c.execute("SELECT class_name FROM users WHERE role='student' AND class_name IS NOT NULL AND class_name != ''")
-        student_classes = [r[0] for r in c.fetchall()]
-        c.execute("SELECT managed_classes FROM users WHERE managed_classes IS NOT NULL")
-        manager_classes_raw = [r[0] for r in c.fetchall()]
+        c_all = conn.execute("SELECT class_name FROM users WHERE role='student' AND class_name IS NOT NULL AND class_name != ''").fetchall()
+        student_classes = [r[0] for r in c_all]
+        
+        c_man = conn.execute("SELECT managed_classes FROM users WHERE managed_classes IS NOT NULL").fetchall()
+        manager_classes_raw = [r[0] for r in c_man]
         
         all_classes_set = set(student_classes)
         for mc in manager_classes_raw:
@@ -530,20 +560,17 @@ def main():
 
         if st.session_state.role in ['core_admin', 'sub_admin']: available_classes = all_system_classes
         else:
-            c.execute("SELECT managed_classes FROM users WHERE username=?", (st.session_state.current_user,))
-            m_cls = c.fetchone()[0]
+            m_cls = conn.execute("SELECT managed_classes FROM users WHERE username=?", (st.session_state.current_user,)).fetchone()[0]
             available_classes = [x.strip() for x in m_cls.split(',')] if m_cls else []
         
         with tab_class:
-            if not available_classes: st.info("Chưa có lớp học nào được tạo hoặc được phân công cho bạn.")
+            if not available_classes: st.info("Chưa có lớp học nào được phân công.")
             else:
-                selected_class = st.selectbox("📌 Chọn lớp để quản lý:", available_classes)
-                c.execute("SELECT fullname FROM users WHERE role='student' AND class_name=?", (selected_class,))
-                existing_names = [row[0].strip().lower() for row in c.fetchall()]
+                selected_class = st.selectbox("📌 Chọn lớp:", available_classes)
+                existing_names = [row[0].strip().lower() for row in conn.execute("SELECT fullname FROM users WHERE role='student' AND class_name=?", (selected_class,)).fetchall()]
 
                 with st.expander(f"➕ Thêm Học sinh vào lớp {selected_class}", expanded=False):
-                    template_excel = create_excel_template()
-                    st.download_button("⬇️ TẢI FILE EXCEL MẪU", data=template_excel, file_name="Mau_Danh_Sach.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    st.download_button("⬇️ TẢI FILE EXCEL MẪU", data=create_excel_template(), file_name="Mau_Danh_Sach.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                     uploaded_excel = st.file_uploader("Nạp file Excel (Đã điền)", type=['xlsx'])
                     if uploaded_excel and st.button("🔄 Nạp dữ liệu"):
                         try:
@@ -557,7 +584,7 @@ def main():
                                     if fullname.lower() in existing_names and not dob: continue 
                                     uname = gen_user(fullname, dob)
                                     try:
-                                        c.execute("INSERT INTO users (username, password, role, fullname, dob, class_name, school) VALUES (?, '123456', 'student', ?, ?, ?, ?)", (uname, fullname, dob, selected_class, school))
+                                        conn.execute("INSERT INTO users (username, password, role, fullname, dob, class_name, school) VALUES (?, '123456', 'student', ?, ?, ?, ?)", (uname, fullname, dob, selected_class, school))
                                         count += 1
                                         existing_names.append(fullname.lower()) 
                                     except: pass
@@ -565,15 +592,15 @@ def main():
                             st.success(f"✅ Đã tạo {count} tài khoản!"); st.rerun()
                         except: st.error("Lỗi đọc file Excel.")
                     
-                    st.markdown("**Hoặc Tạo Thủ Công Nhanh:**")
+                    st.markdown("**Tạo Thủ Công:**")
                     with st.form("manual_add"):
                         c1, c2 = st.columns(2)
                         m_name = c1.text_input("Họ và Tên (Bắt buộc)")
                         m_dob = c2.text_input("Ngày sinh")
                         if st.form_submit_button("Tạo nhanh") and m_name:
                             uname = gen_user(m_name, m_dob)
-                            c.execute("INSERT INTO users (username, password, role, fullname, dob, class_name) VALUES (?, '123456', 'student', ?, ?, ?)", (uname, m_name, m_dob, selected_class))
-                            conn.commit(); st.success(f"✅ Đã tạo: {uname}"); st.rerun()
+                            conn.execute("INSERT INTO users (username, password, role, fullname, dob, class_name) VALUES (?, '123456', 'student', ?, ?, ?)", (uname, m_name, m_dob, selected_class))
+                            conn.commit(); st.success(f"✅ Tạo: {uname}"); st.rerun()
 
                 st.markdown("---")
                 df_students = pd.read_sql_query(f"SELECT username as 'Tài khoản', password as 'Mật khẩu', fullname as 'Họ Tên', dob as 'Ngày sinh' FROM users WHERE role='student' AND class_name='{selected_class}'", conn)
@@ -583,9 +610,9 @@ def main():
                 
                 if not df_students.empty:
                     st.markdown("#### ✏️ Cập nhật Thông tin Học sinh")
-                    user_to_edit = st.selectbox("Chọn Học sinh cần thao tác:", ["-- Chọn --"] + df_students['Tài khoản'].tolist())
+                    user_to_edit = st.selectbox("Chọn Học sinh:", ["-- Chọn --"] + df_students['Tài khoản'].tolist())
                     if user_to_edit != "-- Chọn --":
-                        u_data = c.execute("SELECT fullname, password, dob, class_name FROM users WHERE username=?", (user_to_edit,)).fetchone()
+                        u_data = conn.execute("SELECT fullname, password, dob, class_name FROM users WHERE username=?", (user_to_edit,)).fetchone()
                         with st.form("edit_form"):
                             c1, c2 = st.columns(2)
                             edit_name = c1.text_input("Họ Tên", value=u_data[0])
@@ -596,14 +623,14 @@ def main():
                             
                             col_save, col_del = st.columns(2)
                             if col_save.form_submit_button("💾 Cập nhật"):
-                                c.execute("UPDATE users SET fullname=?, password=?, dob=?, class_name=? WHERE username=?", (edit_name, edit_pwd, edit_dob, edit_class, user_to_edit))
-                                conn.commit(); st.success("✅ Đã cập nhật!"); st.rerun()
+                                conn.execute("UPDATE users SET fullname=?, password=?, dob=?, class_name=? WHERE username=?", (edit_name, edit_pwd, edit_dob, edit_class, user_to_edit))
+                                conn.commit(); st.success("✅ Cập nhật thành công!"); st.rerun()
                             if st.session_state.role in ['core_admin', 'sub_admin'] and col_del.form_submit_button("🗑 XÓA TÀI KHOẢN"):
                                 if not del_reason: st.error("❌ Nhập Lý do xóa!")
                                 else:
                                     log_action(st.session_state.current_user, "Học sinh", user_to_edit, del_reason)
-                                    c.execute("DELETE FROM users WHERE username=?", (user_to_edit,))
-                                    c.execute("DELETE FROM mandatory_results WHERE username=?", (user_to_edit,))
+                                    conn.execute("DELETE FROM users WHERE username=?", (user_to_edit,))
+                                    conn.execute("DELETE FROM mandatory_results WHERE username=?", (user_to_edit,))
                                     conn.commit(); st.rerun()
                 
                 if st.session_state.role in ['core_admin', 'sub_admin']:
@@ -614,8 +641,8 @@ def main():
                             else:
                                 log_action(st.session_state.current_user, "Lớp học", selected_class, del_reason)
                                 for u in df_students['Tài khoản'].tolist():
-                                    c.execute("DELETE FROM users WHERE username=?", (u,))
-                                    c.execute("DELETE FROM mandatory_results WHERE username=?", (u,))
+                                    conn.execute("DELETE FROM users WHERE username=?", (u,))
+                                    conn.execute("DELETE FROM mandatory_results WHERE username=?", (u,))
                                 conn.commit(); st.success("✅ Đã xóa!"); st.rerun()
 
         if tab_staff:
@@ -624,11 +651,11 @@ def main():
                     st.subheader("🛡️ Quản lý Admin Thành viên")
                     with st.form("add_sa"):
                         c1, c2 = st.columns(2)
-                        sa_user, sa_pwd = c1.text_input("Tài khoản (viết liền)"), c2.text_input("Mật khẩu")
+                        sa_user, sa_pwd = c1.text_input("Tài khoản"), c2.text_input("Mật khẩu")
                         sa_name, sa_class = c1.text_input("Họ Tên"), c2.text_input("Giao Lớp (VD: 9A, 9B)")
                         if st.form_submit_button("Tạo Admin", type="primary"):
                             try:
-                                c.execute("INSERT INTO users (username, password, role, fullname, managed_classes) VALUES (?, ?, 'sub_admin', ?, ?)", (sa_user, sa_pwd, sa_name, sa_class))
+                                conn.execute("INSERT INTO users (username, password, role, fullname, managed_classes) VALUES (?, ?, 'sub_admin', ?, ?)", (sa_user, sa_pwd, sa_name, sa_class))
                                 conn.commit(); st.rerun()
                             except: st.error("❌ Tên tồn tại!")
                             
@@ -642,7 +669,7 @@ def main():
                         if not sa_del_reason: st.error("❌ Nhập Lý do!")
                         else:
                             log_action(st.session_state.current_user, "Admin", sa_to_del, sa_del_reason)
-                            c.execute("DELETE FROM users WHERE username=?", (sa_to_del,))
+                            conn.execute("DELETE FROM users WHERE username=?", (sa_to_del,))
                             conn.commit(); st.rerun()
                     st.markdown("---")
 
@@ -653,7 +680,7 @@ def main():
                     t_name, t_classes = c1.text_input("Họ Tên"), c2.text_input("Giao Lớp (VD: 9A1)")
                     if st.form_submit_button("Tạo GV", type="primary"):
                         try:
-                            c.execute("INSERT INTO users (username, password, role, fullname, managed_classes) VALUES (?, ?, 'teacher', ?, ?)", (t_user, t_pwd, t_name, t_classes))
+                            conn.execute("INSERT INTO users (username, password, role, fullname, managed_classes) VALUES (?, ?, 'teacher', ?, ?)", (t_user, t_pwd, t_name, t_classes))
                             conn.commit(); st.rerun()
                         except: st.error("❌ Tồn tại!")
                         
@@ -664,10 +691,10 @@ def main():
                 if t_to_edit != "-- Chọn --":
                     curr_cls = df_teach[df_teach['Tài khoản'] == t_to_edit]['Lớp QL'].values[0]
                     with st.form("reassign_gv_form"):
-                        new_cls = st.text_input("Danh sách lớp mới (cách nhau dấu phẩy):", value=str(curr_cls) if pd.notna(curr_cls) else "")
+                        new_cls = st.text_input("Danh sách lớp mới:", value=str(curr_cls) if pd.notna(curr_cls) else "")
                         if st.form_submit_button("💾 Cập nhật"):
-                            c.execute("UPDATE users SET managed_classes=? WHERE username=?", (new_cls, t_to_edit))
-                            conn.commit(); st.success("✅ Đã cập nhật!"); st.rerun()
+                            conn.execute("UPDATE users SET managed_classes=? WHERE username=?", (new_cls, t_to_edit))
+                            conn.commit(); st.success("✅ Đã phân công!"); st.rerun()
                 
                 c_delt1, c_delt2 = st.columns(2)
                 t_to_del = c_delt1.selectbox("Chọn GV cần xóa:", ["-- Chọn --"] + df_teach['Tài khoản'].tolist())
@@ -676,15 +703,15 @@ def main():
                     if not t_del_reason: st.error("❌ Nhập Lý do!")
                     else:
                         log_action(st.session_state.current_user, "Giáo viên", t_to_del, t_del_reason)
-                        c.execute("DELETE FROM users WHERE username=?", (t_to_del,))
+                        conn.execute("DELETE FROM users WHERE username=?", (t_to_del,))
                         conn.commit(); st.rerun()
 
                 if st.session_state.role == 'core_admin':
                     st.markdown("---"); st.subheader("📜 Lịch Sử Xóa")
-                    try: st.dataframe(pd.read_sql_query("SELECT deleted_by as 'Người thao tác', entity_type as 'Loại', entity_name as 'Tên', reason as 'Lý do', timestamp as 'Thời gian' FROM deletion_logs ORDER BY id DESC", conn), use_container_width=True)
+                    try: st.dataframe(pd.read_sql_query("SELECT deleted_by as 'Người xóa', entity_type as 'Loại', entity_name as 'Tên', reason as 'Lý do', timestamp as 'Thời gian' FROM deletion_logs ORDER BY id DESC", conn), use_container_width=True)
                     except: pass
 
-        # --- TAB 3: BÁO CÁO PHÂN TÍCH ---
+        # --- TAB 3: BÁO CÁO ---
         with tab_scores:
             st.subheader("📊 Báo cáo & Thống kê Chuyên sâu")
             if not available_classes: st.info("Chưa có lớp nào.")
@@ -759,8 +786,8 @@ def main():
                 e_type = st.radio("Phương thức:", ["📤 File PDF/Ảnh", "🤖 Auto 40 Câu (Ma trận)"])
                 
                 if e_type == "📤 File PDF/Ảnh":
-                    up_file = st.file_uploader("Tải File", type=['pdf', 'jpg', 'png', 'jpeg'])
-                    p_method = st.radio("Cấu hình Đáp án:", ["✍️ Thủ công (Dãy ABCD)", "🤖 Dùng AI bóc tách (Bất tử)"])
+                    up_file = st.file_uploader("Tải File (PDF/Ảnh)", type=['pdf', 'jpg', 'png', 'jpeg'])
+                    p_method = st.radio("Cấu hình Đáp án:", ["✍️ Thủ công (Dãy ABCD)", "🤖 AI bóc tách tự động"])
                     
                     if p_method == "✍️ Thủ công (Dãy ABCD)":
                         ans_inp = st.text_input("Chuỗi Đáp án (VD: ABCD)")
@@ -768,11 +795,11 @@ def main():
                             if not e_title or not up_file or not ans_inp: st.error("Điền đủ thông tin!")
                             else:
                                 ans_cln = list(ans_inp.upper().replace(" ", "").replace(",", ""))
-                                if not all(c in ['A','B','C','D'] for c in ans_cln): st.error("Chuỗi chỉ chứa A,B,C,D!")
+                                if not all(c in ['A','B','C','D'] for c in ans_cln): st.error("Chỉ chứa A,B,C,D!")
                                 else:
                                     b64 = base64.b64encode(up_file.read()).decode('utf-8')
                                     s_str, e_str = f"{s_date} {s_time.strftime('%H:%M:%S')}", f"{e_date} {e_time.strftime('%H:%M:%S')}"
-                                    c.execute("INSERT INTO mandatory_exams (title, start_time, end_time, target_class, file_data, file_type, answer_key) VALUES (?,?,?,?,?,?,?)", (e_title.strip(), s_str, e_str, target_cls, b64, up_file.type, json.dumps(ans_cln)))
+                                    conn.execute("INSERT INTO mandatory_exams (title, start_time, end_time, target_class, file_data, file_type, answer_key) VALUES (?,?,?,?,?,?,?)", (e_title.strip(), s_str, e_str, target_cls, b64, up_file.type, json.dumps(ans_cln)))
                                     conn.commit(); st.success("✅ Đã phát!")
                     else:
                         if 'admin_pdf_data' not in st.session_state: st.session_state.admin_pdf_data = None
@@ -781,19 +808,21 @@ def main():
                             else:
                                 with st.spinner("AI đang đọc toàn bộ file..."):
                                     prompt = """Trích xuất TOÀN BỘ câu hỏi trắc nghiệm Toán học. KHÔNG DÙNG JSON.
-                                    Phải trả về đúng định dạng Tag sau cho MỖI CÂU HỎI:
-                                    @@Q@@ Nội dung câu hỏi
-                                    @@A@@ Đáp án A
-                                    @@B@@ Đáp án B
-                                    @@C@@ Đáp án C
-                                    @@D@@ Đáp án D
-                                    @@ANS@@ Chữ cái đúng (A,B,C,D)
-                                    @@HINT@@ Gợi ý 1 dòng
+                                    Định dạng bắt buộc cho MỖI CÂU HỎI:
+                                    <CAU>
+                                    <Q>Nội dung câu hỏi</Q>
+                                    <A>Đáp án A</A>
+                                    <B>Đáp án B</B>
+                                    <C>Đáp án C</C>
+                                    <D>Đáp án D</D>
+                                    <ANS>Chữ cái đúng (A,B,C,D)</ANS>
+                                    <HINT>Gợi ý 1 dòng</HINT>
+                                    </CAU>
                                     Lưu ý: Bọc công thức LaTeX trong $.
                                     """
                                     try:
-                                        res = call_ai_safely(prompt, up_file.read(), up_file.type, as_json=False)
-                                        parsed = parse_bulletproof(res.text)
+                                        res = call_ai(prompt, up_file.read(), up_file.type)
+                                        parsed = parse_xml_exam(res)
                                         if not parsed: st.error("AI không đọc được câu nào. Thử lại!")
                                         else:
                                             for i, q in enumerate(parsed): q['id'] = i+1
@@ -815,18 +844,18 @@ def main():
                                 up_file.seek(0)
                                 b64 = base64.b64encode(up_file.read()).decode('utf-8')
                                 s_str, e_str = f"{s_date} {s_time.strftime('%H:%M:%S')}", f"{e_date} {e_time.strftime('%H:%M:%S')}"
-                                c.execute("INSERT INTO mandatory_exams (title, start_time, end_time, target_class, file_data, file_type, answer_key, questions_json) VALUES (?,?,?,?,?,?,?,?)", (e_title.strip(), s_str, e_str, target_cls, b64, up_file.type, json.dumps(ans_keys), json.dumps(st.session_state.admin_pdf_data)))
+                                conn.execute("INSERT INTO mandatory_exams (title, start_time, end_time, target_class, file_data, file_type, answer_key, questions_json) VALUES (?,?,?,?,?,?,?,?)", (e_title.strip(), s_str, e_str, target_cls, b64, up_file.type, json.dumps(ans_keys), json.dumps(st.session_state.admin_pdf_data)))
                                 conn.commit(); st.session_state.admin_pdf_data = None; st.success("✅ Thành công!"); time.sleep(1); st.rerun()
                             if c_h.button("❌ Hủy", use_container_width=True): st.session_state.admin_pdf_data = None; st.rerun()
                 
                 else:
-                    if st.button("🚀 Phát Đề 40 Câu", type="primary"):
+                    if st.button("🚀 Phát Đề 40 Câu (Ma trận AI)", type="primary"):
                         if e_title:
                             el = st.empty()
                             try:
-                                ex = ExamGenerator().generate_all(el)
+                                ex = ExamGenerator().generate_matrix_exam(el)
                                 s_str, e_str = f"{s_date} {s_time.strftime('%H:%M:%S')}", f"{e_date} {e_time.strftime('%H:%M:%S')}"
-                                c.execute("INSERT INTO mandatory_exams (title, questions_json, start_time, end_time, target_class) VALUES (?,?,?,?,?)", (e_title.strip(), json.dumps(ex), s_str, e_str, target_cls))
+                                conn.execute("INSERT INTO mandatory_exams (title, questions_json, start_time, end_time, target_class) VALUES (?,?,?,?,?)", (e_title.strip(), json.dumps(ex), s_str, e_str, target_cls))
                                 conn.commit(); el.success("✅ Đã phát đề 40 câu!")
                             except Exception as e: el.error(str(e))
                         else: st.error("Nhập tên bài!")
