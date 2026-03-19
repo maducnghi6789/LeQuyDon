@@ -1,8 +1,8 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V42 SUPREME ULTIMATE (PERFORMANCE & UX)
-# 1. Tối ưu Token: Yêu cầu AI chỉ giải thích ngắn gọn, súc tích (1-2 dòng trọng tâm) để đảm bảo quét đủ 40-50 câu siêu tốc.
-# 2. UX Học sinh: Xóa Bảng xếp hạng, bung Hướng dẫn giải hiển thị trực diện.
-# 3. Giữ nguyên: JSON Mode Native của Google, chống lỗi LaTeX, Radar AI.
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V43 SUPREME ULTIMATE (CLEAN UI & 40-Q GENERATOR)
+# 1. UI Học sinh: Tách biệt "Bài Cần Làm" và Ẩn "Lịch sử đã nộp" vào Expander.
+# 2. Đề Tự Luyện: Ép AI sinh đủ 35 câu + 5 câu Local = Chuẩn 40 câu/đề.
+# 3. Tách biệt luồng biến số giữa các Tab để chống lỗi lặp.
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
@@ -100,7 +100,7 @@ def call_ai_safely(prompt, file_bytes=None, mime_type=None):
             img = Image.open(BytesIO(file_bytes))
             contents.append(img)
 
-    # Ưu tiên Flash cho tốc độ siêu tốc, có dự phòng Pro
+    # Ưu tiên Flash cho tốc độ siêu tốc và Quota 1500 lần/ngày
     if needs_vision:
         preferences = ['models/gemini-1.5-flash', 'models/gemini-1.5-pro', 'models/gemini-1.0-pro-vision-latest']
     else:
@@ -281,7 +281,7 @@ def draw_dynamic_shadow(h_cot, bong_cot, bong_cay):
     return fig_to_base64(fig)
 
 # ==========================================
-# 4. ĐỘNG CƠ SINH ĐỀ CHUYÊN SÂU
+# 4. ĐỘNG CƠ SINH ĐỀ TỰ LUYỆN (CHUẨN 40 CÂU)
 # ==========================================
 class ExamGenerator:
     def __init__(self):
@@ -292,7 +292,7 @@ class ExamGenerator:
         random.shuffle(opts)
         return opts
 
-    def get_38_distinct_local_questions(self):
+    def get_5_distinct_local_questions(self):
         pool = []
         ae = random.randint(2, 6); eb = random.randint(2, 6); af = random.randint(2, 6)
         fc = round((eb * af) / ae, 1)
@@ -314,33 +314,28 @@ class ExamGenerator:
         ans_q4 = r"$a > 0$" if a_val > 0 else r"$a < 0$"
         pool.append({"q": "Quan sát đồ thị hàm số $y = ax^2$ dưới đây. Khẳng định nào sau đây là ĐÚNG về hệ số $a$?", "opts": self.format_options(ans_q4, [r"$a < 0$" if a_val > 0 else r"$a > 0$", "Hàm số luôn đồng biến", "Đồ thị đi qua điểm (0; 2)"]), "a": ans_q4, "h": "Bề lõm quay lên thì a > 0.", "i_svg": "", "i": draw_dynamic_parabola(a_val)})
 
-        diverse_templates = [
-            ("Tập nghiệm của phương trình $x^4 - 5x^2 + 4 = 0$ là:", "$\\pm 1, \\pm 2$", ["$1, 4$", "$\\pm 1, 2$", "Vô nghiệm"]),
-            ("Hệ số góc của đường thẳng $3x + 2y - 5 = 0$ là:", "$-1.5$", ["1.5", "3", "2"]),
-            ("Giá trị của $\\sin 30^\\circ + \\cos 60^\\circ$ là:", "1", ["$0$", "$\\sqrt{3}$", "$\\frac{1}{2}$"]),
-            ("Tâm đường tròn ngoại tiếp tam giác vuông nằm ở đâu?", "Trung điểm cạnh huyền", ["Trực tâm", "Trọng tâm", "Giao 3 đường phân giác"]),
-            ("Phương trình nào sau đây là phương trình bậc nhất hai ẩn?", "$2x - 3y = 5$", ["$x^2 - y = 0$", "$x + y^2 = 1$", "$\\frac{1}{x} + y = 2$"])
-        ]
+        pool.append({"q": "Tập nghiệm của phương trình $x^4 - 5x^2 + 4 = 0$ là:", "opts": self.format_options("$\\pm 1, \\pm 2$", ["$1, 4$", "$\\pm 1, 2$", "Vô nghiệm"]), "a": "$\\pm 1, \\pm 2$", "h": "Đặt $t = x^2 (t \\ge 0)$", "i_svg": "", "i": None})
         
-        for tpl in diverse_templates:
-            pool.append({"q": tpl[0], "opts": self.format_options(tpl[1], tpl[2]), "a": tpl[1], "h": "Lý thuyết Toán cơ bản.", "i_svg": "", "i": None})
-
         return pool
 
     def generate_all(self):
         ai_questions = []
         try:
-            prompt = """Nhiệm vụ: Sáng tạo 5 câu hỏi trắc nghiệm Toán 9 thực tiễn.
-            TRẢ VỀ MỘT DANH SÁCH JSON ĐÚNG CHUẨN SAU:
+            # ÉP AI SINH CHÍNH XÁC 35 CÂU HỎI MỚI ĐỂ ĐỦ 40 CÂU
+            prompt = """Nhiệm vụ: Sáng tạo CHÍNH XÁC 35 câu hỏi trắc nghiệm Toán 9 (kết hợp Đại số và Hình học).
+            CẢNH BÁO QUAN TRỌNG: Bạn BẮT BUỘC phải sinh đủ 35 câu, không được thiếu. 
+            Để đảm bảo tốc độ và dung lượng: Phần "hint" chỉ ghi 1 câu ngắn gọn.
+            
+            TRẢ VỀ DANH SÁCH JSON ĐÚNG CHUẨN:
             [
               {
                 "question": "Nội dung câu hỏi",
-                "options": ["A", "B", "C", "D"],
-                "answer": "A",
-                "hint": "Ghi hướng dẫn ngắn gọn (1 dòng)"
+                "options": ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"],
+                "answer": "Chữ cái đáp án đúng (A, B, C hoặc D)",
+                "hint": "Gợi ý 1 dòng ngắn gọn"
               }
             ]
-            Cấm dùng ngoặc kép bên trong nội dung.
+            Lưu ý: Mọi công thức Toán LaTeX phải bọc trong dấu đô-la (VD: $x^2+1=0$). Không dùng \\( hay \\).
             """
             
             res = call_ai_safely(prompt)
@@ -351,20 +346,31 @@ class ExamGenerator:
             if match:
                 parsed_q = json.loads(match.group(), strict=False)
                 for q in parsed_q:
+                    opts_raw = q.get("options", ["", "", "", ""])
+                    while len(opts_raw) < 4: opts_raw.append("")
+                    ans_letter = re.sub(r'[^A-D]', '', str(q.get("answer", "A")).upper())
+                    if not ans_letter: ans_letter = "A"
+                    idx = ord(ans_letter[0]) - ord('A')
+                    ans_val = opts_raw[idx] if 0 <= idx < 4 else opts_raw[0]
+
                     ai_questions.append({
                         "q": format_math_text(str(q.get("question", "")).strip()), 
-                        "opts": self.format_options(format_math_text(str(q.get("answer", ""))), [format_math_text(str(o)) for o in q.get("options",[]) if str(o) != str(q.get("answer",""))]), 
-                        "a": format_math_text(str(q.get("answer", ""))), 
+                        "opts": self.format_options(format_math_text(ans_val), [format_math_text(str(o)) for o in opts_raw if o != ans_val]), 
+                        "a": format_math_text(ans_val), 
                         "h": format_math_text(str(q.get("hint", ""))), 
-                        "i_svg": q.get("image_svg", ""), 
+                        "i_svg": "", 
                         "i": None
                     })
         except Exception:
             pass 
 
-        local_distinct_pool = self.get_38_distinct_local_questions()
-        final_pool = (ai_questions + local_distinct_pool)[:40]
-        random.shuffle(final_pool)
+        local_distinct_pool = self.get_5_distinct_local_questions()
+        # Ghép 35 câu AI + 5 câu Local = Chuẩn 40 câu
+        final_pool = (local_distinct_pool + ai_questions)[:40]
+        
+        # Nếu AI sập, nhân bản câu hỏi để chữa cháy đủ 40 câu cho app không bị lỗi
+        while len(final_pool) < 40 and len(final_pool) > 0:
+            final_pool.append(random.choice(final_pool))
 
         for i, q in enumerate(final_pool):
             self.exam.append({
@@ -378,7 +384,7 @@ class ExamGenerator:
 # 5. GIAO DIỆN HỆ THỐNG
 # ==========================================
 def main():
-    st.set_page_config(page_title="Hệ Thống LMS V42", layout="wide", page_icon="🏫")
+    st.set_page_config(page_title="Hệ Thống LMS V43", layout="wide", page_icon="🏫")
     init_db()
     
     if 'current_user' not in st.session_state: st.session_state.current_user = None
@@ -462,8 +468,8 @@ def main():
         tab_mand, tab_ai = st.tabs(["🔥 Bài kiểm tra Bắt buộc", "🤖 Đề tự luyện"])
         now_vn = datetime.now(VN_TZ)
         
+        # --- TAB 1: BÀI KIỂM TRA BẮT BUỘC ---
         with tab_mand:
-            st.info("📌 Học sinh xem đề và làm bài thi trực tiếp trên App.")
             conn = sqlite3.connect('exam_db.sqlite')
             c = conn.cursor()
             
@@ -474,16 +480,26 @@ def main():
             res_cls = c.fetchone()
             student_class = str(res_cls[0]).strip().lower() if res_cls and res_cls[0] else ""
             
-            valid_rows = []
+            c.execute("SELECT exam_id, score FROM mandatory_results WHERE username=?", (st.session_state.current_user,))
+            user_results = {row[0]: row[1] for row in c.fetchall()}
+            
+            pending_exams = []
+            completed_exams = []
+            
             for idx, row in df_exams.iterrows():
                 tc = str(row.get('target_class', '')).strip().lower()
                 if tc == 'toàn trường' or tc == student_class or tc == 'none' or tc == '':
-                    valid_rows.append(row)
-            df_exams = pd.DataFrame(valid_rows) if valid_rows else pd.DataFrame()
+                    if row['id'] in user_results:
+                        completed_exams.append(row)
+                    else:
+                        pending_exams.append(row)
             
-            if df_exams.empty: st.success("Hiện chưa có bài kiểm tra nào được giao cho lớp của bạn.")
+            # --- KHU VỰC BÀI CẦN LÀM ---
+            st.markdown("### 🔥 Bài Cần Làm")
+            if not pending_exams:
+                st.success("🎉 Chúc mừng! Bạn đã hoàn thành tất cả các bài tập được giao.")
             else:
-                for idx, row in df_exams.iterrows():
+                for row in pending_exams:
                     exam_id = row['id']
                     try:
                         t_start = datetime.strptime(row['start_time'], "%Y-%m-%d %H:%M:%S").replace(tzinfo=VN_TZ)
@@ -492,34 +508,42 @@ def main():
                     except:
                         t_start = None; t_end = None
                         time_display = "⏰ Thời gian: Không giới hạn"
-
-                    c.execute("SELECT score FROM mandatory_results WHERE username=? AND exam_id=?", (st.session_state.current_user, exam_id))
-                    res = c.fetchone()
                     
                     st.markdown(f"#### 📜 {row['title']}")
                     st.markdown(time_display)
                     
-                    if res:
-                        st.success(f"✅ Đã nộp bài! Điểm số: **{res[0]:.2f}**")
-                        # XÓA NÚT BẢNG XẾP HẠNG, CHỈ GIỮ XEM LẠI BÀI
-                        if st.button("👁 Xem lại kết quả & Hướng dẫn", key=f"rev_{exam_id}", use_container_width=True):
+                    if t_start and now_vn < t_start: st.warning("⏳ Chưa đến thời gian làm bài.")
+                    elif t_end and now_vn > t_end: st.error("🔒 Đã hết hạn làm bài.")
+                    else:
+                        if st.button("✍️ VÀO PHÒNG THI", key=f"do_{exam_id}", type="primary"):
+                            st.session_state.active_mand_exam = exam_id
+                            st.session_state.mand_mode = 'do'
+                            st.session_state[f"start_exam_{exam_id}"] = datetime.now().timestamp()
+                            st.rerun()
+                    st.markdown("---")
+            
+            # --- KHU VỰC LỊCH SỬ (BÀI ĐÃ NỘP) ĐƯỢC ẨN VÀO EXPANDER ---
+            st.markdown("<br>", unsafe_allow_html=True)
+            with st.expander("📂 Xem lại Lịch sử Bài đã nộp", expanded=False):
+                if not completed_exams:
+                    st.info("Bạn chưa nộp bài kiểm tra nào.")
+                else:
+                    for row in completed_exams:
+                        exam_id = row['id']
+                        score = user_results[exam_id]
+                        st.markdown(f"**📜 {row['title']}**")
+                        st.success(f"✅ Đã nộp | Điểm: **{score:.2f}**")
+                        if st.button("👁 Xem lại kết quả & Lời giải", key=f"rev_{exam_id}"):
                             st.session_state.active_mand_exam = exam_id
                             st.session_state.mand_mode = 'review'
                             st.rerun()
-                    else:
-                        if t_start and now_vn < t_start: st.warning("⏳ Chưa đến thời gian làm bài.")
-                        elif t_end and now_vn > t_end: st.error("🔒 Đã hết hạn làm bài.")
-                        else:
-                            if st.button("✍️ VÀO PHÒNG THI", key=f"do_{exam_id}", type="primary"):
-                                st.session_state.active_mand_exam = exam_id
-                                st.session_state.mand_mode = 'do'
-                                st.session_state[f"start_exam_{exam_id}"] = datetime.now().timestamp()
-                                st.rerun()
-                    st.markdown("---")
+                        st.markdown("---")
             
+            # --- XỬ LÝ GIAO DIỆN KHI ĐANG THI HOẶC XEM LẠI ---
             if 'active_mand_exam' in st.session_state and st.session_state.active_mand_exam is not None:
                 exam_id = st.session_state.active_mand_exam
                 mode = st.session_state.mand_mode
+                # Lấy lại row từ db cho an toàn
                 exam_row = df_exams[df_exams['id'] == exam_id].iloc[0]
                 is_pdf_upload = pd.notnull(exam_row.get('file_data')) and exam_row.get('file_data') != ""
                 
@@ -645,18 +669,16 @@ def main():
                         if pd.notna(q_json_raw) and str(q_json_raw).strip() not in ["", "None", "nan", "NaN", "null"]:
                             try: 
                                 json_str = re.sub(r'[\x00-\x1F]+', '', str(q_json_raw))
-                                parsed = json.loads(json_str, strict=False)
-                                if isinstance(parsed, list):
-                                    ai_hints = parsed
+                                ai_hints = json.loads(json_str, strict=False)
                             except: 
                                 pass
 
                         col_pdf_rev, col_ans_rev = st.columns([1.5, 1])
                         
                         with col_ans_rev:
-                            st.markdown("#### 📝 Kết quả & Lời giải")
+                            st.markdown("#### 📝 Kết quả & Hướng dẫn")
                             if not ai_hints:
-                                st.info("💡 Bài thi này chưa được tích hợp lời giải.")
+                                st.info("💡 Bài thi này chưa được tích hợp lời giải AI.")
                                 
                             for i in range(num_q):
                                 raw_val = saved_ans.get(str(i+1))
@@ -673,7 +695,7 @@ def main():
                                     if isinstance(hint_data, dict):
                                         h_text = format_math_text(hint_data.get('hint', ''))
                                         if h_text and h_text.lower() not in ['none', 'null', '']:
-                                            # BUNG TRỰC DIỆN, BỎ EXPANDER
+                                            # HIỂN THỊ TRỰC TIẾP KHÔNG DÙNG EXPANDER
                                             st.info(f"💡 **Hướng dẫn:** {h_text}")
                                 st.markdown("---")
                                 
@@ -720,23 +742,24 @@ def main():
                                 
                             h_text = format_math_text(q.get('hint', ''))
                             if h_text and h_text.lower() not in ['none', 'null', '']:
-                                # BUNG TRỰC DIỆN
+                                # HIỂN THỊ TRỰC TIẾP KHÔNG DÙNG EXPANDER
                                 st.info(f"💡 **Hướng dẫn:** {h_text}")
                             st.markdown("---")
                             
-                    if st.button("⬅️ Trở lại danh sách"):
+                    if st.button("⬅️ Trở lại danh sách chính"):
                         st.session_state.active_mand_exam = None
                         st.rerun()
 
             conn.close()
 
+        # --- TAB 2: ĐỀ TỰ LUYỆN (AI AUTO-GENERATOR) ---
         with tab_ai:
             if 'exam_data' not in st.session_state: st.session_state.exam_data = None
             if 'user_answers' not in st.session_state: st.session_state.user_answers = {}
             if 'is_submitted' not in st.session_state: st.session_state.is_submitted = False
 
-            if st.button("🔄 TẠO ĐỀ LUYỆN TẬP TỰ ĐỘNG", use_container_width=True):
-                with st.spinner("Đang kết nối AI..."):
+            if st.button("🔄 TẠO BỘ ĐỀ 40 CÂU TỰ LUYỆN", use_container_width=True):
+                with st.spinner("Đang kết nối AI và tạo bộ đề 40 câu ngẫu nhiên... (Quá trình này mất khoảng 15-30 giây)"):
                     gen = ExamGenerator()
                     st.session_state.exam_data = gen.generate_all()
                     st.session_state.user_answers = {str(q['id']): None for q in st.session_state.exam_data}
@@ -778,7 +801,6 @@ def main():
                             
                         h_text = format_math_text(q.get('hint', ''))
                         if h_text and h_text.lower() not in ['none', 'null', '']:
-                            # BUNG TRỰC DIỆN
                             st.info(f"💡 **Hướng dẫn:** {h_text}")
                     st.markdown("---")
                 
@@ -1151,26 +1173,24 @@ def main():
                     else:
                         if 'ai_pdf_preview' not in st.session_state: st.session_state.ai_pdf_preview = None
                         
-                        if st.button("🤖 Phân tích Đề bằng AI V42", type="primary"):
+                        if st.button("🤖 Phân tích Đề bằng AI V43", type="primary"):
                             if not exam_title: st.error("Vui lòng nhập tên bài thi!")
                             elif not uploaded_file: st.error("Vui lòng tải file đề thi lên!")
                             else:
-                                with st.spinner("AI đang quét bề mặt tài liệu với tốc độ siêu tốc... (Khoảng 10-30 giây)"):
+                                with st.spinner("AI đang quét tài liệu. (Yêu cầu lời giải ngắn gọn để quét đủ 40 câu tốc độ cao)..."):
                                     file_bytes = uploaded_file.read()
                                     mime_type = uploaded_file.type
                                     
-                                    # YÊU CẦU AI CHỈ GIẢI NGẮN GỌN (1-2 DÒNG) ĐỂ TRÁNH QUÁ TẢI TOKEN
                                     prompt = """Nhiệm vụ: Trích xuất TOÀN BỘ câu hỏi trắc nghiệm Toán học từ tài liệu đính kèm.
-                                    CẢNH BÁO QUAN TRỌNG: Đề thi có bao nhiêu câu, bạn phải trích xuất đúng bấy nhiêu câu. TUYỆT ĐỐI KHÔNG BỎ SÓT BẤT KỲ CÂU NÀO.
+                                    CẢNH BÁO QUAN TRỌNG: Bạn phải quét đủ 100% số câu hỏi (Thường là 40-50 câu). TUYỆT ĐỐI KHÔNG BỎ SÓT.
                                     
-                                    ĐỂ TỐI ƯU TỐC ĐỘ VÀ DUNG LƯỢNG: Phần "hint" (hướng dẫn giải) chỉ được viết NGẮN GỌN, SÚC TÍCH (1-2 dòng). Chỉ nêu công thức áp dụng hoặc phép tính cốt lõi, KHÔNG trình bày dài dòng.
+                                    ĐỂ TỐI ƯU TỐC ĐỘ: Phần "hint" (hướng dẫn) BẮT BUỘC viết thật ngắn gọn (1 dòng). Chỉ ghi gợi ý công thức, KHÔNG giải chi tiết.
                                     
-                                    Trả về kết quả dưới dạng danh sách JSON: [{"id": 1, "question": "...", "options": ["A", "B", "C", "D"], "answer": "A", "hint": "Hướng dẫn giải ngắn gọn"}]
+                                    Trả về danh sách JSON hợp lệ: [{"id": 1, "question": "...", "options": ["A", "B", "C", "D"], "answer": "A", "hint": "Gợi ý ngắn gọn"}]
                                     
-                                    Lưu ý bắt buộc để không hỏng dữ liệu:
-                                    1. Mọi công thức Toán học LaTeX phải bọc trong dấu $ (VD: $x^2 + 1 = 0$, $\\frac{1}{2}$). 
-                                    2. CẤM dùng ngoặc kép (") bên trong nội dung câu hỏi hoặc đáp án. Nếu cần hãy dùng nháy đơn (').
-                                    3. CẤM dùng phím Enter xuống dòng bên trong chuỗi.
+                                    1. Ký hiệu LaTeX phải bọc trong dấu $ (VD: $x^2+1=0$).
+                                    2. CẤM dùng ngoặc kép (") trong chuỗi.
+                                    3. CẤM phím Enter xuống dòng bên trong chuỗi.
                                     """
                                     
                                     try:
@@ -1192,14 +1212,14 @@ def main():
                         if st.session_state.ai_pdf_preview:
                             st.success(f"✅ AI đã hoàn tất bóc tách {len(st.session_state.ai_pdf_preview)} câu hỏi! Mời thầy/cô soát duyệt trước khi giao:")
                             ans_key_ai = []
-                            with st.expander("🔍 XEM TRƯỚC ĐÁP ÁN & HƯỚNG DẪN GIẢI TỪ AI", expanded=True):
+                            with st.expander("🔍 XEM TRƯỚC ĐÁP ÁN & HƯỚNG DẪN TỪ AI", expanded=True):
                                 for q in st.session_state.ai_pdf_preview:
                                     st.markdown(f"**Câu {q['id']}:** {format_math_text(q.get('question',''))}")
                                     ans_letter = re.sub(r'[^A-D]', '', str(q.get('answer', 'A')).upper())
                                     final_ans = ans_letter[0] if ans_letter else 'A'
                                     ans_key_ai.append(final_ans)
                                     st.markdown(f"- ✅ **Đáp án đúng:** {final_ans}")
-                                    st.markdown(f"- 💡 **Hướng dẫn:** {format_math_text(q.get('hint',''))}")
+                                    st.markdown(f"- 💡 **Gợi ý:** {format_math_text(q.get('hint',''))}")
                                     st.markdown("---")
                                     
                             c_duyet, c_huy = st.columns(2)
@@ -1214,7 +1234,7 @@ def main():
                                               (exam_title.strip(), s_str, e_str, target_class, b64, uploaded_file.type, json.dumps(ans_key_ai), json.dumps(st.session_state.ai_pdf_preview)))
                                     conn.commit()
                                     st.session_state.ai_pdf_preview = None
-                                    st.success("✅ Đã phát đề! Học sinh sẽ làm bài mượt mà và xem được hướng dẫn giải Toán học chuẩn.")
+                                    st.success("✅ Đã phát đề! Học sinh sẽ làm bài mượt mà.")
                                     time.sleep(2); st.rerun()
                             with c_huy:
                                 if st.button("❌ Hủy", use_container_width=True):
