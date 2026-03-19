@@ -1,7 +1,8 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V41 SUPREME ULTIMATE (INDESTRUCTIBLE PARSER)
-# Fix lỗi tát mặt: Sửa lại Prompt bắt buộc dùng thẻ đóng </Q>.
-# Đột phá: Bổ sung thuật toán Dự phòng kép (Fallback). Kể cả AI viết sai định dạng XML, hệ thống vẫn tự động cắt lớp và lấy đủ 100% câu hỏi!
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V42 SUPREME ULTIMATE (PERFORMANCE & UX)
+# 1. Tối ưu Token: Yêu cầu AI chỉ giải thích ngắn gọn, súc tích (1-2 dòng trọng tâm) để đảm bảo quét đủ 40-50 câu siêu tốc.
+# 2. UX Học sinh: Xóa Bảng xếp hạng, bung Hướng dẫn giải hiển thị trực diện.
+# 3. Giữ nguyên: JSON Mode Native của Google, chống lỗi LaTeX, Radar AI.
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
@@ -64,76 +65,8 @@ def format_math_text(text):
     text = re.sub(r'\\\[(.*?)\\\]', r'$$\1$$', text)
     return text
 
-# --- 🚀 BỘ GIẢI MÃ XML "BẤT TỬ" CÓ DỰ PHÒNG KÉP (V41) ---
-def extract_xml_tag(tag, text):
-    # Cách 1: Tìm chuẩn thẻ đóng/mở <TAG>...</TAG>
-    pattern = rf'<{tag}>(.*?)</{tag}>'
-    match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
-    if match:
-        return match.group(1).strip()
-    
-    # Cách 2 (Dự phòng kép): Nếu AI quên thẻ đóng, tìm từ <TAG> đến thẻ <TIẾP_THEO>
-    start_pattern = rf'<{tag}>'
-    start_match = re.search(start_pattern, text, re.IGNORECASE)
-    if not start_match:
-        return ""
-    
-    start_idx = start_match.end()
-    # Quét tìm bất kỳ thẻ mở hoặc thẻ đóng nào tiếp theo
-    next_tag_pattern = r'<(/?[A-Z]+)>'
-    next_match = re.search(next_tag_pattern, text[start_idx:], re.IGNORECASE)
-    
-    if next_match:
-        end_idx = start_idx + next_match.start()
-        return text[start_idx:end_idx].strip()
-    
-    return text[start_idx:].strip()
-
-def parse_xml_format(raw_text):
-    questions = []
-    blocks = re.findall(r'<CAU>(.*?)</CAU>', raw_text, re.DOTALL | re.IGNORECASE)
-    
-    # Nếu AI lười không thèm đóng </CAU>, chia text dựa vào <CAU>
-    if not blocks:
-        blocks = re.split(r'(?i)<CAU>', raw_text)[1:]
-
-    for block in blocks:
-        try:
-            q = extract_xml_tag('Q', block)
-            oa = extract_xml_tag('A', block)
-            ob = extract_xml_tag('B', block)
-            oc = extract_xml_tag('C', block)
-            od = extract_xml_tag('D', block)
-            ans = extract_xml_tag('ANS', block)
-            hint = extract_xml_tag('HINT', block)
-            
-            if not q or not oa: continue
-
-            # Xóa chữ Câu 1, Bài 2 bị thừa do AI tự ý thêm
-            q = re.sub(r'^(Câu|Bài)\s*\d+\s*[:\.]?\s*', '', q, flags=re.IGNORECASE)
-            options = [format_math_text(oa), format_math_text(ob), format_math_text(oc), format_math_text(od)]
-            
-            ans_letter = re.sub(r'[^A-D]', '', ans.upper())
-            if not ans_letter: ans_letter = 'A'
-            idx = ord(ans_letter[0]) - ord('A')
-            ans_val = options[idx] if 0 <= idx < 4 else options[0]
-
-            questions.append({
-                "id": len(questions) + 1,
-                "question": format_math_text(q),
-                "options": options,
-                "answer": ans_val,
-                "hint": format_math_text(hint)
-            })
-        except Exception:
-            continue
-            
-    if not questions:
-        raise Exception("Không thể bóc tách câu hỏi. Xin thử lại.")
-    return questions
-
-# --- RADAR TỰ ĐỘNG DÒ TÌM MODEL ƯU TIÊN PRO ---
-def call_ai_safely(contents):
+# --- RADAR AI & GOOGLE NATIVE JSON MODE ---
+def call_ai_safely(prompt, file_bytes=None, mime_type=None):
     if not AI_AVAILABLE:
         raise Exception("Hệ thống thiếu thư viện google-generativeai.")
     
@@ -148,9 +81,30 @@ def call_ai_safely(contents):
     except Exception as e:
         if "429" in str(e) or "quota" in str(e).lower():
             raise Exception("API Key đã HẾT LƯỢT dùng miễn phí hôm nay. Vui lòng đổi API Key khác!")
-        raise Exception(f"Google từ chối mã API. Chi tiết: {str(e)}")
+        raise Exception(f"Google từ chối mã API của bạn. Chi tiết: {str(e)}")
 
-    preferences = ['models/gemini-1.5-pro-latest', 'models/gemini-1.5-pro', 'models/gemini-1.5-flash']
+    contents = [prompt]
+    needs_vision = False
+    
+    if file_bytes and mime_type:
+        needs_vision = True
+        if "pdf" in mime_type.lower():
+            if not PDF_RENDERER_AVAILABLE:
+                raise Exception("Thiếu thư viện PyMuPDF để xử lý PDF.")
+            doc = fitz.open(stream=file_bytes, filetype="pdf")
+            for page_num in range(min(len(doc), 10)): 
+                pix = doc.load_page(page_num).get_pixmap(dpi=100) 
+                img = Image.open(BytesIO(pix.tobytes("png")))
+                contents.append(img)
+        else:
+            img = Image.open(BytesIO(file_bytes))
+            contents.append(img)
+
+    # Ưu tiên Flash cho tốc độ siêu tốc, có dự phòng Pro
+    if needs_vision:
+        preferences = ['models/gemini-1.5-flash', 'models/gemini-1.5-pro', 'models/gemini-1.0-pro-vision-latest']
+    else:
+        preferences = ['models/gemini-1.5-flash', 'models/gemini-1.5-pro', 'models/gemini-pro']
         
     target_model = None
     for pref in preferences:
@@ -165,14 +119,17 @@ def call_ai_safely(contents):
     clean_model_name = target_model.replace("models/", "")
     
     try:
-        # Bơm 8192 Token để AI cày ải 50 câu không bị hụt hơi
-        model = genai.GenerativeModel(clean_model_name, generation_config={"max_output_tokens": 8192})
+        config = {"max_output_tokens": 8192}
+        if "1.5" in clean_model_name:
+            config["response_mime_type"] = "application/json"
+            
+        model = genai.GenerativeModel(clean_model_name, generation_config=config)
         return model.generate_content(contents)
     except Exception as e:
         error_msg = str(e).lower()
         if "429" in error_msg or "quota" in error_msg:
             raise Exception("API Key đã HẾT LƯỢT dùng miễn phí. Cần thay mã mới!")
-        raise Exception(f"Lỗi khi AI ({clean_model_name}) xử lý: {str(e)}")
+        raise Exception(f"Lỗi khi AI phân tích ({clean_model_name}). Chi tiết: {str(e)}")
 
 # ==========================================
 # 1. HÀM HỖ TRỢ EXCEL & REGEX 
@@ -373,33 +330,35 @@ class ExamGenerator:
     def generate_all(self):
         ai_questions = []
         try:
-            prompt = """Nhiệm vụ: Sáng tạo 5 CÂU HỎI trắc nghiệm Toán 9 thực tiễn đa dạng.
-            TRẢ VỀ ĐÚNG THEO ĐỊNH DẠNG THẺ TAG SAU ĐÂY (CHO MỖI CÂU HỎI):
-
-            <CAU>
-            <Q> Nội dung câu hỏi </Q>
-            <A> Đáp án A </A>
-            <B> Đáp án B </B>
-            <C> Đáp án C </C>
-            <D> Đáp án D </D>
-            <ANS> A </ANS>
-            <HINT> Viết lời giải chi tiết tại đây </HINT>
-            </CAU>
-
-            LƯU Ý: Công thức Toán học LaTeX phải bọc trong dấu đô-la (VD: $x^2+1=0$). KHÔNG DÙNG \\( hay \\).
+            prompt = """Nhiệm vụ: Sáng tạo 5 câu hỏi trắc nghiệm Toán 9 thực tiễn.
+            TRẢ VỀ MỘT DANH SÁCH JSON ĐÚNG CHUẨN SAU:
+            [
+              {
+                "question": "Nội dung câu hỏi",
+                "options": ["A", "B", "C", "D"],
+                "answer": "A",
+                "hint": "Ghi hướng dẫn ngắn gọn (1 dòng)"
+              }
+            ]
+            Cấm dùng ngoặc kép bên trong nội dung.
             """
-            res = call_ai_safely([prompt])
-            parsed_q = parse_xml_format(res.text)
             
-            for q in parsed_q:
-                ai_questions.append({
-                    "q": q["question"], 
-                    "opts": self.format_options(q["answer"], [o for o in q["options"] if o != q["answer"]]), 
-                    "a": q["answer"], 
-                    "h": q["hint"], 
-                    "i_svg": "", 
-                    "i": None
-                })
+            res = call_ai_safely(prompt)
+            raw_text = res.text.replace('```json', '').replace('```', '').strip()
+            raw_text = re.sub(r'[\x00-\x1F]+', '', raw_text)
+            
+            match = re.search(r'\[.*\]', raw_text, re.DOTALL)
+            if match:
+                parsed_q = json.loads(match.group(), strict=False)
+                for q in parsed_q:
+                    ai_questions.append({
+                        "q": format_math_text(str(q.get("question", "")).strip()), 
+                        "opts": self.format_options(format_math_text(str(q.get("answer", ""))), [format_math_text(str(o)) for o in q.get("options",[]) if str(o) != str(q.get("answer",""))]), 
+                        "a": format_math_text(str(q.get("answer", ""))), 
+                        "h": format_math_text(str(q.get("hint", ""))), 
+                        "i_svg": q.get("image_svg", ""), 
+                        "i": None
+                    })
         except Exception:
             pass 
 
@@ -419,7 +378,7 @@ class ExamGenerator:
 # 5. GIAO DIỆN HỆ THỐNG
 # ==========================================
 def main():
-    st.set_page_config(page_title="Hệ Thống LMS V41", layout="wide", page_icon="🏫")
+    st.set_page_config(page_title="Hệ Thống LMS V42", layout="wide", page_icon="🏫")
     init_db()
     
     if 'current_user' not in st.session_state: st.session_state.current_user = None
@@ -542,17 +501,11 @@ def main():
                     
                     if res:
                         st.success(f"✅ Đã nộp bài! Điểm số: **{res[0]:.2f}**")
-                        col_btn1, col_btn2 = st.columns([1, 1])
-                        with col_btn1:
-                            if st.button("👁 Xem lại kết quả & Lời giải", key=f"rev_{exam_id}", use_container_width=True):
-                                st.session_state.active_mand_exam = exam_id
-                                st.session_state.mand_mode = 'review'
-                                st.rerun()
-                        with col_btn2:
-                            if st.button("🏆 Bảng Xếp Hạng", key=f"rank_{exam_id}", use_container_width=True):
-                                st.session_state.active_mand_exam = exam_id
-                                st.session_state.mand_mode = 'ranking'
-                                st.rerun()
+                        # XÓA NÚT BẢNG XẾP HẠNG, CHỈ GIỮ XEM LẠI BÀI
+                        if st.button("👁 Xem lại kết quả & Hướng dẫn", key=f"rev_{exam_id}", use_container_width=True):
+                            st.session_state.active_mand_exam = exam_id
+                            st.session_state.mand_mode = 'review'
+                            st.rerun()
                     else:
                         if t_start and now_vn < t_start: st.warning("⏳ Chưa đến thời gian làm bài.")
                         elif t_end and now_vn > t_end: st.error("🔒 Đã hết hạn làm bài.")
@@ -691,16 +644,19 @@ def main():
                         q_json_raw = exam_row.get('questions_json')
                         if pd.notna(q_json_raw) and str(q_json_raw).strip() not in ["", "None", "nan", "NaN", "null"]:
                             try: 
-                                ai_hints = json.loads(str(q_json_raw), strict=False)
+                                json_str = re.sub(r'[\x00-\x1F]+', '', str(q_json_raw))
+                                parsed = json.loads(json_str, strict=False)
+                                if isinstance(parsed, list):
+                                    ai_hints = parsed
                             except: 
                                 pass
 
                         col_pdf_rev, col_ans_rev = st.columns([1.5, 1])
                         
                         with col_ans_rev:
-                            st.markdown("#### 📝 Kết quả & Lời giải AI")
+                            st.markdown("#### 📝 Kết quả & Lời giải")
                             if not ai_hints:
-                                st.info("💡 Bài thi này chưa được tích hợp lời giải AI.")
+                                st.info("💡 Bài thi này chưa được tích hợp lời giải.")
                                 
                             for i in range(num_q):
                                 raw_val = saved_ans.get(str(i+1))
@@ -716,13 +672,9 @@ def main():
                                     hint_data = ai_hints[i]
                                     if isinstance(hint_data, dict):
                                         h_text = format_math_text(hint_data.get('hint', ''))
-                                        q_text = format_math_text(hint_data.get('question', ''))
-                                        
                                         if h_text and h_text.lower() not in ['none', 'null', '']:
-                                            with st.expander(f"💡 Xem hướng dẫn giải Câu {i+1}"):
-                                                if q_text:
-                                                    st.markdown(f"**Đề bài:** {q_text}")
-                                                st.markdown(f"**Hướng dẫn:** {h_text}")
+                                            # BUNG TRỰC DIỆN, BỎ EXPANDER
+                                            st.info(f"💡 **Hướng dẫn:** {h_text}")
                                 st.markdown("---")
                                 
                         with col_pdf_rev:
@@ -766,27 +718,12 @@ def main():
                             else: 
                                 st.error(f"❌ Sai. Đáp án đúng: {q['answer']}")
                                 
-                            with st.expander("📖 Xem Lời Giải Chi Tiết"): 
-                                st.markdown(format_math_text(q.get('hint', '')), unsafe_allow_html=True)
+                            h_text = format_math_text(q.get('hint', ''))
+                            if h_text and h_text.lower() not in ['none', 'null', '']:
+                                # BUNG TRỰC DIỆN
+                                st.info(f"💡 **Hướng dẫn:** {h_text}")
                             st.markdown("---")
                             
-                    if st.button("⬅️ Trở lại danh sách"):
-                        st.session_state.active_mand_exam = None
-                        st.rerun()
-                
-                elif mode == 'ranking':
-                    st.markdown(f"<h3 style='text-align: center; color: #e67e22;'>🏆 BẢNG VÀNG THÀNH TÍCH - {exam_row['title']}</h3>", unsafe_allow_html=True)
-                    if student_class: st.markdown(f"<p style='text-align: center;'>Lớp: <b>{student_class.upper()}</b></p>", unsafe_allow_html=True)
-                    
-                    df_rank = pd.read_sql_query(f"SELECT u.fullname, mr.score FROM mandatory_results mr JOIN users u ON mr.username = u.username WHERE mr.exam_id={exam_id} AND u.class_name='{student_class}' ORDER BY mr.score DESC, mr.timestamp ASC LIMIT 10", conn)
-                    
-                    if not df_rank.empty:
-                        df_rank.index = df_rank.index + 1
-                        df_rank.columns = ['Họ và Tên', 'Điểm Số']
-                        st.dataframe(df_rank, use_container_width=True)
-                    else:
-                        st.info("Chưa có đủ dữ liệu để xếp hạng.")
-                        
                     if st.button("⬅️ Trở lại danh sách"):
                         st.session_state.active_mand_exam = None
                         st.rerun()
@@ -799,7 +736,7 @@ def main():
             if 'is_submitted' not in st.session_state: st.session_state.is_submitted = False
 
             if st.button("🔄 TẠO ĐỀ LUYỆN TẬP TỰ ĐỘNG", use_container_width=True):
-                with st.spinner("Đang kết nối AI và lấy 40 câu hỏi ngẫu nhiên..."):
+                with st.spinner("Đang kết nối AI..."):
                     gen = ExamGenerator()
                     st.session_state.exam_data = gen.generate_all()
                     st.session_state.user_answers = {str(q['id']): None for q in st.session_state.exam_data}
@@ -839,8 +776,10 @@ def main():
                         else: 
                             st.error(f"❌ Sai. Đáp án đúng: {q['answer']}")
                             
-                        with st.expander("📖 Xem Lời Giải Chi Tiết"): 
-                            st.markdown(format_math_text(q.get('hint', '')), unsafe_allow_html=True)
+                        h_text = format_math_text(q.get('hint', ''))
+                        if h_text and h_text.lower() not in ['none', 'null', '']:
+                            # BUNG TRỰC DIỆN
+                            st.info(f"💡 **Hướng dẫn:** {h_text}")
                     st.markdown("---")
                 
                 if not st.session_state.is_submitted:
@@ -1187,7 +1126,7 @@ def main():
                 if exam_type == "📤 Tải lên đề thi của tôi (File PDF/Ảnh)":
                     uploaded_file = st.file_uploader("1. Tải File Đề (Hỗ trợ PDF, JPG, PNG)", type=['pdf', 'jpg', 'png', 'jpeg'])
                     
-                    pdf_method = st.radio("2. Cấu hình Đáp án & Lời giải:", ["✍️ Nhập chuỗi đáp án thủ công", "🤖 Nhờ AI phân tích file và viết lời giải chi tiết (Khuyên dùng)"])
+                    pdf_method = st.radio("2. Cấu hình Đáp án & Lời giải:", ["✍️ Nhập chuỗi đáp án thủ công", "🤖 Nhờ AI phân tích file (Khuyên dùng)"])
                     
                     if pdf_method == "✍️ Nhập chuỗi đáp án thủ công":
                         ans_input = st.text_input("Nhập chuỗi Đáp án Đúng (Viết liền, VD: ABCDABCD)")
@@ -1212,91 +1151,55 @@ def main():
                     else:
                         if 'ai_pdf_preview' not in st.session_state: st.session_state.ai_pdf_preview = None
                         
-                        if st.button("🤖 Phân tích Đề bằng AI V41", type="primary"):
+                        if st.button("🤖 Phân tích Đề bằng AI V42", type="primary"):
                             if not exam_title: st.error("Vui lòng nhập tên bài thi!")
                             elif not uploaded_file: st.error("Vui lòng tải file đề thi lên!")
                             else:
-                                file_bytes = uploaded_file.read()
-                                mime_type = uploaded_file.type
-                                
-                                if "pdf" in mime_type.lower():
-                                    if not PDF_RENDERER_AVAILABLE:
-                                        st.error("Thiếu thư viện PyMuPDF để xử lý PDF.")
-                                    else:
-                                        doc = fitz.open(stream=file_bytes, filetype="pdf")
-                                        total_pages = min(len(doc), 15) 
+                                with st.spinner("AI đang quét bề mặt tài liệu với tốc độ siêu tốc... (Khoảng 10-30 giây)"):
+                                    file_bytes = uploaded_file.read()
+                                    mime_type = uploaded_file.type
+                                    
+                                    # YÊU CẦU AI CHỈ GIẢI NGẮN GỌN (1-2 DÒNG) ĐỂ TRÁNH QUÁ TẢI TOKEN
+                                    prompt = """Nhiệm vụ: Trích xuất TOÀN BỘ câu hỏi trắc nghiệm Toán học từ tài liệu đính kèm.
+                                    CẢNH BÁO QUAN TRỌNG: Đề thi có bao nhiêu câu, bạn phải trích xuất đúng bấy nhiêu câu. TUYỆT ĐỐI KHÔNG BỎ SÓT BẤT KỲ CÂU NÀO.
+                                    
+                                    ĐỂ TỐI ƯU TỐC ĐỘ VÀ DUNG LƯỢNG: Phần "hint" (hướng dẫn giải) chỉ được viết NGẮN GỌN, SÚC TÍCH (1-2 dòng). Chỉ nêu công thức áp dụng hoặc phép tính cốt lõi, KHÔNG trình bày dài dòng.
+                                    
+                                    Trả về kết quả dưới dạng danh sách JSON: [{"id": 1, "question": "...", "options": ["A", "B", "C", "D"], "answer": "A", "hint": "Hướng dẫn giải ngắn gọn"}]
+                                    
+                                    Lưu ý bắt buộc để không hỏng dữ liệu:
+                                    1. Mọi công thức Toán học LaTeX phải bọc trong dấu $ (VD: $x^2 + 1 = 0$, $\\frac{1}{2}$). 
+                                    2. CẤM dùng ngoặc kép (") bên trong nội dung câu hỏi hoặc đáp án. Nếu cần hãy dùng nháy đơn (').
+                                    3. CẤM dùng phím Enter xuống dòng bên trong chuỗi.
+                                    """
+                                    
+                                    try:
+                                        res = call_ai_safely(prompt, file_bytes, mime_type)
+                                        raw_text = res.text.replace('```json', '').replace('```', '').strip()
                                         
-                                        # Gửi nguyên cả cục Text từ PDF cho AI đọc để tránh rớt câu
-                                        full_text = ""
-                                        for page_num in range(total_pages):
-                                            full_text += doc.load_page(page_num).get_text("text") + "\n"
-                                            
-                                        with st.spinner("AI đang bóc tách TOÀN BỘ 40-50 CÂU HỎI..."):
-                                            prompt = f"""Đây là văn bản rút trích từ đề thi Toán.
-                                            Nhiệm vụ của bạn: Bóc tách TOÀN BỘ các câu hỏi trắc nghiệm.
-                                            CẢNH BÁO TỐI CAO: Bắt buộc phải bóc đủ 100% số câu (thường là 40-50 câu).
-                                            TUYỆT ĐỐI KHÔNG ĐƯỢC BỎ SÓT CÂU NÀO. 
-                                            BẮT BUỘC PHẢI viết LỜI GIẢI CHI TIẾT TỪNG BƯỚC cho học sinh hiểu.
-                                            
-                                            BẮT BUỘC TRẢ VỀ THEO CẤU TRÚC SAU CHO MỖI CÂU HỎI:
-                                            <CAU>
-                                            <Q> Nội dung câu hỏi </Q>
-                                            <A> Đáp án A </A>
-                                            <B> Đáp án B </B>
-                                            <C> Đáp án C </C>
-                                            <D> Đáp án D </D>
-                                            <ANS> Chữ cái đúng </ANS>
-                                            <HINT> Lời giải chi tiết </HINT>
-                                            </CAU>
-
-                                            LƯU Ý: Công thức LaTeX bọc trong dấu đô-la (VD: $x^2+1=0$). KHÔNG dùng \\( hay \\).
-                                            Văn bản đề thi:
-                                            {full_text}
-                                            """
-                                            
-                                            try:
-                                                # Chỉ gửi Text cho AI để tốc độ quét là tối đa
-                                                res = call_ai_safely(prompt)
-                                                st.session_state.ai_pdf_preview = parse_xml_format(res.text)
-                                                st.rerun()
-                                            except Exception as e:
-                                                st.error(f"Lỗi AI: {str(e)}")
-                                else:
-                                    with st.spinner("AI đang quét ảnh và biên soạn lời giải..."):
-                                        prompt = """Trích xuất TOÀN BỘ câu hỏi trắc nghiệm Toán học CÓ TRONG BỨC ẢNH NÀY.
-                                        CẢNH BÁO: Bắt buộc phải viết LỜI GIẢI CHI TIẾT TỪNG BƯỚC. Phải quét đủ 100% câu hỏi.
+                                        raw_text = re.sub(r'[\x00-\x1F]+', '', raw_text)
+                                        raw_text = raw_text.replace('\\', '\\\\')
                                         
-                                        BẮT BUỘC TRẢ VỀ ĐÚNG CẤU TRÚC SAU (CÓ THẺ ĐÓNG):
-                                        <CAU>
-                                        <Q> Nội dung câu hỏi </Q>
-                                        <A> Đáp án A </A>
-                                        <B> Đáp án B </B>
-                                        <C> Đáp án C </C>
-                                        <D> Đáp án D </D>
-                                        <ANS> Chữ cái đúng </ANS>
-                                        <HINT> Lời giải chi tiết </HINT>
-                                        </CAU>
-                                        """
-                                        img = Image.open(BytesIO(file_bytes))
-                                        try:
-                                            res = call_ai_safely(prompt, img_object=img)
-                                            parsed = parse_xml_format(res.text)
-                                            st.session_state.ai_pdf_preview = parsed
+                                        match = re.search(r'\[.*\]', raw_text, re.DOTALL)
+                                        if match:
+                                            st.session_state.ai_pdf_preview = json.loads(match.group(), strict=False)
                                             st.rerun()
-                                        except Exception as e:
-                                            st.error(f"Lỗi AI: {str(e)}")
+                                        else:
+                                            st.error("AI không thể bóc tách cấu trúc đề này.")
+                                    except Exception as e:
+                                        st.error(f"Lỗi AI: {str(e)}")
                                         
                         if st.session_state.ai_pdf_preview:
                             st.success(f"✅ AI đã hoàn tất bóc tách {len(st.session_state.ai_pdf_preview)} câu hỏi! Mời thầy/cô soát duyệt trước khi giao:")
                             ans_key_ai = []
-                            with st.expander("🔍 XEM TRƯỚC ĐÁP ÁN & LỜI GIẢI TỪ AI", expanded=True):
+                            with st.expander("🔍 XEM TRƯỚC ĐÁP ÁN & HƯỚNG DẪN GIẢI TỪ AI", expanded=True):
                                 for q in st.session_state.ai_pdf_preview:
-                                    st.markdown(f"**Câu {q['id']}:** {q.get('question','')}")
+                                    st.markdown(f"**Câu {q['id']}:** {format_math_text(q.get('question',''))}")
                                     ans_letter = re.sub(r'[^A-D]', '', str(q.get('answer', 'A')).upper())
                                     final_ans = ans_letter[0] if ans_letter else 'A'
                                     ans_key_ai.append(final_ans)
                                     st.markdown(f"- ✅ **Đáp án đúng:** {final_ans}")
-                                    st.markdown(f"- 💡 **Lời giải:** {q.get('hint','')}")
+                                    st.markdown(f"- 💡 **Hướng dẫn:** {format_math_text(q.get('hint',''))}")
                                     st.markdown("---")
                                     
                             c_duyet, c_huy = st.columns(2)
@@ -1311,7 +1214,7 @@ def main():
                                               (exam_title.strip(), s_str, e_str, target_class, b64, uploaded_file.type, json.dumps(ans_key_ai), json.dumps(st.session_state.ai_pdf_preview)))
                                     conn.commit()
                                     st.session_state.ai_pdf_preview = None
-                                    st.success("✅ Đã phát đề! Học sinh sẽ làm bài mượt mà và xem được lời giải Toán học siêu đẹp.")
+                                    st.success("✅ Đã phát đề! Học sinh sẽ làm bài mượt mà và xem được hướng dẫn giải Toán học chuẩn.")
                                     time.sleep(2); st.rerun()
                             with c_huy:
                                 if st.button("❌ Hủy", use_container_width=True):
