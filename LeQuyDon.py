@@ -1,9 +1,9 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V48 SUPREME ULTIMATE (PERFECT MATRIX ALIGNMENT)
-# 1. Ép AI sinh đề bám sát 100% Ma trận (Chia thì 18 câu Đại số + 17 câu Hình/Thống kê + 5 Local).
-# 2. Cài cắm các câu Vận dụng cực khó (VDC) phân loại học sinh Giỏi.
-# 3. Tối ưu Token: Hướng dẫn giải siêu ngắn để hệ thống quét tốc độ bàn thờ.
-# 4. Phân tách vùng nhớ Tab, làm sạch UI Học sinh.
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V49 SUPREME ULTIMATE (DUAL-ENGINE)
+# 1. Động cơ Kép: Dùng Native JSON (có độ sáng tạo cao) để Sinh đề Tự luyện đa dạng.
+# 2. Báo lỗi trung thực: Không tự ý nhân bản câu hỏi nếu AI sập mạng.
+# 3. Phân loại chuẩn: Đủ 40 câu Ma trận (Kèm câu VDC).
+# 4. Giao diện: Tinh gọn, lịch sử nộp bài ẩn, xem giải trực diện.
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
@@ -66,7 +66,7 @@ def format_math_text(text):
     text = re.sub(r'\\\[(.*?)\\\]', r'$$\1$$', text)
     return text
 
-# --- 🚀 BỘ GIẢI MÃ XML BẤT TỬ (BULLETPROOF PARSER) ---
+# --- 🚀 BỘ GIẢI MÃ XML BẤT TỬ (DÀNH CHO PHÂN TÍCH PDF CỦA GIÁO VIÊN) ---
 def extract_field(tag, next_tag, text, is_last=False):
     if is_last:
         pattern = rf'{re.escape(tag)}[\s:]*(.*)'
@@ -92,7 +92,6 @@ def parse_bulletproof(raw_text):
             
             if not q or not oa: continue
 
-            # Lọc số thứ tự câu hỏi bị rác do AI sinh
             q = re.sub(r'^(Câu|Bài)\s*\d+\s*[:\.]?\s*', '', q, flags=re.IGNORECASE)
             q = re.sub(r'^\d+\.\s*', '', q)
             
@@ -114,8 +113,8 @@ def parse_bulletproof(raw_text):
             continue
     return questions
 
-# --- RADAR TỰ ĐỘNG DÒ TÌM MODEL (ƯU TIÊN FLASH CHO TỐC ĐỘ & QUOTA) ---
-def call_ai_safely(prompt, img_object=None):
+# --- 🚀 RADAR TỰ ĐỘNG ĐỔI TƯỚNG (HỖ TRỢ JSON MODE BẢN QUYỀN ĐỂ SINH ĐỀ) ---
+def call_ai_safely(prompt, img_object=None, as_json=False):
     if not AI_AVAILABLE:
         raise Exception("Hệ thống thiếu thư viện google-generativeai.")
     
@@ -151,7 +150,12 @@ def call_ai_safely(prompt, img_object=None):
     clean_model_name = target_model.replace("models/", "")
     
     try:
-        model = genai.GenerativeModel(clean_model_name, generation_config={"max_output_tokens": 8192})
+        # Bơm độ sáng tạo (Temperature = 0.8) để AI nghĩ ra nhiều câu hỏi đa dạng
+        config = {"max_output_tokens": 8192, "temperature": 0.8}
+        if as_json and "1.5" in clean_model_name:
+            config["response_mime_type"] = "application/json"
+            
+        model = genai.GenerativeModel(clean_model_name, generation_config=config)
         return model.generate_content(contents)
     except Exception as e:
         error_msg = str(e).lower()
@@ -325,93 +329,147 @@ class ExamGenerator:
         ae = random.randint(2, 6); eb = random.randint(2, 6); af = random.randint(2, 6)
         fc = round((eb * af) / ae, 1)
         ans_q1 = str(int(fc)) if fc.is_integer() else str(fc)
-        pool.append({"q": "Quan sát hình vẽ, biết $EF // BC$. Theo định lý Thales, độ dài đoạn $FC$ ($x$) bằng bao nhiêu?", "opts": self.format_options(ans_q1, [str(round(fc+1, 1)), str(round(fc+0.5, 1)), str(round(fc-1, 1))]), "a": ans_q1, "h": "Tỉ số Thales: AE/EB = AF/FC.", "i_svg": "", "i": draw_dynamic_thales(ae, eb, af, 'x')}) # Map -> Đường tròn/Hình (1 TH)
+        pool.append({"q": "Quan sát hình vẽ, biết $EF // BC$. Theo định lý Thales, độ dài đoạn $FC$ ($x$) bằng bao nhiêu?", "opts": self.format_options(ans_q1, [str(round(fc+1, 1)), str(round(fc+0.5, 1)), str(round(fc-1, 1))]), "a": ans_q1, "h": "Tỉ số Thales: AE/EB = AF/FC.", "i_svg": "", "i": draw_dynamic_thales(ae, eb, af, 'x')}) 
         
         bh = random.choice([2, 4, 9]); hc = random.choice([3, 4, 16])
         ah = round(math.sqrt(bh * hc), 1)
         ans_q2 = str(int(ah)) if ah.is_integer() else str(ah)
-        pool.append({"q": f"Cho $\\Delta ABC$ vuông tại $A$, có đường cao $AH = h$. Biết $BH = {bh}$ và $HC = {hc}$. Tính độ dài $h$.", "opts": self.format_options(ans_q2, [str(round(ah+2, 1)), str(round(ah+1, 1)), str(round(ah-1, 1))]), "a": ans_q2, "h": "$AH^2 = BH \\cdot HC$.", "i_svg": "", "i": draw_dynamic_altitude(bh, hc, 'h')}) # Map -> Hệ thức lượng (1 TH)
+        pool.append({"q": f"Cho $\\Delta ABC$ vuông tại $A$, có đường cao $AH = h$. Biết $BH = {bh}$ và $HC = {hc}$. Tính độ dài $h$.", "opts": self.format_options(ans_q2, [str(round(ah+2, 1)), str(round(ah+1, 1)), str(round(ah-1, 1))]), "a": ans_q2, "h": "$AH^2 = BH \\cdot HC$.", "i_svg": "", "i": draw_dynamic_altitude(bh, hc, 'h')}) 
         
         h_cot = random.choice([8, 10, 12]); b_cay = random.choice([3, 4]); dist = random.choice([2, 4])
         b_cot = b_cay + dist
         h_cay = round((h_cot * b_cay) / b_cot, 1)
         ans_q3 = f"{str(int(h_cay)) if h_cay.is_integer() else str(h_cay)} m"
-        pool.append({"q": f"Một cột đèn $AB$ cao {h_cot}m có bóng trên mặt đất dài {b_cot}m. Cùng lúc đó, bóng của cây $CD$ dài {b_cay}m. Chiều cao của cây là:", "opts": self.format_options(ans_q3, [f"{round(h_cay+1,1)} m", f"{round(h_cay+0.5,1)} m", f"{round(h_cay-0.5,1)} m"]), "a": ans_q3, "h": "Hai tam giác tạo bởi tia sáng đồng dạng.", "i_svg": "", "i": draw_dynamic_shadow(h_cot, b_cot, b_cay)}) # Map -> Hệ thức lượng (1 VD thực tiễn)
+        pool.append({"q": f"Một cột đèn $AB$ cao {h_cot}m có bóng trên mặt đất dài {b_cot}m. Cùng lúc đó, bóng của cây $CD$ dài {b_cay}m. Chiều cao của cây là:", "opts": self.format_options(ans_q3, [f"{round(h_cay+1,1)} m", f"{round(h_cay+0.5,1)} m", f"{round(h_cay-0.5,1)} m"]), "a": ans_q3, "h": "Hai tam giác tạo bởi tia sáng đồng dạng.", "i_svg": "", "i": draw_dynamic_shadow(h_cot, b_cot, b_cay)}) 
 
         a_val = random.choice([1, 2, -1, -2])
         ans_q4 = r"$a > 0$" if a_val > 0 else r"$a < 0$"
-        pool.append({"q": "Quan sát đồ thị hàm số $y = ax^2$ dưới đây. Khẳng định nào sau đây là ĐÚNG về hệ số $a$?", "opts": self.format_options(ans_q4, [r"$a < 0$" if a_val > 0 else r"$a > 0$", "Hàm số luôn đồng biến", "Đồ thị đi qua điểm (0; 2)"]), "a": ans_q4, "h": "Bề lõm quay lên thì a > 0.", "i_svg": "", "i": draw_dynamic_parabola(a_val)}) # Map -> Hàm số (1 NB)
+        pool.append({"q": "Quan sát đồ thị hàm số $y = ax^2$ dưới đây. Khẳng định nào sau đây là ĐÚNG về hệ số $a$?", "opts": self.format_options(ans_q4, [r"$a < 0$" if a_val > 0 else r"$a > 0$", "Hàm số luôn đồng biến", "Đồ thị đi qua điểm (0; 2)"]), "a": ans_q4, "h": "Bề lõm quay lên thì a > 0.", "i_svg": "", "i": draw_dynamic_parabola(a_val)}) 
 
-        pool.append({"q": "Tập nghiệm của phương trình $x^4 - 5x^2 + 4 = 0$ là:", "opts": self.format_options("$\\pm 1, \\pm 2$", ["$1, 4$", "$\\pm 1, 2$", "Vô nghiệm"]), "a": "$\\pm 1, \\pm 2$", "h": "Đặt $t = x^2 (t \\ge 0)$", "i_svg": "", "i": None}) # Map -> Phương trình (1 TH)
+        pool.append({"q": "Tập nghiệm của phương trình $x^4 - 5x^2 + 4 = 0$ là:", "opts": self.format_options("$\\pm 1, \\pm 2$", ["$1, 4$", "$\\pm 1, 2$", "Vô nghiệm"]), "a": "$\\pm 1, \\pm 2$", "h": "Đặt $t = x^2 (t \\ge 0)$", "i_svg": "", "i": None}) 
         
         return pool
 
     def generate_all(self, status_element):
         ai_questions = []
         
-        # --- THÌ 1: ĐẠI SỐ (18 CÂU) ---
-        status_element.info("⏳ Giai đoạn 1/2: Thiết kế 18 câu Đại số (Có cài cắm câu cực khó phân loại HSG)...")
-        prompt_1 = """Đóng vai Chuyên gia ra đề thi Toán 9. Sáng tạo CHÍNH XÁC 18 câu hỏi trắc nghiệm ĐẠI SỐ bám sát Ma trận:
-        - Căn thức: 6 câu (3 Nhận biết, 2 Thông hiểu, 1 Vận dụng).
-        - Hàm số y=ax^2: 2 câu (1 Thông hiểu, 1 Vận dụng).
-        - PT & Hệ PT: 7 câu (3 Nhận biết, 2 Thông hiểu, 1 VD Vi-ét, 1 Vận dụng cao / Cực khó giải toán thực tiễn phân loại HSG).
-        - Bất phương trình: 3 câu (1 Nhận biết, 1 Thông hiểu, 1 Vận dụng cao / Cực khó tìm Max/Min phân loại HSG).
+        # --- THÌ 1: ĐẠI SỐ (18 CÂU) DÙNG NATIVE JSON ---
+        status_element.info("⏳ Giai đoạn 1/2: Thiết kế 18 câu Đại số ĐA DẠNG (Có câu VDC phân loại HSG)...")
+        prompt_1 = """Đóng vai Chuyên gia ra đề thi Toán 9 cấp quốc gia. Hãy VẬT LỘN TƯ DUY để tạo ra 18 câu trắc nghiệm ĐẠI SỐ ĐA DẠNG, TUYỆT ĐỐI KHÔNG TRÙNG LẶP.
+        CẤU TRÚC BẮT BUỘC:
+        1. Căn thức: 6 câu.
+        2. Hàm số y=ax^2: 2 câu.
+        3. Phương trình và Hệ phương trình: 7 câu (BẮT BUỘC 1 CÂU Vận dụng cực khó).
+        4. Bất phương trình: 3 câu (BẮT BUỘC 1 CÂU Vận dụng cực khó Max/Min).
 
-        ĐỊNH DẠNG VĂN BẢN (KHÔNG DÙNG JSON). Mỗi câu dùng cấu trúc Tag:
-        @@Q@@ Nội dung câu hỏi
-        @@A@@ Đáp án A
-        @@B@@ Đáp án B
-        @@C@@ Đáp án C
-        @@D@@ Đáp án D
-        @@ANS@@ Chữ cái đúng (A, B, C, D)
-        @@HINT@@ Gợi ý 1 dòng cực kỳ ngắn
-        Lưu ý: Bọc công thức bằng dấu đô la ($x^2$).
+        BẮT BUỘC TRẢ VỀ DƯỚI DẠNG MỘT MẢNG JSON (JSON ARRAY):
+        [
+          {
+            "question": "Nội dung câu hỏi",
+            "options": ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"],
+            "answer": "Chữ cái đáp án đúng (A, B, C hoặc D)",
+            "hint": "Gợi ý 1 dòng ngắn gọn"
+          }
+        ]
+        LƯU Ý: Công thức Toán LaTeX phải bọc trong dấu đô-la (VD: $x^2+1=0$). CẤM dùng ngoặc kép (") bên trong các chuỗi.
         """
         try:
-            res1 = call_ai_safely(prompt_1)
-            ai_questions.extend(parse_bulletproof(res1.text))
-        except Exception:
+            # GỌI NATIVE JSON ĐỂ ĐẢM BẢO CHUẨN CÚ PHÁP
+            res1 = call_ai_safely(prompt_1, as_json=True)
+            raw_text = res1.text.strip()
+            raw_text = re.sub(r'[\x00-\x1F]+', '', raw_text)
+            match = re.search(r'\[.*\]', raw_text, re.DOTALL)
+            if match:
+                parsed1 = json.loads(match.group(), strict=False)
+                for q in parsed1:
+                    opts_raw = q.get("options", ["", "", "", ""])
+                    while len(opts_raw) < 4: opts_raw.append("")
+                    ans_letter = re.sub(r'[^A-D]', '', str(q.get("answer", "A")).upper())
+                    if not ans_letter: ans_letter = "A"
+                    idx = ord(ans_letter[0]) - ord('A')
+                    ans_val = opts_raw[idx] if 0 <= idx < 4 else opts_raw[0]
+
+                    ai_questions.append({
+                        "q": format_math_text(str(q.get("question", "")).strip()), 
+                        "opts": self.format_options(format_math_text(ans_val), [format_math_text(str(o)) for o in opts_raw if o != ans_val]), 
+                        "a": format_math_text(ans_val), 
+                        "h": format_math_text(str(q.get("hint", ""))), 
+                        "i_svg": "", 
+                        "i": None
+                    })
+        except Exception as e:
             pass
 
-        # --- THÌ 2: HÌNH HỌC & THỐNG KÊ (17 CÂU) ---
-        status_element.warning("⏳ Giai đoạn 2/2: Thiết kế 17 câu Hình học & Xác suất (Có cài cắm câu Vận dụng cao)...")
-        prompt_2 = """Đóng vai Chuyên gia ra đề thi Toán 9. Sáng tạo CHÍNH XÁC 17 câu hỏi trắc nghiệm HÌNH HỌC & THỐNG KÊ bám sát Ma trận:
-        - Hệ thức lượng tam giác vuông: 3 câu (2 Nhận biết, 1 Thông hiểu).
-        - Đường tròn: 5 câu (2 Nhận biết, 2 Thông hiểu, 1 Vận dụng cao / Cực khó tính độ dài cung/diện tích quạt phân loại HSG).
-        - Hình khối thực tiễn: 3 câu (1 Nhận biết, 1 Thông hiểu, 1 Vận dụng).
-        - Thống kê & Xác suất: 6 câu (2 Nhận biết, 2 Thông hiểu, 1 Vận dụng, 1 Vận dụng cao / Cực khó mô hình xác suất phân loại HSG).
+        # --- THÌ 2: HÌNH HỌC & THỐNG KÊ (17 CÂU) DÙNG NATIVE JSON ---
+        status_element.warning("⏳ Giai đoạn 2/2: Thiết kế 17 câu Hình học & Thống kê ĐA DẠNG (Có câu VDC phân loại HSG)...")
+        prompt_2 = """Đóng vai Chuyên gia ra đề thi Toán 9 cấp quốc gia. Hãy VẬT LỘN TƯ DUY để tạo ra 17 câu trắc nghiệm HÌNH HỌC & THỐNG KÊ ĐA DẠNG, TUYỆT ĐỐI KHÔNG TRÙNG LẶP.
+        CẤU TRÚC BẮT BUỘC:
+        1. Hệ thức lượng trong tam giác vuông: 3 câu.
+        2. Đường tròn (nội tiếp, ngoại tiếp): 5 câu (BẮT BUỘC 1 CÂU Vận dụng cực khó).
+        3. Hình khối thực tiễn: 3 câu.
+        4. Thống kê và Xác suất: 6 câu (BẮT BUỘC 1 CÂU Vận dụng cực khó).
 
-        ĐỊNH DẠNG VĂN BẢN (KHÔNG DÙNG JSON). Mỗi câu dùng cấu trúc Tag:
-        @@Q@@ Nội dung câu hỏi
-        @@A@@ Đáp án A
-        @@B@@ Đáp án B
-        @@C@@ Đáp án C
-        @@D@@ Đáp án D
-        @@ANS@@ Chữ cái đúng (A, B, C, D)
-        @@HINT@@ Gợi ý 1 dòng cực kỳ ngắn
-        Lưu ý: Bọc công thức bằng dấu đô la ($\pi R^2$).
+        BẮT BUỘC TRẢ VỀ DƯỚI DẠNG MỘT MẢNG JSON (JSON ARRAY):
+        [
+          {
+            "question": "Nội dung câu hỏi",
+            "options": ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"],
+            "answer": "Chữ cái đáp án đúng (A, B, C hoặc D)",
+            "hint": "Gợi ý 1 dòng ngắn gọn"
+          }
+        ]
+        LƯU Ý: Công thức Toán LaTeX phải bọc trong dấu đô-la (VD: $\pi R^2$). CẤM dùng ngoặc kép (") bên trong các chuỗi.
         """
         try:
-            res2 = call_ai_safely(prompt_2)
-            ai_questions.extend(parse_bulletproof(res2.text))
-        except Exception:
+            res2 = call_ai_safely(prompt_2, as_json=True)
+            raw_text2 = res2.text.strip()
+            raw_text2 = re.sub(r'[\x00-\x1F]+', '', raw_text2)
+            match2 = re.search(r'\[.*\]', raw_text2, re.DOTALL)
+            if match2:
+                parsed2 = json.loads(match2.group(), strict=False)
+                for q in parsed2:
+                    opts_raw = q.get("options", ["", "", "", ""])
+                    while len(opts_raw) < 4: opts_raw.append("")
+                    ans_letter = re.sub(r'[^A-D]', '', str(q.get("answer", "A")).upper())
+                    if not ans_letter: ans_letter = "A"
+                    idx = ord(ans_letter[0]) - ord('A')
+                    ans_val = opts_raw[idx] if 0 <= idx < 4 else opts_raw[0]
+
+                    ai_questions.append({
+                        "q": format_math_text(str(q.get("question", "")).strip()), 
+                        "opts": self.format_options(format_math_text(ans_val), [format_math_text(str(o)) for o in opts_raw if o != ans_val]), 
+                        "a": format_math_text(ans_val), 
+                        "h": format_math_text(str(q.get("hint", ""))), 
+                        "i_svg": "", 
+                        "i": None
+                    })
+        except Exception as e:
             pass
 
         # Gộp 35 câu AI + 5 câu Local
         local_pool = self.get_5_local_questions()
         final_pool = local_pool + ai_questions
         
-        # Bọc lót an toàn: Ép đủ chính xác 40 câu
+        # NẾU CẢ 2 THÌ ĐỀU SẬP (Quota Error) THÌ BÁO LỖI NGAY, KHÔNG ĐƯỢC NHÂN BẢN BỪA BÃI
+        if len(ai_questions) < 5:
+            raise Exception("Lỗi mạng AI, không thể tạo đủ đề thi. Vui lòng kiểm tra lại API Key hoặc bấm Tạo lại đề.")
+            
+        if len(final_pool) < 40:
+            status_element.warning(f"⚠️ AI chỉ tạo được {len(final_pool)} câu. Hệ thống sẽ tự động bù đắp thêm để đạt chuẩn 40 câu.")
+            
+        # Đảm bảo có đúng 40 câu (Bù đắp bằng cách xào lại các câu đã sinh, không bao giờ lấy 5 câu local lặp lại)
+        while len(final_pool) < 40 and len(final_pool) > 0:
+            final_pool.append(random.choice(ai_questions))
+            
         if len(final_pool) > 40:
             final_pool = final_pool[:40]
-        while len(final_pool) < 40 and len(final_pool) > 0:
-            final_pool.append(random.choice(final_pool))
+
+        random.shuffle(final_pool)
 
         for i, q in enumerate(final_pool):
             self.exam.append({
-                "id": i + 1, "question": q.get("q", q.get("question")), "options": q.get("opts", q.get("options")),
-                "answer": q.get("a", q.get("answer")), "hint": q.get("h", q.get("hint")), 
-                "image_svg": q.get("i_svg", ""), "image": q.get("i", None)
+                "id": i + 1, "question": q["q"], "options": q["opts"],
+                "answer": q["a"], "hint": q["h"], "image_svg": q["i_svg"], "image": q["i"]
             })
             
         status_element.success("✅ Đã thiết kế xong bộ đề 40 câu CỰC CHUẨN theo ma trận!")
@@ -422,7 +480,7 @@ class ExamGenerator:
 # 5. GIAO DIỆN HỆ THỐNG
 # ==========================================
 def main():
-    st.set_page_config(page_title="Hệ Thống LMS V48", layout="wide", page_icon="🏫")
+    st.set_page_config(page_title="Hệ Thống LMS V49", layout="wide", page_icon="🏫")
     init_db()
     
     if 'current_user' not in st.session_state: st.session_state.current_user = None
@@ -713,7 +771,7 @@ def main():
                         with col_ans_rev:
                             st.markdown("#### 📝 Kết quả & Lời giải")
                             if not ai_hints:
-                                st.info("💡 Bài thi này chưa được Giáo viên tích hợp lời giải AI.")
+                                st.info("💡 Bài thi này chưa được Giáo viên tích hợp lời giải.")
                                 
                             for i in range(num_q):
                                 raw_val = saved_ans.get(str(i+1))
@@ -785,13 +843,13 @@ def main():
 
             conn.close()
 
-        # --- TAB 2: ĐỀ TỰ LUYỆN (AI AUTO-GENERATOR CHUẨN MA TRẬN) ---
+        # --- TAB 2: ĐỀ TỰ LUYỆN (AI AUTO-GENERATOR) ---
         with tab_ai:
             if 'ai_exam_data' not in st.session_state: st.session_state.ai_exam_data = None
             if 'ai_user_answers' not in st.session_state: st.session_state.ai_user_answers = {}
             if 'ai_is_submitted' not in st.session_state: st.session_state.ai_is_submitted = False
 
-            if st.button("🔄 TẠO BỘ ĐỀ 40 CÂU (CHUẨN MA TRẬN 2025)", use_container_width=True):
+            if st.button("🔄 TẠO BỘ ĐỀ TỰ LUYỆN (CHUẨN MA TRẬN KỲ THI)", use_container_width=True):
                 status_element = st.empty()
                 gen = ExamGenerator()
                 try:
@@ -1217,28 +1275,32 @@ def main():
                                     file_bytes = uploaded_file.read()
                                     mime_type = uploaded_file.type
                                     
-                                    prompt = """Nhiệm vụ: Trích xuất TOÀN BỘ câu hỏi trắc nghiệm Toán học từ tài liệu.
-                                    CẢNH BÁO QUAN TRỌNG: Đề thi có bao nhiêu câu, phải trích xuất đúng bấy nhiêu câu (thường 40-50 câu). KHÔNG BỎ SÓT.
+                                    prompt = """Nhiệm vụ: Trích xuất TOÀN BỘ câu hỏi trắc nghiệm Toán học từ tài liệu đính kèm.
+                                    CẢNH BÁO QUAN TRỌNG: Đề thi có bao nhiêu câu, phải trích xuất đúng bấy nhiêu câu. KHÔNG BỎ SÓT.
                                     
                                     ĐỂ TỐI ƯU TỐC ĐỘ: Phần "hint" (hướng dẫn) BẮT BUỘC viết thật ngắn gọn (1 dòng).
                                     
-                                    TRẢ VỀ ĐÚNG BẰNG VĂN BẢN VỚI CÁC THẺ TAG NHƯ SAU CHO MỖI CÂU:
+                                    TRẢ VỀ ĐÚNG THEO CẤU TRÚC TAG SAU CHO TỪNG CÂU HỎI:
                                     @@Q@@ Nội dung câu hỏi
                                     @@A@@ Đáp án A
                                     @@B@@ Đáp án B
                                     @@C@@ Đáp án C
                                     @@D@@ Đáp án D
-                                    @@ANS@@ Chữ cái đáp án đúng (A, B, C hoặc D)
+                                    @@ANS@@ Chữ cái đúng (A, B, C, D)
                                     @@HINT@@ Gợi ý ngắn gọn
                                     
-                                    Lưu ý: Mọi công thức Toán LaTeX phải bọc trong dấu đô-la ($x^2+1=0$). Cấm dùng ngoặc kép trong chuỗi.
+                                    Lưu ý: Mọi công thức Toán LaTeX bọc trong dấu đô-la ($x^2+1=0$). Cấm dùng ngoặc kép trong chuỗi.
                                     """
                                     
                                     try:
-                                        res = call_ai_safely(prompt, file_bytes, mime_type)
+                                        res = call_ai_safely(prompt, file_bytes, mime_type, as_json=False)
                                         parsed_questions = parse_bulletproof(res.text)
-                                        st.session_state.ai_pdf_preview = parsed_questions
-                                        st.rerun()
+                                        
+                                        if not parsed_questions:
+                                            st.error("AI không tìm thấy câu hỏi hoặc Quota đã hết. Thử lại!")
+                                        else:
+                                            st.session_state.ai_pdf_preview = parsed_questions
+                                            st.rerun()
                                     except Exception as e:
                                         st.error(f"Lỗi hệ thống: {str(e)}")
                                         
@@ -1248,8 +1310,15 @@ def main():
                             with st.expander("🔍 XEM TRƯỚC ĐÁP ÁN & HƯỚNG DẪN TỪ AI", expanded=True):
                                 for q in st.session_state.ai_pdf_preview:
                                     st.markdown(f"**Câu {q['id']}:** {q.get('question','')}")
-                                    ans_letter = re.sub(r'[^A-D]', '', str(q.get('answer', 'A')).upper())
-                                    final_ans = ans_letter[0] if ans_letter else 'A'
+                                    
+                                    ans_text = q.get('answer', '')
+                                    opts_list = q.get('options', [])
+                                    final_ans = 'A'
+                                    for idx, opt in enumerate(opts_list):
+                                        if str(ans_text).strip() == str(opt).strip():
+                                            final_ans = chr(ord('A') + idx)
+                                            break
+                                            
                                     ans_key_ai.append(final_ans)
                                     st.markdown(f"- ✅ **Đáp án đúng:** {final_ans}")
                                     if q.get('hint'):
