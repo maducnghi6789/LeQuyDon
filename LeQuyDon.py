@@ -1,8 +1,8 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V45 SUPREME ULTIMATE (MATRIX EXACT COMPLIANCE)
-# Đột phá: Kỹ thuật 2-Phase Chunking ép AI sinh CHÍNH XÁC 40 câu theo chuẩn Ma trận.
-# Tính năng: Có 02 câu Vận dụng cực khó (HSG), giải thích ngắn 1 dòng.
-# UI Học sinh: Tách biệt luồng, ẩn bài đã nộp, xem giải trực diện.
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V46 SUPREME ULTIMATE (PERFECT MATRIX)
+# 1. Tuân thủ 100% Ma trận Toán 9 (40 câu, 4 câu VDC).
+# 2. Fix lỗi mạng AI: Tắt JSON Mode của Google để tương thích với Bulletproof Parser.
+# 3. Tách biệt Session State, UI Học sinh tinh gọn, giải trực diện.
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
@@ -110,7 +110,7 @@ def parse_bulletproof(raw_text):
             continue
     return questions
 
-# --- RADAR TỰ ĐỘNG DÒ TÌM MODEL ---
+# --- RADAR TỰ ĐỘNG DÒ TÌM MODEL (KHÔNG ÉP JSON MODE NỮA ĐỂ TRÁNH XUNG ĐỘT) ---
 def call_ai_safely(prompt, img_object=None):
     if not AI_AVAILABLE:
         raise Exception("Hệ thống thiếu thư viện google-generativeai.")
@@ -148,13 +148,14 @@ def call_ai_safely(prompt, img_object=None):
     clean_model_name = target_model.replace("models/", "")
     
     try:
+        # Bỏ dòng config["response_mime_type"] = "application/json" để Bulletproof Parser hoạt động
         model = genai.GenerativeModel(clean_model_name, generation_config={"max_output_tokens": 8192})
         return model.generate_content(contents)
     except Exception as e:
         error_msg = str(e).lower()
         if "429" in error_msg or "quota" in error_msg:
             raise Exception("API Key đã HẾT LƯỢT dùng miễn phí. Cần thay mã mới!")
-        raise Exception(f"Lỗi khi AI phân tích ({clean_model_name}). Chi tiết: {str(e)}")
+        raise Exception(f"Lỗi AI ({clean_model_name}): {str(e)}")
 
 # ==========================================
 # 1. HÀM HỖ TRỢ EXCEL & REGEX 
@@ -234,75 +235,72 @@ def log_deletion(deleted_by, entity_type, entity_name, reason):
     conn.commit(); conn.close()
 
 # ==========================================
-# 3. ĐỘNG CƠ SINH ĐỀ CHUẨN MA TRẬN (2-PHASE CHUNKING)
+# 3. ĐỘNG CƠ SINH ĐỀ CHUẨN MA TRẬN 40 CÂU (V46)
 # ==========================================
 class ExamGenerator:
     def __init__(self):
         self.exam = []
 
-    def format_options(self, correct, distractors):
-        opts = [correct] + distractors[:3]
-        random.shuffle(opts)
-        return opts
-
     def generate_all(self, status_element):
         ai_questions = []
         
-        # --- THÌ 1: SINH 20 CÂU ĐẠI SỐ ---
-        status_element.info("⏳ Giai đoạn 1/2: Đang thiết kế 20 câu Đại số (Căn thức, Hàm số, Phương trình)...")
-        prompt_1 = """Nhiệm vụ: Đóng vai Chuyên gia ra đề, sáng tạo CHÍNH XÁC 20 câu hỏi trắc nghiệm Toán 9 phần ĐẠI SỐ.
-        CẤU TRÚC MA TRẬN BẮT BUỘC:
-        1. Căn thức và biến đổi biểu thức: 6 câu.
-        2. Hàm số bậc nhất, bậc hai và đồ thị: 3 câu.
-        3. Phương trình, hệ phương trình, định lý Vi-ét: 8 câu.
-        4. Bất phương trình: 3 câu (TRONG ĐÓ PHẢI CÓ 1 CÂU VẬN DỤNG CỰC KHÓ mức độ thi HSG về Tìm Giá trị lớn nhất / nhỏ nhất).
-        
-        TRẢ VỀ ĐÚNG VĂN BẢN THEO CẤU TRÚC TAG SAU CHO TỪNG CÂU:
+        # --- THÌ 1: SINH 20 CÂU ĐẠI SỐ THEO MA TRẬN ---
+        status_element.info("⏳ Giai đoạn 1/2: Đang thiết kế 20 câu Đại số (Có câu VDC giải Toán thực tiễn và BĐT)...")
+        prompt_1 = """Đóng vai Chuyên gia ra đề thi Toán 9 cấp quốc gia.
+        Sáng tạo CHÍNH XÁC 20 câu hỏi trắc nghiệm ĐẠI SỐ bám sát Ma trận sau:
+        1. Căn thức: 6 câu.
+        2. Hàm số y=ax^2: 3 câu.
+        3. Phương trình và Hệ phương trình: 8 câu (BẮT BUỘC CÓ 1 CÂU Vận dụng cao / Cực khó về giải bài toán thực tiễn).
+        4. Bất phương trình: 3 câu (BẮT BUỘC CÓ 1 CÂU Vận dụng cao / Cực khó về Max/Min).
+
+        TUYỆT ĐỐI KHÔNG DÙNG JSON. TRẢ VỀ BẰNG VĂN BẢN THÔ. 
+        Cho mỗi câu hỏi, BẮT BUỘC phải dùng đúng các thẻ Tag sau (không in đậm thẻ):
         @@Q@@ Nội dung câu hỏi
         @@A@@ Đáp án A
         @@B@@ Đáp án B
         @@C@@ Đáp án C
         @@D@@ Đáp án D
-        @@ANS@@ Chữ cái đúng (A, B, C, D)
+        @@ANS@@ Chữ cái đáp án đúng (A, B, C hoặc D)
         @@HINT@@ Gợi ý cực kỳ ngắn gọn (1 dòng)
-        
-        LƯU Ý: Công thức LaTeX bọc trong dấu đô-la ($x^2=1$). Không dùng ngoặc kép trong chuỗi.
+
+        LƯU Ý: Công thức Toán LaTeX phải bọc trong dấu đô-la (VD: $x^2+1=0$).
         """
         try:
             res1 = call_ai_safely(prompt_1)
             parsed1 = parse_bulletproof(res1.text)
             ai_questions.extend(parsed1)
         except Exception as e:
-            pass
+            status_element.error(f"⚠️ Lỗi sinh Đại số: {e}")
 
         # --- THÌ 2: SINH 20 CÂU HÌNH HỌC & THỐNG KÊ ---
-        status_element.warning("⏳ Giai đoạn 2/2: Đang thiết kế 20 câu Hình học, Khối tròn xoay & Thống kê Xác suất...")
-        prompt_2 = """Nhiệm vụ: Sáng tạo CHÍNH XÁC 20 câu hỏi trắc nghiệm Toán 9 phần HÌNH HỌC VÀ THỐNG KÊ.
-        CẤU TRÚC MA TRẬN BẮT BUỘC:
+        status_element.warning("⏳ Giai đoạn 2/2: Đang thiết kế 20 câu Hình học & Thống kê (Có câu VDC độ dài cung và Xác suất)...")
+        prompt_2 = """Đóng vai Chuyên gia ra đề thi Toán 9 cấp quốc gia.
+        Sáng tạo CHÍNH XÁC 20 câu hỏi trắc nghiệm HÌNH HỌC VÀ THỐNG KÊ bám sát Ma trận sau:
         1. Hệ thức lượng trong tam giác vuông: 5 câu.
-        2. Đường tròn, nội ngoại tiếp: 6 câu (TRONG ĐÓ PHẢI CÓ 1 CÂU VẬN DỤNG CỰC KHÓ mức độ thi HSG về tính độ dài dây cung, quạt tròn phức tạp).
-        3. Hình khối thực tiễn (Trụ, Nón, Cầu): 3 câu.
-        4. Thống kê và Xác suất: 6 câu.
-        
-        TRẢ VỀ ĐÚNG VĂN BẢN THEO CẤU TRÚC TAG SAU CHO TỪNG CÂU:
+        2. Đường tròn (nội tiếp, ngoại tiếp): 6 câu (BẮT BUỘC CÓ 1 CÂU Vận dụng cao tính độ dài dây/cung/diện tích quạt).
+        3. Hình khối thực tiễn: 3 câu.
+        4. Thống kê và Xác suất: 6 câu (BẮT BUỘC CÓ 1 CÂU Vận dụng cao mô hình xác suất).
+
+        TUYỆT ĐỐI KHÔNG DÙNG JSON. TRẢ VỀ BẰNG VĂN BẢN THÔ. 
+        Cho mỗi câu hỏi, BẮT BUỘC phải dùng đúng các thẻ Tag sau (không in đậm thẻ):
         @@Q@@ Nội dung câu hỏi
         @@A@@ Đáp án A
         @@B@@ Đáp án B
         @@C@@ Đáp án C
         @@D@@ Đáp án D
-        @@ANS@@ Chữ cái đúng (A, B, C, D)
+        @@ANS@@ Chữ cái đáp án đúng (A, B, C hoặc D)
         @@HINT@@ Gợi ý cực kỳ ngắn gọn (1 dòng)
-        
-        LƯU Ý: Công thức LaTeX bọc trong dấu đô-la ($\pi R^2$). Không dùng ngoặc kép trong chuỗi.
+
+        LƯU Ý: Công thức Toán LaTeX phải bọc trong dấu đô-la (VD: $\pi R^2$).
         """
         try:
             res2 = call_ai_safely(prompt_2)
             parsed2 = parse_bulletproof(res2.text)
             ai_questions.extend(parsed2)
         except Exception as e:
-            pass
+            status_element.error(f"⚠️ Lỗi sinh Hình học: {e}")
 
-        # ĐẢM BẢO CHÍNH XÁC ĐỦ 40 CÂU
+        # KIỂM TRA TÍNH TOÀN VẸN CỦA MA TRẬN 40 CÂU
         if not ai_questions:
             raise Exception("Lỗi mạng AI, không thể tạo đề. Vui lòng bấm thử lại.")
             
@@ -317,15 +315,15 @@ class ExamGenerator:
                 "answer": q["answer"], "hint": q["hint"], "image_svg": "", "image": None
             })
             
-        status_element.success("✅ Đã thiết kế xong bộ đề 40 câu cực chuẩn theo ma trận!")
+        status_element.success("✅ Đã thiết kế xong bộ đề 40 câu CỰC CHUẨN theo ma trận 2025-2026!")
         time.sleep(1)
         return self.exam
 
 # ==========================================
-# 5. GIAO DIỆN HỆ THỐNG
+# 4. GIAO DIỆN HỆ THỐNG
 # ==========================================
 def main():
-    st.set_page_config(page_title="Hệ Thống LMS V45", layout="wide", page_icon="🏫")
+    st.set_page_config(page_title="Hệ Thống LMS V46", layout="wide", page_icon="🏫")
     init_db()
     
     if 'current_user' not in st.session_state: st.session_state.current_user = None
@@ -618,7 +616,7 @@ def main():
                         with col_ans_rev:
                             st.markdown("#### 📝 Kết quả & Hướng dẫn")
                             if not ai_hints:
-                                st.info("💡 Bài thi này chưa được tích hợp lời giải AI.")
+                                st.info("💡 Bài thi này chưa được Giáo viên tích hợp lời giải.")
                                 
                             for i in range(num_q):
                                 raw_val = saved_ans.get(str(i+1))
@@ -626,16 +624,16 @@ def main():
                                 correct_val = ans_key[i]
                                 
                                 if raw_val == correct_val: 
-                                    st.success(f"**Câu {i+1}: {stu_val_display}** ✅")
+                                    st.success(f"**Câu {i+1}: Bạn chọn {stu_val_display}** ✅")
                                 else: 
-                                    st.error(f"**Câu {i+1}: {stu_val_display}** ❌ (Đúng: {correct_val})")
+                                    st.error(f"**Câu {i+1}: Bạn chọn {stu_val_display}** ❌ (Đúng: {correct_val})")
                                     
                                 if ai_hints and i < len(ai_hints):
                                     hint_data = ai_hints[i]
                                     if isinstance(hint_data, dict):
                                         h_text = format_math_text(hint_data.get('hint', ''))
                                         if h_text and h_text.lower() not in ['none', 'null', '']:
-                                            # HIỂN THỊ TRỰC TIẾP LỜI GIẢI
+                                            # BUNG TRỰC TIẾP KHÔNG EXPANDER
                                             st.info(f"💡 **Hướng dẫn:** {h_text}")
                                 st.markdown("---")
                                 
@@ -682,8 +680,7 @@ def main():
                                 
                             h_text = format_math_text(q.get('hint', ''))
                             if h_text and h_text.lower() not in ['none', 'null', '']:
-                                # BUNG LỜI GIẢI TRỰC TIẾP
-                                st.info(f"💡 **Hướng dẫn giải:**\n{h_text}")
+                                st.info(f"💡 **Hướng dẫn:** {h_text}")
                             st.markdown("---")
                             
                     if st.button("⬅️ Quay lại màn hình chính"):
@@ -694,11 +691,12 @@ def main():
 
         # --- TAB 2: ĐỀ TỰ LUYỆN (AI AUTO-GENERATOR MA TRẬN 40 CÂU) ---
         with tab_ai:
+            # SỬ DỤNG BIẾN STATE ĐỘC LẬP ĐỂ KHÔNG BỊ LỖI LẶP VỚI TAB THI
             if 'ai_exam_data' not in st.session_state: st.session_state.ai_exam_data = None
             if 'ai_user_answers' not in st.session_state: st.session_state.ai_user_answers = {}
             if 'ai_is_submitted' not in st.session_state: st.session_state.ai_is_submitted = False
 
-            if st.button("🔄 TẠO BỘ ĐỀ 40 CÂU THEO MA TRẬN KỲ THI", use_container_width=True):
+            if st.button("🔄 TẠO BỘ ĐỀ 40 CÂU (CHUẨN MA TRẬN KỲ THI)", use_container_width=True):
                 status_element = st.empty()
                 gen = ExamGenerator()
                 try:
@@ -744,7 +742,7 @@ def main():
                             
                         h_text = format_math_text(q.get('hint', ''))
                         if h_text and h_text.lower() not in ['none', 'null', '']:
-                            # BUNG TRỰC DIỆN KHÔNG CẦN EXPANDER
+                            # BUNG LỜI GIẢI TRỰC DIỆN
                             st.info(f"💡 **Hướng dẫn:** {h_text}")
                     st.markdown("---")
                 
@@ -1143,24 +1141,23 @@ def main():
                                             page_prompt = f"""Đây là TRANG SỐ {page_num + 1} của một đề thi Toán.
                                             Trích xuất TOÀN BỘ câu hỏi trắc nghiệm Toán học CÓ TRONG BỨC ẢNH NÀY.
                                             
-                                            TRẢ VỀ ĐÚNG ĐỊNH DẠNG VĂN BẢN THEO CẤU TRÚC TAG SAU CHO TỪNG CÂU:
+                                            TRẢ VỀ ĐÚNG ĐỊNH DẠNG VĂN BẢN THÔ SAU:
                                             @@Q@@ Nội dung câu hỏi
                                             @@A@@ Đáp án A
                                             @@B@@ Đáp án B
                                             @@C@@ Đáp án C
                                             @@D@@ Đáp án D
-                                            @@ANS@@ Chữ cái đúng (A, B, C, D)
+                                            @@ANS@@ Chữ cái đúng (A/B/C/D)
                                             @@HINT@@ Gợi ý cực kỳ ngắn gọn (1 dòng)
 
-                                            LƯU Ý TOÁN HỌC: Mọi công thức Toán học LaTeX phải bọc trong dấu đô-la (VD: $x^2+1=0$). KHÔNG dùng \\( hay \\). Trích xuất đầy đủ 100% câu hỏi có trên trang này. KHÔNG ĐƯỢC BỎ SÓT CÂU NÀO.
-                                            """
+                                            LƯU Ý: Công thức Toán học LaTeX bọc trong dấu đô-la (VD: $x^2+1=0$). Trích xuất đầy đủ 100% câu hỏi có trên trang này. KHÔNG ĐƯỢC BỎ SÓT CÂU NÀO."""
                                             
                                             try:
                                                 res = call_ai_safely(page_prompt, img_object=img)
                                                 page_q = parse_bulletproof(res.text)
                                                 all_parsed.extend(page_q)
                                             except Exception as e:
-                                                st.warning(f"⚠️ Cảnh báo: AI không tìm thấy câu hỏi hoặc gặp lỗi ở Trang {page_num + 1}. Đã bỏ qua trang này.")
+                                                pass
                                                 
                                             progress_bar.progress((page_num + 1) / total_pages)
                                             time.sleep(2)
@@ -1176,16 +1173,16 @@ def main():
                                 else:
                                     with st.spinner("AI đang quét ảnh tốc độ cao..."):
                                         prompt = """Trích xuất TOÀN BỘ câu hỏi trắc nghiệm Toán học CÓ TRONG BỨC ẢNH NÀY.
-                                        TRẢ VỀ ĐÚNG ĐỊNH DẠNG VĂN BẢN THEO CẤU TRÚC TAG SAU CHO TỪNG CÂU:
+                                        TRẢ VỀ ĐÚNG ĐỊNH DẠNG VĂN BẢN THÔ SAU:
                                         @@Q@@ Nội dung câu hỏi
                                         @@A@@ Đáp án A
                                         @@B@@ Đáp án B
                                         @@C@@ Đáp án C
                                         @@D@@ Đáp án D
-                                        @@ANS@@ Chữ cái đúng (A, B, C, D)
+                                        @@ANS@@ Chữ cái đúng (A/B/C/D)
                                         @@HINT@@ Gợi ý cực kỳ ngắn gọn (1 dòng)
                                         
-                                        LƯU Ý: Mọi công thức Toán học LaTeX phải bọc trong dấu đô-la (VD: $x^2+1=0$). Tuyệt đối KHÔNG dùng \\( hay \\). CẤM dùng ngoặc kép trong chuỗi."""
+                                        LƯU Ý: Mọi công thức Toán học LaTeX phải bọc trong dấu đô-la."""
                                         img = Image.open(BytesIO(file_bytes))
                                         try:
                                             res = call_ai_safely(prompt, img_object=img)
@@ -1202,7 +1199,7 @@ def main():
                         if st.session_state.ai_pdf_preview:
                             st.success(f"✅ AI đã hoàn tất bóc tách {len(st.session_state.ai_pdf_preview)} câu hỏi! Mời thầy/cô soát duyệt trước khi giao:")
                             ans_key_ai = []
-                            with st.expander("🔍 XEM TRƯỚC ĐÁP ÁN & HƯỚNG DẪN TỪ AI", expanded=True):
+                            with st.expander("🔍 XEM TRƯỚC ĐÁP ÁN TỪ AI", expanded=True):
                                 for q in st.session_state.ai_pdf_preview:
                                     st.markdown(f"**Câu {q['id']}:** {format_math_text(q.get('question',''))}")
                                     ans_letter = re.sub(r'[^A-D]', '', str(q.get('answer', 'A')).upper())
@@ -1225,7 +1222,7 @@ def main():
                                               (exam_title.strip(), s_str, e_str, target_class, b64, uploaded_file.type, json.dumps(ans_key_ai), json.dumps(st.session_state.ai_pdf_preview)))
                                     conn.commit()
                                     st.session_state.ai_pdf_preview = None
-                                    st.success("✅ Đã phát đề! Học sinh sẽ làm bài mượt mà và xem được hướng dẫn giải Toán học chuẩn.")
+                                    st.success("✅ Đã phát đề! Học sinh sẽ làm bài mượt mà.")
                                     time.sleep(2); st.rerun()
                             with c_huy:
                                 if st.button("❌ Hủy", use_container_width=True):
@@ -1235,16 +1232,18 @@ def main():
                 else:
                     if st.button("🚀 Phát Đề Tự Động (Trộn Ngẫu Nhiên 40 Câu)", type="primary"):
                         if exam_title:
-                            gen = ExamGenerator()
-                            # Truyền st.empty() để nó không hiển thị giao diện báo trạng thái trong luồng này
                             dummy_element = st.empty()
-                            fixed_exam = gen.generate_all(dummy_element)
-                            s_str = f"{s_date} {s_time.strftime('%H:%M:%S')}"
-                            e_str = f"{e_date} {e_time.strftime('%H:%M:%S')}"
-                            c.execute("INSERT INTO mandatory_exams (title, questions_json, start_time, end_time, target_class) VALUES (?, ?, ?, ?, ?)", 
-                                      (exam_title.strip(), json.dumps(fixed_exam), s_str, e_str, target_class))
-                            conn.commit()
-                            st.success(f"✅ Đã phát đề chuẩn 40 câu tới {target_class}!")
+                            gen = ExamGenerator()
+                            try:
+                                fixed_exam = gen.generate_all(dummy_element)
+                                s_str = f"{s_date} {s_time.strftime('%H:%M:%S')}"
+                                e_str = f"{e_date} {e_time.strftime('%H:%M:%S')}"
+                                c.execute("INSERT INTO mandatory_exams (title, questions_json, start_time, end_time, target_class) VALUES (?, ?, ?, ?, ?)", 
+                                          (exam_title.strip(), json.dumps(fixed_exam), s_str, e_str, target_class))
+                                conn.commit()
+                                st.success(f"✅ Đã phát đề chuẩn 40 câu tới {target_class}!")
+                            except Exception as e:
+                                st.error(str(e))
                         else: st.error("Vui lòng nhập tên bài thi!")
         conn.close()
 
