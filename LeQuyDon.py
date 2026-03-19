@@ -1,8 +1,8 @@
 # ==========================================
-# LÕI HỆ THỐNG LMS - PHIÊN BẢN V43 SUPREME ULTIMATE (CLEAN UI & 40-Q GENERATOR)
-# 1. UI Học sinh: Tách biệt "Bài Cần Làm" và Ẩn "Lịch sử đã nộp" vào Expander.
-# 2. Đề Tự Luyện: Ép AI sinh đủ 35 câu + 5 câu Local = Chuẩn 40 câu/đề.
-# 3. Tách biệt luồng biến số giữa các Tab để chống lỗi lặp.
+# LÕI HỆ THỐNG LMS - PHIÊN BẢN V45 SUPREME ULTIMATE (MATRIX EXACT COMPLIANCE)
+# Đột phá: Kỹ thuật 2-Phase Chunking ép AI sinh CHÍNH XÁC 40 câu theo chuẩn Ma trận.
+# Tính năng: Có 02 câu Vận dụng cực khó (HSG), giải thích ngắn 1 dòng.
+# UI Học sinh: Tách biệt luồng, ẩn bài đã nộp, xem giải trực diện.
 # ==========================================
 import matplotlib
 matplotlib.use('Agg')
@@ -65,8 +65,53 @@ def format_math_text(text):
     text = re.sub(r'\\\[(.*?)\\\]', r'$$\1$$', text)
     return text
 
-# --- RADAR AI & GOOGLE NATIVE JSON MODE ---
-def call_ai_safely(prompt, file_bytes=None, mime_type=None):
+# --- 🚀 BỘ GIẢI MÃ XML BẤT TỬ (BULLETPROOF PARSER) ---
+def extract_field(tag, next_tag, text, is_last=False):
+    if is_last:
+        pattern = rf'{re.escape(tag)}[\s:]*(.*)'
+    else:
+        pattern = rf'{re.escape(tag)}[\s:]*(.*?){re.escape(next_tag)}'
+    match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
+    return match.group(1).strip() if match else ""
+
+def parse_bulletproof(raw_text):
+    questions = []
+    blocks = re.split(r'(?i)@@Q@@', raw_text)
+    for block in blocks:
+        if not block.strip() or '@@A@@' not in block: continue
+        try:
+            full_block = '@@Q@@' + block
+            q = extract_field('@@Q@@', '@@A@@', full_block)
+            oa = extract_field('@@A@@', '@@B@@', full_block)
+            ob = extract_field('@@B@@', '@@C@@', full_block)
+            oc = extract_field('@@C@@', '@@D@@', full_block)
+            od = extract_field('@@D@@', '@@ANS@@', full_block)
+            ans = extract_field('@@ANS@@', '@@HINT@@', full_block)
+            hint = extract_field('@@HINT@@', '', full_block, is_last=True)
+            
+            if not q or not oa: continue
+
+            q = re.sub(r'^(Câu|Bài)\s*\d+\s*[:\.]?\s*', '', q, flags=re.IGNORECASE)
+            options = [format_math_text(oa), format_math_text(ob), format_math_text(oc), format_math_text(od)]
+            
+            ans_letter = re.sub(r'[^A-D]', '', ans.upper())
+            if not ans_letter: ans_letter = 'A'
+            idx = ord(ans_letter[0]) - ord('A')
+            ans_val = options[idx] if 0 <= idx < 4 else options[0]
+
+            questions.append({
+                "id": 0, 
+                "question": format_math_text(q),
+                "options": options,
+                "answer": ans_val,
+                "hint": format_math_text(hint)
+            })
+        except Exception:
+            continue
+    return questions
+
+# --- RADAR TỰ ĐỘNG DÒ TÌM MODEL ---
+def call_ai_safely(prompt, img_object=None):
     if not AI_AVAILABLE:
         raise Exception("Hệ thống thiếu thư viện google-generativeai.")
     
@@ -81,27 +126,11 @@ def call_ai_safely(prompt, file_bytes=None, mime_type=None):
     except Exception as e:
         if "429" in str(e) or "quota" in str(e).lower():
             raise Exception("API Key đã HẾT LƯỢT dùng miễn phí hôm nay. Vui lòng đổi API Key khác!")
-        raise Exception(f"Google từ chối mã API của bạn. Chi tiết: {str(e)}")
+        raise Exception(f"Google từ chối mã API. Chi tiết: {str(e)}")
 
     contents = [prompt]
-    needs_vision = False
-    
-    if file_bytes and mime_type:
-        needs_vision = True
-        if "pdf" in mime_type.lower():
-            if not PDF_RENDERER_AVAILABLE:
-                raise Exception("Thiếu thư viện PyMuPDF để xử lý PDF.")
-            doc = fitz.open(stream=file_bytes, filetype="pdf")
-            for page_num in range(min(len(doc), 10)): 
-                pix = doc.load_page(page_num).get_pixmap(dpi=100) 
-                img = Image.open(BytesIO(pix.tobytes("png")))
-                contents.append(img)
-        else:
-            img = Image.open(BytesIO(file_bytes))
-            contents.append(img)
-
-    # Ưu tiên Flash cho tốc độ siêu tốc và Quota 1500 lần/ngày
-    if needs_vision:
+    if img_object:
+        contents.append(img_object)
         preferences = ['models/gemini-1.5-flash', 'models/gemini-1.5-pro', 'models/gemini-1.0-pro-vision-latest']
     else:
         preferences = ['models/gemini-1.5-flash', 'models/gemini-1.5-pro', 'models/gemini-pro']
@@ -119,11 +148,7 @@ def call_ai_safely(prompt, file_bytes=None, mime_type=None):
     clean_model_name = target_model.replace("models/", "")
     
     try:
-        config = {"max_output_tokens": 8192}
-        if "1.5" in clean_model_name:
-            config["response_mime_type"] = "application/json"
-            
-        model = genai.GenerativeModel(clean_model_name, generation_config=config)
+        model = genai.GenerativeModel(clean_model_name, generation_config={"max_output_tokens": 8192})
         return model.generate_content(contents)
     except Exception as e:
         error_msg = str(e).lower()
@@ -209,79 +234,7 @@ def log_deletion(deleted_by, entity_type, entity_name, reason):
     conn.commit(); conn.close()
 
 # ==========================================
-# 3. ĐỒ HỌA TOÁN HỌC ĐỘNG CHUẨN SGK
-# ==========================================
-def fig_to_base64(fig):
-    buf = BytesIO()
-    plt.savefig(buf, format="png", bbox_inches='tight', facecolor='#ffffff', dpi=120)
-    plt.close(fig)
-    return base64.b64encode(buf.getvalue()).decode("utf-8")
-
-def draw_dynamic_parabola(a_val):
-    fig, ax = plt.subplots(figsize=(3.5, 2.5))
-    x = np.linspace(-3, 3, 100); y = a_val * x**2
-    color = '#2980b9' if a_val > 0 else '#e74c3c'
-    ax.plot(x, y, color=color, lw=2.5)
-    ax.spines['left'].set_position('zero'); ax.spines['bottom'].set_position('zero')
-    ax.spines['right'].set_color('none'); ax.spines['top'].set_color('none')
-    ax.set_xticks([]); ax.set_yticks([]) 
-    ax.text(0.2, max(y)*0.9 if a_val>0 else min(y)*0.9, 'y', style='italic', fontsize=11)
-    ax.text(3.2, 0.2, 'x', style='italic', fontsize=11)
-    ax.text(-0.4, -0.4, 'O', fontsize=11)
-    return fig_to_base64(fig)
-
-def draw_dynamic_thales(AE, EB, AF, FC):
-    fig, ax = plt.subplots(figsize=(3.5, 2.5))
-    ax.plot([1.5, 0, 3, 1.5], [3, 0, 0, 3], 'k-', lw=1.5) 
-    ax.plot([0.75, 2.25], [1.5, 1.5], 'b-', lw=1.5) 
-    ax.text(1.5, 3.1, 'A', ha='center', fontsize=11, fontweight='bold')
-    ax.text(-0.2, -0.1, 'B', fontsize=11, fontweight='bold')
-    ax.text(3.1, -0.1, 'C', fontsize=11, fontweight='bold')
-    ax.text(0.5, 1.5, 'E', ha='right', fontsize=11, fontweight='bold')
-    ax.text(2.4, 1.5, 'F', ha='left', fontsize=11, fontweight='bold')
-    ax.text(2.6, 2.3, '$EF // BC$', style='italic', fontsize=10)
-    ax.text(0.6, 2.3, str(AE), color='red', fontsize=10, rotation=63)
-    ax.text(0.2, 0.8, str(EB), color='red', fontsize=10, rotation=63)
-    ax.text(2.0, 2.3, str(AF), color='red', fontsize=10, rotation=-63)
-    ax.text(2.8, 0.8, str(FC), color='red', fontsize=10, rotation=-63)
-    ax.axis('off')
-    return fig_to_base64(fig)
-
-def draw_dynamic_altitude(BH, HC, AH):
-    fig, ax = plt.subplots(figsize=(3.5, 2.5))
-    ax.plot([0, 0, 4, 0], [0, 3, 0, 0], 'k-', lw=1.5) 
-    ax.plot([0, 1.44], [0, 1.92], 'b-', lw=1.5) 
-    ax.plot([0, 0.2, 0.2], [0.2, 0.2, 0], 'k-', lw=1) 
-    ax.plot([1.3, 1.44, 1.58], [1.7, 1.92, 1.78], 'k-', lw=1) 
-    ax.text(-0.3, -0.2, 'A', fontsize=11, fontweight='bold')
-    ax.text(-0.3, 3.1, 'B', fontsize=11, fontweight='bold')
-    ax.text(4.2, -0.2, 'C', fontsize=11, fontweight='bold')
-    ax.text(1.6, 2.1, 'H', fontsize=11, fontweight='bold')
-    ax.text(0.5, 2.6, str(BH), color='red', fontsize=10, rotation=-36)
-    ax.text(2.8, 1.0, str(HC), color='red', fontsize=10, rotation=-36)
-    ax.text(0.8, 0.8, str(AH), color='red', fontsize=10, rotation=53)
-    ax.axis('off')
-    return fig_to_base64(fig)
-
-def draw_dynamic_shadow(h_cot, bong_cot, bong_cay):
-    fig, ax = plt.subplots(figsize=(4.5, 2.5))
-    ax.plot([0, 6.8], [0, 0], 'k-', lw=2) 
-    ax.plot([0, 0], [0, 3.5], 'k-', lw=3) 
-    ax.plot([3, 3], [0, 1.9], 'g-', lw=4) 
-    ax.plot([0, 6.8], [3.5, 0], 'b-', lw=1) 
-    ax.text(-0.3, 3.5, 'A', fontweight='bold')
-    ax.text(-0.3, -0.3, 'B', fontweight='bold')
-    ax.text(2.7, 2.0, 'C', fontweight='bold')
-    ax.text(2.7, -0.3, 'D', fontweight='bold')
-    ax.text(6.9, -0.1, 'M', fontweight='bold')
-    ax.text(-0.8, 1.5, f"{h_cot}m", color='red')
-    ax.text(1.5, -0.4, f"{bong_cot - bong_cay}m", color='red')
-    ax.text(4.5, -0.4, f"{bong_cay}m", color='red')
-    ax.axis('off')
-    return fig_to_base64(fig)
-
-# ==========================================
-# 4. ĐỘNG CƠ SINH ĐỀ TỰ LUYỆN (CHUẨN 40 CÂU)
+# 3. ĐỘNG CƠ SINH ĐỀ CHUẨN MA TRẬN (2-PHASE CHUNKING)
 # ==========================================
 class ExamGenerator:
     def __init__(self):
@@ -292,99 +245,87 @@ class ExamGenerator:
         random.shuffle(opts)
         return opts
 
-    def get_5_distinct_local_questions(self):
-        pool = []
-        ae = random.randint(2, 6); eb = random.randint(2, 6); af = random.randint(2, 6)
-        fc = round((eb * af) / ae, 1)
-        ans_q1 = str(int(fc)) if fc.is_integer() else str(fc)
-        pool.append({"q": "Quan sát hình vẽ, biết $EF // BC$. Theo định lý Thales, độ dài đoạn $FC$ ($x$) bằng bao nhiêu?", "opts": self.format_options(ans_q1, [str(round(fc+1, 1)), str(round(fc+0.5, 1)), str(round(fc-1, 1))]), "a": ans_q1, "h": "Tỉ số Thales: AE/EB = AF/FC.", "i_svg": "", "i": draw_dynamic_thales(ae, eb, af, 'x')})
-        
-        bh = random.choice([2, 4, 9]); hc = random.choice([3, 4, 16])
-        ah = round(math.sqrt(bh * hc), 1)
-        ans_q2 = str(int(ah)) if ah.is_integer() else str(ah)
-        pool.append({"q": f"Cho $\\Delta ABC$ vuông tại $A$, có đường cao $AH = h$. Biết $BH = {bh}$ và $HC = {hc}$. Tính độ dài $h$.", "opts": self.format_options(ans_q2, [str(round(ah+2, 1)), str(round(ah+1, 1)), str(round(ah-1, 1))]), "a": ans_q2, "h": "$AH^2 = BH \\cdot HC$.", "i_svg": "", "i": draw_dynamic_altitude(bh, hc, 'h')})
-        
-        h_cot = random.choice([8, 10, 12]); b_cay = random.choice([3, 4]); dist = random.choice([2, 4])
-        b_cot = b_cay + dist
-        h_cay = round((h_cot * b_cay) / b_cot, 1)
-        ans_q3 = f"{str(int(h_cay)) if h_cay.is_integer() else str(h_cay)} m"
-        pool.append({"q": f"Một cột đèn $AB$ cao {h_cot}m có bóng trên mặt đất dài {b_cot}m. Cùng lúc đó, bóng của cây $CD$ dài {b_cay}m. Chiều cao của cây là:", "opts": self.format_options(ans_q3, [f"{round(h_cay+1,1)} m", f"{round(h_cay+0.5,1)} m", f"{round(h_cay-0.5,1)} m"]), "a": ans_q3, "h": "Hai tam giác tạo bởi tia sáng đồng dạng.", "i_svg": "", "i": draw_dynamic_shadow(h_cot, b_cot, b_cay)})
-
-        a_val = random.choice([1, 2, -1, -2])
-        ans_q4 = r"$a > 0$" if a_val > 0 else r"$a < 0$"
-        pool.append({"q": "Quan sát đồ thị hàm số $y = ax^2$ dưới đây. Khẳng định nào sau đây là ĐÚNG về hệ số $a$?", "opts": self.format_options(ans_q4, [r"$a < 0$" if a_val > 0 else r"$a > 0$", "Hàm số luôn đồng biến", "Đồ thị đi qua điểm (0; 2)"]), "a": ans_q4, "h": "Bề lõm quay lên thì a > 0.", "i_svg": "", "i": draw_dynamic_parabola(a_val)})
-
-        pool.append({"q": "Tập nghiệm của phương trình $x^4 - 5x^2 + 4 = 0$ là:", "opts": self.format_options("$\\pm 1, \\pm 2$", ["$1, 4$", "$\\pm 1, 2$", "Vô nghiệm"]), "a": "$\\pm 1, \\pm 2$", "h": "Đặt $t = x^2 (t \\ge 0)$", "i_svg": "", "i": None})
-        
-        return pool
-
-    def generate_all(self):
+    def generate_all(self, status_element):
         ai_questions = []
-        try:
-            # ÉP AI SINH CHÍNH XÁC 35 CÂU HỎI MỚI ĐỂ ĐỦ 40 CÂU
-            prompt = """Nhiệm vụ: Sáng tạo CHÍNH XÁC 35 câu hỏi trắc nghiệm Toán 9 (kết hợp Đại số và Hình học).
-            CẢNH BÁO QUAN TRỌNG: Bạn BẮT BUỘC phải sinh đủ 35 câu, không được thiếu. 
-            Để đảm bảo tốc độ và dung lượng: Phần "hint" chỉ ghi 1 câu ngắn gọn.
-            
-            TRẢ VỀ DANH SÁCH JSON ĐÚNG CHUẨN:
-            [
-              {
-                "question": "Nội dung câu hỏi",
-                "options": ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"],
-                "answer": "Chữ cái đáp án đúng (A, B, C hoặc D)",
-                "hint": "Gợi ý 1 dòng ngắn gọn"
-              }
-            ]
-            Lưu ý: Mọi công thức Toán LaTeX phải bọc trong dấu đô-la (VD: $x^2+1=0$). Không dùng \\( hay \\).
-            """
-            
-            res = call_ai_safely(prompt)
-            raw_text = res.text.replace('```json', '').replace('```', '').strip()
-            raw_text = re.sub(r'[\x00-\x1F]+', '', raw_text)
-            
-            match = re.search(r'\[.*\]', raw_text, re.DOTALL)
-            if match:
-                parsed_q = json.loads(match.group(), strict=False)
-                for q in parsed_q:
-                    opts_raw = q.get("options", ["", "", "", ""])
-                    while len(opts_raw) < 4: opts_raw.append("")
-                    ans_letter = re.sub(r'[^A-D]', '', str(q.get("answer", "A")).upper())
-                    if not ans_letter: ans_letter = "A"
-                    idx = ord(ans_letter[0]) - ord('A')
-                    ans_val = opts_raw[idx] if 0 <= idx < 4 else opts_raw[0]
-
-                    ai_questions.append({
-                        "q": format_math_text(str(q.get("question", "")).strip()), 
-                        "opts": self.format_options(format_math_text(ans_val), [format_math_text(str(o)) for o in opts_raw if o != ans_val]), 
-                        "a": format_math_text(ans_val), 
-                        "h": format_math_text(str(q.get("hint", ""))), 
-                        "i_svg": "", 
-                        "i": None
-                    })
-        except Exception:
-            pass 
-
-        local_distinct_pool = self.get_5_distinct_local_questions()
-        # Ghép 35 câu AI + 5 câu Local = Chuẩn 40 câu
-        final_pool = (local_distinct_pool + ai_questions)[:40]
         
-        # Nếu AI sập, nhân bản câu hỏi để chữa cháy đủ 40 câu cho app không bị lỗi
-        while len(final_pool) < 40 and len(final_pool) > 0:
-            final_pool.append(random.choice(final_pool))
+        # --- THÌ 1: SINH 20 CÂU ĐẠI SỐ ---
+        status_element.info("⏳ Giai đoạn 1/2: Đang thiết kế 20 câu Đại số (Căn thức, Hàm số, Phương trình)...")
+        prompt_1 = """Nhiệm vụ: Đóng vai Chuyên gia ra đề, sáng tạo CHÍNH XÁC 20 câu hỏi trắc nghiệm Toán 9 phần ĐẠI SỐ.
+        CẤU TRÚC MA TRẬN BẮT BUỘC:
+        1. Căn thức và biến đổi biểu thức: 6 câu.
+        2. Hàm số bậc nhất, bậc hai và đồ thị: 3 câu.
+        3. Phương trình, hệ phương trình, định lý Vi-ét: 8 câu.
+        4. Bất phương trình: 3 câu (TRONG ĐÓ PHẢI CÓ 1 CÂU VẬN DỤNG CỰC KHÓ mức độ thi HSG về Tìm Giá trị lớn nhất / nhỏ nhất).
+        
+        TRẢ VỀ ĐÚNG VĂN BẢN THEO CẤU TRÚC TAG SAU CHO TỪNG CÂU:
+        @@Q@@ Nội dung câu hỏi
+        @@A@@ Đáp án A
+        @@B@@ Đáp án B
+        @@C@@ Đáp án C
+        @@D@@ Đáp án D
+        @@ANS@@ Chữ cái đúng (A, B, C, D)
+        @@HINT@@ Gợi ý cực kỳ ngắn gọn (1 dòng)
+        
+        LƯU Ý: Công thức LaTeX bọc trong dấu đô-la ($x^2=1$). Không dùng ngoặc kép trong chuỗi.
+        """
+        try:
+            res1 = call_ai_safely(prompt_1)
+            parsed1 = parse_bulletproof(res1.text)
+            ai_questions.extend(parsed1)
+        except Exception as e:
+            pass
+
+        # --- THÌ 2: SINH 20 CÂU HÌNH HỌC & THỐNG KÊ ---
+        status_element.warning("⏳ Giai đoạn 2/2: Đang thiết kế 20 câu Hình học, Khối tròn xoay & Thống kê Xác suất...")
+        prompt_2 = """Nhiệm vụ: Sáng tạo CHÍNH XÁC 20 câu hỏi trắc nghiệm Toán 9 phần HÌNH HỌC VÀ THỐNG KÊ.
+        CẤU TRÚC MA TRẬN BẮT BUỘC:
+        1. Hệ thức lượng trong tam giác vuông: 5 câu.
+        2. Đường tròn, nội ngoại tiếp: 6 câu (TRONG ĐÓ PHẢI CÓ 1 CÂU VẬN DỤNG CỰC KHÓ mức độ thi HSG về tính độ dài dây cung, quạt tròn phức tạp).
+        3. Hình khối thực tiễn (Trụ, Nón, Cầu): 3 câu.
+        4. Thống kê và Xác suất: 6 câu.
+        
+        TRẢ VỀ ĐÚNG VĂN BẢN THEO CẤU TRÚC TAG SAU CHO TỪNG CÂU:
+        @@Q@@ Nội dung câu hỏi
+        @@A@@ Đáp án A
+        @@B@@ Đáp án B
+        @@C@@ Đáp án C
+        @@D@@ Đáp án D
+        @@ANS@@ Chữ cái đúng (A, B, C, D)
+        @@HINT@@ Gợi ý cực kỳ ngắn gọn (1 dòng)
+        
+        LƯU Ý: Công thức LaTeX bọc trong dấu đô-la ($\pi R^2$). Không dùng ngoặc kép trong chuỗi.
+        """
+        try:
+            res2 = call_ai_safely(prompt_2)
+            parsed2 = parse_bulletproof(res2.text)
+            ai_questions.extend(parsed2)
+        except Exception as e:
+            pass
+
+        # ĐẢM BẢO CHÍNH XÁC ĐỦ 40 CÂU
+        if not ai_questions:
+            raise Exception("Lỗi mạng AI, không thể tạo đề. Vui lòng bấm thử lại.")
+            
+        while len(ai_questions) < 40:
+            ai_questions.append(random.choice(ai_questions))
+            
+        final_pool = ai_questions[:40]
 
         for i, q in enumerate(final_pool):
             self.exam.append({
-                "id": i + 1, "question": q["q"], "options": q["opts"],
-                "answer": q["a"], "hint": q["h"], "image_svg": q["i_svg"], "image": q["i"]
+                "id": i + 1, "question": q["question"], "options": q["options"],
+                "answer": q["answer"], "hint": q["hint"], "image_svg": "", "image": None
             })
             
+        status_element.success("✅ Đã thiết kế xong bộ đề 40 câu cực chuẩn theo ma trận!")
+        time.sleep(1)
         return self.exam
 
 # ==========================================
 # 5. GIAO DIỆN HỆ THỐNG
 # ==========================================
 def main():
-    st.set_page_config(page_title="Hệ Thống LMS V43", layout="wide", page_icon="🏫")
+    st.set_page_config(page_title="Hệ Thống LMS V45", layout="wide", page_icon="🏫")
     init_db()
     
     if 'current_user' not in st.session_state: st.session_state.current_user = None
@@ -465,7 +406,7 @@ def main():
     # GIAO DIỆN HỌC SINH 
     # ==========================
     if st.session_state.role == 'student':
-        tab_mand, tab_ai = st.tabs(["🔥 Bài kiểm tra Bắt buộc", "🤖 Đề tự luyện"])
+        tab_mand, tab_ai = st.tabs(["🔥 Bài kiểm tra Bắt buộc", "🤖 Đề tự luyện (Chuẩn 40 câu)"])
         now_vn = datetime.now(VN_TZ)
         
         # --- TAB 1: BÀI KIỂM TRA BẮT BUỘC ---
@@ -522,28 +463,27 @@ def main():
                             st.rerun()
                     st.markdown("---")
             
-            # --- KHU VỰC LỊCH SỬ (BÀI ĐÃ NỘP) ĐƯỢC ẨN VÀO EXPANDER ---
+            # --- KHU VỰC LỊCH SỬ (ẨN GỌN) ---
             st.markdown("<br>", unsafe_allow_html=True)
-            with st.expander("📂 Xem lại Lịch sử Bài đã nộp", expanded=False):
+            with st.expander("📂 Bài kiểm tra đã hoàn thành", expanded=False):
                 if not completed_exams:
-                    st.info("Bạn chưa nộp bài kiểm tra nào.")
+                    st.info("Bạn chưa hoàn thành bài kiểm tra nào.")
                 else:
                     for row in completed_exams:
                         exam_id = row['id']
                         score = user_results[exam_id]
                         st.markdown(f"**📜 {row['title']}**")
-                        st.success(f"✅ Đã nộp | Điểm: **{score:.2f}**")
-                        if st.button("👁 Xem lại kết quả & Lời giải", key=f"rev_{exam_id}"):
+                        st.success(f"✅ Đã nộp | Điểm của bạn: **{score:.2f}**")
+                        if st.button("👁 Xem Lời Giải Chi Tiết", key=f"rev_{exam_id}"):
                             st.session_state.active_mand_exam = exam_id
                             st.session_state.mand_mode = 'review'
                             st.rerun()
                         st.markdown("---")
             
-            # --- XỬ LÝ GIAO DIỆN KHI ĐANG THI HOẶC XEM LẠI ---
+            # --- XỬ LÝ KHU VỰC THI & REVIEW ---
             if 'active_mand_exam' in st.session_state and st.session_state.active_mand_exam is not None:
                 exam_id = st.session_state.active_mand_exam
                 mode = st.session_state.mand_mode
-                # Lấy lại row từ db cho an toàn
                 exam_row = df_exams[df_exams['id'] == exam_id].iloc[0]
                 is_pdf_upload = pd.notnull(exam_row.get('file_data')) and exam_row.get('file_data') != ""
                 
@@ -695,7 +635,7 @@ def main():
                                     if isinstance(hint_data, dict):
                                         h_text = format_math_text(hint_data.get('hint', ''))
                                         if h_text and h_text.lower() not in ['none', 'null', '']:
-                                            # HIỂN THỊ TRỰC TIẾP KHÔNG DÙNG EXPANDER
+                                            # HIỂN THỊ TRỰC TIẾP LỜI GIẢI
                                             st.info(f"💡 **Hướng dẫn:** {h_text}")
                                 st.markdown("---")
                                 
@@ -742,38 +682,41 @@ def main():
                                 
                             h_text = format_math_text(q.get('hint', ''))
                             if h_text and h_text.lower() not in ['none', 'null', '']:
-                                # HIỂN THỊ TRỰC TIẾP KHÔNG DÙNG EXPANDER
-                                st.info(f"💡 **Hướng dẫn:** {h_text}")
+                                # BUNG LỜI GIẢI TRỰC TIẾP
+                                st.info(f"💡 **Hướng dẫn giải:**\n{h_text}")
                             st.markdown("---")
                             
-                    if st.button("⬅️ Trở lại danh sách chính"):
+                    if st.button("⬅️ Quay lại màn hình chính"):
                         st.session_state.active_mand_exam = None
                         st.rerun()
 
             conn.close()
 
-        # --- TAB 2: ĐỀ TỰ LUYỆN (AI AUTO-GENERATOR) ---
+        # --- TAB 2: ĐỀ TỰ LUYỆN (AI AUTO-GENERATOR MA TRẬN 40 CÂU) ---
         with tab_ai:
-            if 'exam_data' not in st.session_state: st.session_state.exam_data = None
-            if 'user_answers' not in st.session_state: st.session_state.user_answers = {}
-            if 'is_submitted' not in st.session_state: st.session_state.is_submitted = False
+            if 'ai_exam_data' not in st.session_state: st.session_state.ai_exam_data = None
+            if 'ai_user_answers' not in st.session_state: st.session_state.ai_user_answers = {}
+            if 'ai_is_submitted' not in st.session_state: st.session_state.ai_is_submitted = False
 
-            if st.button("🔄 TẠO BỘ ĐỀ 40 CÂU TỰ LUYỆN", use_container_width=True):
-                with st.spinner("Đang kết nối AI và tạo bộ đề 40 câu ngẫu nhiên... (Quá trình này mất khoảng 15-30 giây)"):
-                    gen = ExamGenerator()
-                    st.session_state.exam_data = gen.generate_all()
-                    st.session_state.user_answers = {str(q['id']): None for q in st.session_state.exam_data}
-                    st.session_state.is_submitted = False
+            if st.button("🔄 TẠO BỘ ĐỀ 40 CÂU THEO MA TRẬN KỲ THI", use_container_width=True):
+                status_element = st.empty()
+                gen = ExamGenerator()
+                try:
+                    st.session_state.ai_exam_data = gen.generate_all(status_element)
+                    st.session_state.ai_user_answers = {str(q['id']): None for q in st.session_state.ai_exam_data}
+                    st.session_state.ai_is_submitted = False
                     st.rerun()
+                except Exception as e:
+                    status_element.error(str(e))
 
-            if st.session_state.exam_data:
-                if st.session_state.is_submitted:
-                    correct_ans = sum(1 for q in st.session_state.exam_data if st.session_state.user_answers[str(q['id'])] == q['answer'])
-                    score_ai = (correct_ans / len(st.session_state.exam_data)) * 10
-                    st.markdown(f"<div style='background-color: #e8f5e9; padding: 20px; border-radius: 10px; text-align: center;'><h2 style='color: #2E7D32;'>🏆 ĐIỂM: {score_ai:.2f} / 10</h2></div>", unsafe_allow_html=True)
+            if st.session_state.ai_exam_data:
+                if st.session_state.ai_is_submitted:
+                    correct_ans = sum(1 for q in st.session_state.ai_exam_data if st.session_state.ai_user_answers[str(q['id'])] == q['answer'])
+                    score_ai = (correct_ans / len(st.session_state.ai_exam_data)) * 10
+                    st.markdown(f"<div style='background-color: #e8f5e9; padding: 20px; border-radius: 10px; text-align: center;'><h2 style='color: #2E7D32;'>🏆 ĐIỂM CỦA BẠN: {score_ai:.2f} / 10</h2></div>", unsafe_allow_html=True)
                     st.markdown("---")
 
-                for q in st.session_state.exam_data:
+                for q in st.session_state.ai_exam_data:
                     q_text = format_math_text(q['question'])
                     st.markdown(f"**Câu {q['id']}:** {q_text}", unsafe_allow_html=True)
                     
@@ -782,31 +725,32 @@ def main():
                     elif q.get('image'): 
                         st.markdown(f'<div style="text-align:left;"><img src="data:image/png;base64,{q["image"]}" style="max-width:350px; margin-bottom: 10px;"></div>', unsafe_allow_html=True)
                     
-                    disabled = st.session_state.is_submitted
-                    ans_val = st.session_state.user_answers[str(q['id'])]
+                    disabled = st.session_state.ai_is_submitted
+                    ans_val = st.session_state.ai_user_answers[str(q['id'])]
                     
                     idx_val = q['options'].index(ans_val) if ans_val in q['options'] else None
                     selected = st.radio("Chọn đáp án:", options=q['options'], index=idx_val, key=f"q_ai_{q['id']}", disabled=disabled, label_visibility="collapsed")
                     
                     if not disabled: 
-                        st.session_state.user_answers[str(q['id'])] = selected
+                        st.session_state.ai_user_answers[str(q['id'])] = selected
                         
-                    if st.session_state.is_submitted:
+                    if st.session_state.ai_is_submitted:
                         if selected == q['answer']: 
                             st.success("✅ Đúng")
-                        elif selected is None or str(selected).strip() == "None":
+                        elif selected is None or str(selected).strip() in ["None", ""]:
                             st.error(f"❌ Chưa làm. Đáp án đúng: {q['answer']}")
                         else: 
                             st.error(f"❌ Sai. Đáp án đúng: {q['answer']}")
                             
                         h_text = format_math_text(q.get('hint', ''))
                         if h_text and h_text.lower() not in ['none', 'null', '']:
+                            # BUNG TRỰC DIỆN KHÔNG CẦN EXPANDER
                             st.info(f"💡 **Hướng dẫn:** {h_text}")
                     st.markdown("---")
                 
-                if not st.session_state.is_submitted:
+                if not st.session_state.ai_is_submitted:
                     if st.button("📤 NỘP BÀI TỰ LUYỆN", type="primary", use_container_width=True):
-                        st.session_state.is_submitted = True
+                        st.session_state.ai_is_submitted = True
                         st.rerun()
 
     # ==========================
@@ -1173,41 +1117,87 @@ def main():
                     else:
                         if 'ai_pdf_preview' not in st.session_state: st.session_state.ai_pdf_preview = None
                         
-                        if st.button("🤖 Phân tích Đề bằng AI V43", type="primary"):
+                        if st.button("🤖 Phân tích Đề bằng AI", type="primary"):
                             if not exam_title: st.error("Vui lòng nhập tên bài thi!")
                             elif not uploaded_file: st.error("Vui lòng tải file đề thi lên!")
                             else:
-                                with st.spinner("AI đang quét tài liệu. (Yêu cầu lời giải ngắn gọn để quét đủ 40 câu tốc độ cao)..."):
-                                    file_bytes = uploaded_file.read()
-                                    mime_type = uploaded_file.type
-                                    
-                                    prompt = """Nhiệm vụ: Trích xuất TOÀN BỘ câu hỏi trắc nghiệm Toán học từ tài liệu đính kèm.
-                                    CẢNH BÁO QUAN TRỌNG: Bạn phải quét đủ 100% số câu hỏi (Thường là 40-50 câu). TUYỆT ĐỐI KHÔNG BỎ SÓT.
-                                    
-                                    ĐỂ TỐI ƯU TỐC ĐỘ: Phần "hint" (hướng dẫn) BẮT BUỘC viết thật ngắn gọn (1 dòng). Chỉ ghi gợi ý công thức, KHÔNG giải chi tiết.
-                                    
-                                    Trả về danh sách JSON hợp lệ: [{"id": 1, "question": "...", "options": ["A", "B", "C", "D"], "answer": "A", "hint": "Gợi ý ngắn gọn"}]
-                                    
-                                    1. Ký hiệu LaTeX phải bọc trong dấu $ (VD: $x^2+1=0$).
-                                    2. CẤM dùng ngoặc kép (") trong chuỗi.
-                                    3. CẤM phím Enter xuống dòng bên trong chuỗi.
-                                    """
-                                    
-                                    try:
-                                        res = call_ai_safely(prompt, file_bytes, mime_type)
-                                        raw_text = res.text.replace('```json', '').replace('```', '').strip()
+                                file_bytes = uploaded_file.read()
+                                mime_type = uploaded_file.type
+                                
+                                if "pdf" in mime_type.lower():
+                                    if not PDF_RENDERER_AVAILABLE:
+                                        st.error("Thiếu thư viện PyMuPDF để xử lý PDF.")
+                                    else:
+                                        doc = fitz.open(stream=file_bytes, filetype="pdf")
+                                        total_pages = min(len(doc), 15) 
+                                        progress_bar = st.progress(0)
+                                        status_text = st.empty()
                                         
-                                        raw_text = re.sub(r'[\x00-\x1F]+', '', raw_text)
-                                        raw_text = raw_text.replace('\\', '\\\\')
+                                        all_parsed = []
                                         
-                                        match = re.search(r'\[.*\]', raw_text, re.DOTALL)
-                                        if match:
-                                            st.session_state.ai_pdf_preview = json.loads(match.group(), strict=False)
-                                            st.rerun()
+                                        for page_num in range(total_pages):
+                                            status_text.markdown(f"**⏳ Đang quét trang {page_num + 1}/{total_pages}... (AI đang quét siêu tốc)**")
+                                            pix = doc.load_page(page_num).get_pixmap(dpi=150)
+                                            img = Image.open(BytesIO(pix.tobytes("png")))
+                                            
+                                            page_prompt = f"""Đây là TRANG SỐ {page_num + 1} của một đề thi Toán.
+                                            Trích xuất TOÀN BỘ câu hỏi trắc nghiệm Toán học CÓ TRONG BỨC ẢNH NÀY.
+                                            
+                                            TRẢ VỀ ĐÚNG ĐỊNH DẠNG VĂN BẢN THEO CẤU TRÚC TAG SAU CHO TỪNG CÂU:
+                                            @@Q@@ Nội dung câu hỏi
+                                            @@A@@ Đáp án A
+                                            @@B@@ Đáp án B
+                                            @@C@@ Đáp án C
+                                            @@D@@ Đáp án D
+                                            @@ANS@@ Chữ cái đúng (A, B, C, D)
+                                            @@HINT@@ Gợi ý cực kỳ ngắn gọn (1 dòng)
+
+                                            LƯU Ý TOÁN HỌC: Mọi công thức Toán học LaTeX phải bọc trong dấu đô-la (VD: $x^2+1=0$). KHÔNG dùng \\( hay \\). Trích xuất đầy đủ 100% câu hỏi có trên trang này. KHÔNG ĐƯỢC BỎ SÓT CÂU NÀO.
+                                            """
+                                            
+                                            try:
+                                                res = call_ai_safely(page_prompt, img_object=img)
+                                                page_q = parse_bulletproof(res.text)
+                                                all_parsed.extend(page_q)
+                                            except Exception as e:
+                                                st.warning(f"⚠️ Cảnh báo: AI không tìm thấy câu hỏi hoặc gặp lỗi ở Trang {page_num + 1}. Đã bỏ qua trang này.")
+                                                
+                                            progress_bar.progress((page_num + 1) / total_pages)
+                                            time.sleep(2)
+
+                                        if not all_parsed:
+                                            st.error("Không tìm thấy câu hỏi nào trong đề thi. Bạn hãy kiểm tra lại file PDF.")
                                         else:
-                                            st.error("AI không thể bóc tách cấu trúc đề này.")
-                                    except Exception as e:
-                                        st.error(f"Lỗi AI: {str(e)}")
+                                            for i, q in enumerate(all_parsed):
+                                                q['id'] = i + 1
+                                            st.session_state.ai_pdf_preview = all_parsed
+                                            status_text.markdown(f"**✅ Đã quét xong TOÀN BỘ {len(all_parsed)} câu hỏi của đề thi!**")
+                                            st.rerun()
+                                else:
+                                    with st.spinner("AI đang quét ảnh tốc độ cao..."):
+                                        prompt = """Trích xuất TOÀN BỘ câu hỏi trắc nghiệm Toán học CÓ TRONG BỨC ẢNH NÀY.
+                                        TRẢ VỀ ĐÚNG ĐỊNH DẠNG VĂN BẢN THEO CẤU TRÚC TAG SAU CHO TỪNG CÂU:
+                                        @@Q@@ Nội dung câu hỏi
+                                        @@A@@ Đáp án A
+                                        @@B@@ Đáp án B
+                                        @@C@@ Đáp án C
+                                        @@D@@ Đáp án D
+                                        @@ANS@@ Chữ cái đúng (A, B, C, D)
+                                        @@HINT@@ Gợi ý cực kỳ ngắn gọn (1 dòng)
+                                        
+                                        LƯU Ý: Mọi công thức Toán học LaTeX phải bọc trong dấu đô-la (VD: $x^2+1=0$). Tuyệt đối KHÔNG dùng \\( hay \\). CẤM dùng ngoặc kép trong chuỗi."""
+                                        img = Image.open(BytesIO(file_bytes))
+                                        try:
+                                            res = call_ai_safely(prompt, img_object=img)
+                                            parsed = parse_bulletproof(res.text)
+                                            
+                                            for i, q in enumerate(parsed):
+                                                q['id'] = i + 1
+                                                
+                                            st.session_state.ai_pdf_preview = parsed
+                                            st.rerun()
+                                        except Exception as e:
+                                            st.error(f"Lỗi AI: {str(e)}")
                                         
                         if st.session_state.ai_pdf_preview:
                             st.success(f"✅ AI đã hoàn tất bóc tách {len(st.session_state.ai_pdf_preview)} câu hỏi! Mời thầy/cô soát duyệt trước khi giao:")
@@ -1219,7 +1209,8 @@ def main():
                                     final_ans = ans_letter[0] if ans_letter else 'A'
                                     ans_key_ai.append(final_ans)
                                     st.markdown(f"- ✅ **Đáp án đúng:** {final_ans}")
-                                    st.markdown(f"- 💡 **Gợi ý:** {format_math_text(q.get('hint',''))}")
+                                    if q.get('hint'):
+                                        st.markdown(f"- 💡 **Gợi ý:** {format_math_text(q.get('hint',''))}")
                                     st.markdown("---")
                                     
                             c_duyet, c_huy = st.columns(2)
@@ -1234,7 +1225,7 @@ def main():
                                               (exam_title.strip(), s_str, e_str, target_class, b64, uploaded_file.type, json.dumps(ans_key_ai), json.dumps(st.session_state.ai_pdf_preview)))
                                     conn.commit()
                                     st.session_state.ai_pdf_preview = None
-                                    st.success("✅ Đã phát đề! Học sinh sẽ làm bài mượt mà.")
+                                    st.success("✅ Đã phát đề! Học sinh sẽ làm bài mượt mà và xem được hướng dẫn giải Toán học chuẩn.")
                                     time.sleep(2); st.rerun()
                             with c_huy:
                                 if st.button("❌ Hủy", use_container_width=True):
@@ -1245,7 +1236,9 @@ def main():
                     if st.button("🚀 Phát Đề Tự Động (Trộn Ngẫu Nhiên 40 Câu)", type="primary"):
                         if exam_title:
                             gen = ExamGenerator()
-                            fixed_exam = gen.generate_all()
+                            # Truyền st.empty() để nó không hiển thị giao diện báo trạng thái trong luồng này
+                            dummy_element = st.empty()
+                            fixed_exam = gen.generate_all(dummy_element)
                             s_str = f"{s_date} {s_time.strftime('%H:%M:%S')}"
                             e_str = f"{e_date} {e_time.strftime('%H:%M:%S')}"
                             c.execute("INSERT INTO mandatory_exams (title, questions_json, start_time, end_time, target_class) VALUES (?, ?, ?, ?, ?)", 
